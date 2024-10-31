@@ -4,7 +4,7 @@ import Image from "next/image";
 import { Container } from "@/components/Container";
 import { Menu, MenuButton } from "@headlessui/react";
 import { ChevronRightIcon } from "@heroicons/react/24/outline";
-import heroImg from "../public/assets/img/agromarket-hero.png";
+import heroImg from "../public/assets/img/agromarket-hero1.png";
 
 export const Hero = () => {
   return (
