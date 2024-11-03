@@ -38,7 +38,7 @@ const Navbar = () => {
 
               {/* Logo */}
               <div className="ml-4 flex lg:ml-0">
-                <Link href="#">
+                <Link href="/">
                   <span className="sr-only">Your Company</span>
                   <Image
                     alt="agromarket logo"
@@ -104,11 +104,11 @@ const Navbar = () => {
 
               <div className="ml-auto flex items-center">
                 <div className="hidden lg:flex lg:flex-1 lg:items-center lg:justify-end lg:space-x-6">
-                  <Link href="#" className="text-sm font-medium text-gray-700 hover:text-gray-800">
+                  <Link href="signin" className="text-sm font-medium text-gray-700 hover:text-gray-800">
                     Sign in
                   </Link>
                   <span aria-hidden="true" className="h-6 w-px bg-gray-200" />
-                  <Link href="#" className="text-sm font-medium text-gray-700 hover:text-gray-800">
+                  <Link href="signup" className="text-sm font-medium text-gray-700 hover:text-gray-800">
                     Create account
                   </Link>
                 </div>
