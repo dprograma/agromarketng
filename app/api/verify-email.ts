@@ -1,21 +1,29 @@
-// pages/api/verify-email.ts
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import prisma from '@/lib/prisma';
 
 export async function GET(req: NextRequest) {
-  const { token } = req.query;
+  // Use `nextUrl.searchParams` to get the token from the query string
+  const token = req.nextUrl.searchParams.get('token');
 
-  if (!token) return new NextResponse('Verification token is missing', { status: 400 });
+  if (!token) {
+    return NextResponse.json(
+      { message: 'Verification token is missing' },
+      { status: 400 }
+    );
+  }
 
   try {
-    const decoded = jwt.verify(token as string, process.env.JWT_SECRET!);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!);
 
-    if (typeof decoded !== 'object' || !decoded.userId) {
-      return new NextResponse('Invalid token', { status: 400 });
+    if (typeof decoded !== 'object' || !('userId' in decoded)) {
+      return NextResponse.json(
+        { message: 'Invalid token' },
+        { status: 400 }
+      );
     }
 
-    const userId = decoded.userId;
+    const userId = parseInt((decoded as { userId: string }).userId, 10);
 
     // Update the user to set verified as true
     await prisma.user.update({
@@ -23,8 +31,14 @@ export async function GET(req: NextRequest) {
       data: { verified: true },
     });
 
-    return new NextResponse('Email verified successfully!', { status: 200 });
+    return NextResponse.json(
+      { message: 'Email verified successfully!' },
+      { status: 200 }
+    );
   } catch (error) {
-    return new NextResponse('Invalid or expired token', { status: 400 });
+    return NextResponse.json(
+      { message: 'Invalid or expired token' },
+      { status: 400 }
+    );
   }
 }
