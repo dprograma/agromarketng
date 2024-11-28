@@ -3,9 +3,7 @@ import GoogleProvider from 'next-auth/providers/google';
 import FacebookProvider from 'next-auth/providers/facebook';
 import TwitterProvider from 'next-auth/providers/twitter';
 import { PrismaAdapter } from '@next-auth/prisma-adapter';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '@/lib/prisma';
 
 const authOptions: NextAuthOptions = {
   providers: [
@@ -30,30 +28,34 @@ const authOptions: NextAuthOptions = {
   ],
   adapter: PrismaAdapter(prisma),
   secret: process.env.NEXTAUTH_SECRET,
+  debug: process.env.NODE_ENV === "development",
   callbacks: {
-    async signIn({ user, account, profile }) {
-      try {
-        const existingUser = await prisma.user.findUnique({ where: { email: user.email as string} });
-        if (!existingUser) {
-          await prisma.user.create({
-            data: {
-              name: user.name as string,
-              email: user.email as string,
-              password: account?.password as string,
-              provider: account?.provider,
-              providerId: typeof account?.id === 'string' ? account.id : null,
-            },
-          });
-        }
-        return true;
-      } catch (error) {
-        console.error('Error during signIn callback:', error);
+    async signIn({ user, account }) {
+      console.log("User:", user);
+      console.log("Account:", account);
+  
+      if (!user.email) {
+        console.error("Sign-in error: Missing email");
         return false;
       }
+  
+      return true;
+    },
+  },
+  
+  cookies: {
+    sessionToken: {
+      name: `__Secure-next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
     },
   },
 };
 
 const handler = NextAuth(authOptions);
 
-export {handler as GET, handler as POST};
+export { handler as GET, handler as POST };

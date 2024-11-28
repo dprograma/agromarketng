@@ -15,13 +15,44 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
+  id        String   @id @default(cuid())
   name      String   @db.VarChar(255)
   email     String   @unique @db.VarChar(255)
-  password  String   @db.VarChar(255)
-  provider     String?  @db.VarChar(255)
-  providerId   String?  @db.VarChar(255)
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  password  String?   @db.VarChar(255)
   verified  Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  provider          String
+  providerAccountId String
+  type              String
+  refresh_token     String?  // Optional
+  access_token      String?  // Optional
+  expires_at        Int?     // Optional
+  user              User     @relation(fields: [userId], references: [id])
+
+  @@unique([provider, providerAccountId]) 
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+  @@unique([identifier, token])
 }
