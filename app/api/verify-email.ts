@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const userId = decoded as { userId: string };
+    const userId = decoded.userId;
 
     // Update the user to set verified as true
     await prisma.user.update({
