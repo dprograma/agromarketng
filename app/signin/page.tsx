@@ -74,6 +74,12 @@ export default function SigninPage() {
           </button>
         </form>
 
+        <p className="text-center text-sm text-gray-600">
+          <a href="/forgotPassword" className="text-green-600 hover:underline">
+          Forgot password?{" "}
+          </a>
+        </p>
+
         {/* Social Media Signup */}
         <div className="flex items-center justify-center space-x-3 mt-4">
           <span className="text-gray-500">Or sign up with</span>

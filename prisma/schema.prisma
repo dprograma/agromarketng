@@ -37,6 +37,9 @@ model Account {
   refresh_token     String?  // Optional
   access_token      String?  // Optional
   expires_at        Int?     // Optional
+  scope             String?  // Optional
+  token_type        String?  // Optional
+  id_token          String?  // Optional
   user              User     @relation(fields: [userId], references: [id])
 
   @@unique([provider, providerAccountId]) 

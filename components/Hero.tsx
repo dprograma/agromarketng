@@ -26,7 +26,7 @@ export const Hero = () => {
         <div className="mx-auto max-w-2xl py-32 sm:py-48 lg:py-56 text-center">
           <Menu as="div" className="hidden sm:mb-8 sm:flex sm:justify-center">
             <MenuButton className="relative rounded-full px-3 py-1 text-sm leading-6 text-white ring-1 ring-white/50 hover:ring-white/70">
-              Join our farmers’ community. <a href="#" className="font-semibold text-yellow-400 ml-1">Sign up now<span className="ml-1" aria-hidden="true"><ChevronRightIcon className="h-4 w-4 inline" /></span></a>
+              Join our farmers’ community. <a href="signup" className="font-semibold text-yellow-400 ml-1">Sign up now<span className="ml-1" aria-hidden="true"><ChevronRightIcon className="h-4 w-4 inline" /></span></a>
             </MenuButton>
           </Menu>
 
