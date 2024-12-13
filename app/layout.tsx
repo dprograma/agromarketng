@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
+import SessionWrapper from '@/components/SessionWrapper';
 import "./globals.css";
-
 
 export const metadata: Metadata = {
   title: "AgroMarket Nigeria | Buy and Sell Agricultural Products",
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport = "width=device-width, initial-scale=1.0"; 
+export const viewport = "width=device-width, initial-scale=1.0";
 
 export default function RootLayout({
   children,
@@ -55,8 +55,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="relative">
-        {children}
-        
+        <SessionWrapper>
+          {children}
+        </SessionWrapper>
       </body>
     </html>
   );

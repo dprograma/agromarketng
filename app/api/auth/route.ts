@@ -70,3 +70,53 @@ export async function PUT(req: NextRequest) {
 
   return jsonResponse(200, { message: 'Login successful', token });
 }
+
+// POST: Forgot Password
+export async function FORGOT(req: NextRequest) {
+  const { email } = await req.json();
+
+  // Check if user exists
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) return jsonResponse(404, { error: 'User not found' });
+
+  // Generate a reset token
+  const resetToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: '1h' });
+
+  // Send reset email
+  const resetUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/reset-password?token=${resetToken}`;
+  await transporter.sendMail({
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: 'Password Reset Request',
+    html: `<p>Hi,</p>
+           <p>You requested a password reset. Click the link below to reset your password:</p>
+           <a href="${resetUrl}">Reset Password</a>
+           <p>If you did not request this, please ignore this email.</p>`,
+  });
+
+  return jsonResponse(200, { message: 'Password reset link sent to your email' });
+}
+
+// POST: Reset Password
+export async function RESET(req: NextRequest) {
+  const { token, newPassword } = await req.json();
+
+  try {
+    // Verify token
+    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
+    const userId = decoded.userId;
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update user's password
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    return jsonResponse(200, { message: 'Password reset successfully' });
+  } catch (error) {
+    return jsonResponse(400, { error: 'Invalid or expired token' });
+  }
+}
