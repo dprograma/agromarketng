@@ -1,13 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { FaFacebook, FaGoogle, FaTwitter } from 'react-icons/fa';
 import authImgBg from '../../public/assets/img/auth-background.jpg';
 import heroImg from '../../public/assets/img/agromarket-logo.png';
 import Link from 'next/link';
 import SocialLoginIcons from '@/components/SocialLoginIcons';
+import Alert from '@/components/Alerts';
+import { AlertsMsg } from '@/components/AlertsMsg';
 
 interface Errors {
   name?: string;
@@ -20,9 +20,11 @@ export default function SignupPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [alert, setAlert] = useState<boolean>(false);
+  const [alertMessage, setAlertMessage] = useState<string | undefined>();
+  const [alertType, setAlertType] = useState<string | undefined>();
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errors, setErrors] = useState<Errors>({});
-  const router = useRouter();
 
   const validateForm = () => {
     const newErrors: any = {};
@@ -62,26 +64,35 @@ export default function SignupPage() {
     e.preventDefault();
     if (!validateForm()) return;
 
-    const res = await fetch('/api/auth', {
+    const res = await fetch('/api/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, email, password }),
     });
-
     if (res.ok) {
-      router.push('/signin');
+      const data = await res.json();
+      const alert = 'success_signup'
+      const alertsResponse = AlertsMsg({ alert: alert || '' });
+      setAlert(true)
+      setAlertType(alertsResponse?.alertType);
+      setAlertMessage(alertsResponse?.alertMessage);
     } else {
-      console.log('Signup failed');
+      const alert = 'error_signup'
+      const alertsResponse = AlertsMsg({ alert: alert || '' });
+      setAlert(true)
+      setAlertType(alertsResponse?.alertType);
+      setAlertMessage(alertsResponse?.alertMessage);
     }
   };
 
   return (
     <div className="flex min-h-screen bg-gray-100">
+      {alert && <Alert message={alertMessage || ''} type={alertType || ''} /> }
       <div className="w-full max-w-md p-8 space-y-6 bg-white shadow-lg rounded-lg mx-auto my-20 lg:w-1/2">
         <div className="flex justify-center inset-0"><Link href="/"><Image src={heroImg} alt="logo" className="h-8 w-auto" /></Link></div>
         <h2 className="text-3xl font-bold text-center text-green-700">Create an Account</h2>
         <p className="text-center text-gray-500">Start your journey with us today!</p>
-        
+
         <form onSubmit={handleSignup} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-gray-700">Full Name</label>
@@ -90,7 +101,7 @@ export default function SignupPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="John Doe"
-              className="w-full px-4 py-2 mt-1 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-green-400"
+              className="w-full px-4 py-2 mt-1 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-green-400 text-gray-700"
             />
             {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
           </div>
@@ -102,7 +113,7 @@ export default function SignupPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="john@example.com"
-              className="w-full px-4 py-2 mt-1 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-green-400"
+              className="w-full px-4 py-2 mt-1 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-green-400 text-gray-700"
             />
             {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
           </div>
@@ -114,7 +125,7 @@ export default function SignupPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full px-4 py-2 mt-1 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-green-400"
+              className="w-full px-4 py-2 mt-1 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-green-400 text-gray-700"
             />
             {errors.password && <p className="text-red-500 text-sm">{errors.password}</p>}
           </div>
@@ -126,7 +137,7 @@ export default function SignupPage() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full px-4 py-2 mt-1 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-green-400"
+              className="w-full px-4 py-2 mt-1 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-green-400 text-gray-700"
             />
             {errors.confirmPassword && <p className="text-red-500 text-sm">{errors.confirmPassword}</p>}
           </div>
@@ -142,7 +153,7 @@ export default function SignupPage() {
         <div className="flex items-center justify-center space-x-3 mt-4">
           <span className="text-gray-500">Or sign up with</span>
         </div>
-        <SocialLoginIcons/>
+        <SocialLoginIcons />
 
         <p className="text-center text-sm text-gray-600">
           Already have an account?{" "}

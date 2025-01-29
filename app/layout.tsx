@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import SessionWrapper from '@/components/SessionWrapper';
+import { cookies } from 'next/headers';
+import jwt from 'jsonwebtoken';
+// import { SessionProvider } from "next-auth/react";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -45,17 +48,28 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport = "width=device-width, initial-scale=1.0";
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+
+  const sessionCookie = (await cookies()).get('next-auth.session-token')?.value;
+  let session = null;
+
+  if (sessionCookie) {
+    try {
+      session = jwt.verify(sessionCookie, process.env.NEXTAUTH_SECRET!); // Decode the token
+    } catch (err) {
+      console.error('Invalid session token:', err);
+    }
+  }
+
   return (
     <html lang="en">
       <body className="relative">
-        <SessionWrapper>
+        <SessionWrapper session={session}>
           {children}
         </SessionWrapper>
       </body>

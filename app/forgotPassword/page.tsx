@@ -12,8 +12,8 @@ const ForgotPassword = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        const res = await fetch('/api/auth/forgot', {
-            method: 'POST',
+        const res = await fetch('/api/auth', {
+            method: 'FORGOT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email }),
         });

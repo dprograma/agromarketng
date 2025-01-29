@@ -23,8 +23,8 @@ const ResetPassword = () => {
             return;
         }
 
-        const res = await fetch('/api/auth/reset', {
-            method: 'POST',
+        const res = await fetch('/api/auth', {
+            method: 'RESET',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token, newPassword }),
         });
@@ -33,7 +33,7 @@ const ResetPassword = () => {
         setMessage(data.message || data.error);
     };
 
-    return (
+    return ( 
         <div className="flex min-h-screen bg-gray-100">
             {/* Left Side Form */}
             <div className="w-full max-w-md p-8 space-y-6 bg-white shadow-lg rounded-lg mx-auto my-20 lg:w-1/2">

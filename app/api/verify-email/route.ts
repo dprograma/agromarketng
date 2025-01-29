@@ -3,13 +3,11 @@ import jwt from 'jsonwebtoken';
 import prisma from '@/lib/prisma';
 
 export async function GET(req: NextRequest) {
-  // Use `nextUrl.searchParams` to get the token from the query string
   const token = req.nextUrl.searchParams.get('token');
 
   if (!token) {
-    return NextResponse.json(
-      { message: 'Verification token is missing' },
-      { status: 400 }
+    return NextResponse.redirect(
+      new URL('/signin?alert=missing_token', req.nextUrl.origin)
     );
   }
 
@@ -17,9 +15,8 @@ export async function GET(req: NextRequest) {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!);
 
     if (typeof decoded !== 'object' || !('userId' in decoded)) {
-      return NextResponse.json(
-        { message: 'Invalid token' },
-        { status: 400 }
+      return NextResponse.redirect(
+        new URL('/signin?alert=invalid_token', req.nextUrl.origin)
       );
     }
 
@@ -31,14 +28,12 @@ export async function GET(req: NextRequest) {
       data: { verified: true },
     });
 
-    return NextResponse.json(
-      { message: 'Email verified successfully!' },
-      { status: 200 }
+    return NextResponse.redirect(
+      new URL('/signin?alert=success_token', req.nextUrl.origin)
     );
   } catch (error) {
-    return NextResponse.json(
-      { message: 'Invalid or expired token' },
-      { status: 400 }
+    return NextResponse.redirect(
+      new URL('/signin?alert=expired_token', req.nextUrl.origin)
     );
   }
 }
