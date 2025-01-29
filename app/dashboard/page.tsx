@@ -1,35 +1,31 @@
 "use client";
 
-import { useSession } from "next-auth/react"
-import { redirect } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useSession } from "@/components/SessionWrapper";
+import { Session } from '@/types';
+import DashboardLayout from '@/components/DashboardLayout';
+import DashboardMain from '@/components/DashboardMain';
 
-const dashboard = () => {
 
-    const { data:session, status } = useSession();
+export default function Dashboard() {
+    const session = useSession() as Session | null;
+    const router = useRouter();
 
-    let auth = {
-        isAuth: false,
-        name: '',
-        email: '',
-        image: '',
+    if (!session) {
+        router.push("/signin");
     }
-
-    if (session?.user) {
-        auth = {
-            isAuth: true,
-            name: session.user.name ?? '',
-            email: session.user.email ?? '',
-            image: session.user.image ?? '',
-        }
-    }
-
-    // if (status === 'authenticated') {
-    //     redirect('/dashboard');
-    // }
 
     return (
-        <div>{auth.isAuth? `Welcome ${auth.name}, You are ${status}` : 'Please sign in to access the dashboard.'}</div>
-    )
+        <div>
+            {session ? (
+                <>
+                    <DashboardLayout>
+                        <DashboardMain />
+                    </DashboardLayout>
+                </>
+            ) : (
+                <></>
+            )}
+        </div>
+    );
 }
-
-export default dashboard

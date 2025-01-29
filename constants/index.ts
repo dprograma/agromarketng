@@ -128,3 +128,9 @@ export const navigation = {
     ],
   };
   
+
+export const activities = [
+    { id: 1, description: "You posted a new ad: 'Fresh Organic Apples'", time: "2 hours ago" },
+    { id: 2, description: "Started a promotion for 'Premium Cattle Feed'", time: "1 day ago" },
+    { id: 3, description: "Boosted ad: 'Quality Farming Tools'", time: "3 days ago" },
+  ];
