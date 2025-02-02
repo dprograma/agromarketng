@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from "@/components/SessionWrapper";
+import { Session } from '@/types';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -21,6 +23,7 @@ export default function SigninPage() {
   const searchParams = useSearchParams();
   const alert = searchParams.get('alert');
   const router = useRouter();
+  const session = useSession() as Session | null;
 
   const alertsResponse = AlertsMsg({ alert: alert || '' });
   const { alertMessage = '', alertType = '' } = alertsResponse || {};
@@ -34,6 +37,10 @@ export default function SigninPage() {
     });
     const data = await res.json();
     if (res.ok) {
+      if (!session) {
+        router.push("/signin");
+      }
+      console.log("session data received: ", session);
       router.push('/dashboard');
     } else {
       const alert = 'invalid_login'

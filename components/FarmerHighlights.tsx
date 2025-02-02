@@ -1,3 +1,4 @@
+import React from "react";
 import Image from "next/image";
 import farmerHighlight1 from "../public/assets/img/farmer-highlight1.png";
 import farmerHighlight2 from "../public/assets/img/farmer-highlight2.png";

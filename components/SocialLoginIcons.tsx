@@ -1,3 +1,4 @@
+import React from "react";
 import { signIn } from 'next-auth/react';
 import { FaFacebook, FaGoogle, FaTwitter } from 'react-icons/fa';
 

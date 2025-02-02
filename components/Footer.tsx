@@ -1,6 +1,6 @@
+import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import React from "react";
 import logoImg from "../public/assets/img/agromarket-logo.png";
 import { Container } from "./Container";
 import { Twitter, Facebook, Instagram, Linkedin } from "./Icons"; 
