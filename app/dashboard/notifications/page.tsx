@@ -1,34 +1,41 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/components/SessionWrapper";
 import { Session } from '@/types';
 import DashboardLayout from '@/components/DashboardLayout';
-import NotificationsMain from '@/components/NotificationsMain';
-import { useEffect } from "react";
+import dynamic from "next/dynamic";
+
+// Lazy load NotificationsMain to reduce initial JS bundle size
+const NotificationsMain = dynamic(() => import("@/components/NotificationsMain"), { ssr: false });
 
 
 export default function Notifications() {
     const session = useSession() as Session | null;
     const router = useRouter();
+    const [isCheckingSession, setIsCheckingSession] = useState(true);
+    
+        useEffect(() => {
+            if (session !== undefined) {
+                setIsCheckingSession(false);
+            }
+        }, [session]);
+    
+        useEffect(() => {
+            if (!isCheckingSession && !session) {
+                router.replace("/signin"); 
+            }
+        }, [isCheckingSession, session, router]);
+    
+        if (isCheckingSession) {
+            return <p>Loading...</p>;
+        }
 
-    useEffect(() => {
-        if (!session) {
-        router.push("/signin");
-    }
-    }, [session, router]);  
 
     return (
-        <div>
-            {session ? (
-                <>
-                    <DashboardLayout>
-                        <NotificationsMain />
-                    </DashboardLayout>
-                </>
-            ) : (
-                <></>
-            )}
-        </div>
+        <DashboardLayout>
+            <NotificationsMain />
+        </DashboardLayout>
     );
 }

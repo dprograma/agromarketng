@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { CheckCircle, BarChart2, Clock, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils"; 
 import { boostOptions, subscriptionPlans } from "@/constants";

@@ -60,7 +60,7 @@ export default async function RootLayout({
 
   if (sessionCookie) {
     try {
-      session = jwt.verify(sessionCookie, process.env.NEXTAUTH_SECRET!); // Decode the token
+      session = jwt.verify(sessionCookie, process.env.NEXTAUTH_SECRET!); 
     } catch (err) {
       console.error('Invalid session token:', err);
     }

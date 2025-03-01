@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Bar, Pie, Doughnut } from "react-chartjs-2";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from "chart.js";
-import { DollarSign, Banknote, Coins, CreditCard, Wallet, PiggyBank } from "lucide-react";
+import { Banknote, Coins, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { adPerformance, demographics, financialData } from "@/constants";
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Menu, MenuItem, MenuButton, MenuItems } from "@headlessui/react";
 import { Settings } from "lucide-react";
@@ -26,25 +27,13 @@ export default function NavigationPanel() {
         return () => window.removeEventListener("resize", handleResize);
     }, []);
 
+
     const handleLogout = async () => {
-        try {
-            const response = await fetch("/api/logout", {
-                method: "POST",
-            });
-            if (response.ok) {
-                // Redirect the user to the sign-in page
-                router.push("/signin");
-            } else {
-                const data = await response.json();
-                console.error("Failed to log out");
-            }
-        } catch (error) {
-            console.error("An error occurred while logging out:", error);
-        }
+        await signOut({ callbackUrl: "/" }); // Redirect after logout
     };
 
     return (
-        <div className={`${isCollapsed ? (isMobile ? "w-20" : "w-24" ): (isMobile ? "absolute w-72 z-50" : "w-72")}
+        <div className={`${isCollapsed ? (isMobile ? "w-20" : "w-24") : (isMobile ? "absolute w-72 z-50" : "w-72")}
             } bg-green-700 text-white min-h-screen transition-all duration-300 flex flex-col overflow-y-auto`}>
             {/* Logo Section */}
             <div className="flex items-center justify-between px-4 py-3">
@@ -66,19 +55,19 @@ export default function NavigationPanel() {
                 <div className="flex justify-center items-center space-x-3">
 
                     {!isCollapsed ? (
-                        <div> 
+                        <div>
                             <Image
-                                src={fallbackImg} 
+                                src={fallbackImg}
                                 alt="User Avatar"
                                 width={40}
                                 height={40}
                                 className="rounded-full"
                             /><p className="font-semibold">John Doe</p>
-                                <p className="text-sm text-green-300">johndoe@example.com</p>
+                            <p className="text-sm text-green-300">johndoe@example.com</p>
                         </div>
-                    ): (<>
+                    ) : (<>
                         <Image
-                            src={fallbackImg} 
+                            src={fallbackImg}
                             alt="User Avatar"
                             width={40}
                             height={40}
@@ -110,7 +99,7 @@ export default function NavigationPanel() {
             <div className="px-4 py-3 border-t border-green-600 flex justify-center">
                 <Menu as="div" className="relative mt-3">
                     <MenuButton className="p-2 rounded hover:bg-green-800 w-full flex justify-center space-x-2">
-                        <Settings/>
+                        <Settings />
                         {!isCollapsed && <span>Settings</span>}
                     </MenuButton>
                     <MenuItems className="relative left-0 mt-2 bg-green-800 text-white rounded shadow-lg w-full overflow-y-auto max-h-60 z-50 transition duration-200 ease-in-out transform origin-top">
@@ -118,12 +107,12 @@ export default function NavigationPanel() {
                             <MenuItem key={index}>
                                 {({ active }) => (
                                     <button
-                                    onClick={item.action === "logout" ? handleLogout : () => router.push(item.route ?? "/dashboard")}
+                                        onClick={item.action === "logout" ? handleLogout : () => router.push(item.route ?? "/dashboard")}
 
                                         className={`flex items-center w-full px-4 py-2 gap-x-2 ${active ? "bg-green-600 text-white" : "hover:bg-green-700"}`}
                                     >
-                                         {<item.icon />}
-                                         {!isCollapsed && <span>{item.name}</span>}
+                                        {<item.icon />}
+                                        {!isCollapsed && <span>{item.name}</span>}
                                     </button>
                                 )}
                             </MenuItem>

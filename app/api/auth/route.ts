@@ -6,10 +6,9 @@ import nodemailer from 'nodemailer';
 import { MulterRequest } from "@/types";
 import prisma from '@/lib/prisma';
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/authOptions";
 import multer from "multer";
 import { NextApiRequest, NextApiResponse } from "next";
-import { SignInRequest } from '@/types';
 
 // Helper functions for JSON response
 const jsonResponse = (status: number, data: any) => new NextResponse(JSON.stringify(data), { status });
