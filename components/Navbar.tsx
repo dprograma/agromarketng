@@ -1,132 +1,212 @@
-"use client"
+"use client";
 
-import { Fragment, useState } from 'react'
-import { navigation } from '@/constants'
-import Image from 'next/image';
-import Link from 'next/link';
+import React, { useState } from "react";
+import { navigation } from "@/constants";
+import Image from "next/image";
+import Link from "next/link";
+import { useSession } from "@/components/SessionWrapper";
+import { Session } from "@/types";
+import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 import {
   Dialog,
-  DialogBackdrop,
   DialogPanel,
   Popover,
   PopoverButton,
   PopoverGroup,
   PopoverPanel,
-} from '@headlessui/react'
-import logoImg from '../public/assets/img/agromarket-logo.png';
-import { Bars3Icon, MagnifyingGlassIcon, ShoppingBagIcon, XMarkIcon } from '@heroicons/react/24/outline'
+  Menu,
+  MenuButton,
+  MenuItems,
+  MenuItem,
+} from "@headlessui/react";
+import {
+  Bars3Icon,
+  MagnifyingGlassIcon,
+  XMarkIcon,
+  UserCircleIcon,
+  Squares2X2Icon,
+  ArrowRightOnRectangleIcon,
+  ArrowLeftOnRectangleIcon,
+} from "@heroicons/react/24/outline";
+import logoImg from "../public/assets/img/agromarket-logo.png";
+import fallbackImg from "../public/assets/img/fallback.jpg";
 
 const Navbar = () => {
-  const [open, setOpen] = useState<boolean>(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const session = useSession() as Session | null;
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: "/" });
+    router.refresh();
+  };
 
   return (
     <>
-      <header className="relative bg-white">
-        <nav aria-label="Top" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <header className="relative bg-white shadow">
+        <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="border-b border-gray-200">
-            <div className="flex h-16 items-center">
+            <div className="flex h-16 items-center justify-between">
               {/* Mobile menu button */}
               <button
                 type="button"
-                onClick={() => setOpen(true)}
-                className="relative rounded-md bg-white p-2 text-gray-400 lg:hidden"
+                onClick={() => setMobileMenuOpen(true)}
+                className="lg:hidden rounded-md bg-white p-2 text-gray-400"
               >
-                <span className="absolute -inset-0.5" />
                 <span className="sr-only">Open menu</span>
-                <Bars3Icon aria-hidden="true" className="h-6 w-6" />
+                <Bars3Icon className="h-6 w-6" />
               </button>
 
               {/* Logo */}
-              <div className="ml-4 flex lg:ml-0">
+              <div className="flex-shrink-0">
                 <Link href="/">
-                  <span className="sr-only">Your Company</span>
-                  <Image
-                    alt="agromarket logo"
-                    src={logoImg}
-                    className="h-8 w-auto"
-                  />
+                  <Image alt="Agromarket Logo" src={logoImg} className="h-8 w-auto" />
                 </Link>
               </div>
 
-              {/* Flyout menus */}
-              <PopoverGroup className="hidden lg:ml-8 lg:block lg:self-stretch">
-                <div className="flex h-full space-x-8">
-                  {/* Products Popover (Contains all categories and subcategories) */}
-                  <Popover className="flex">
-                    <div className="relative flex">
-                      <PopoverButton className="relative z-10 -mb-px flex items-center border-b-2 border-transparent pt-px text-sm font-medium text-gray-700 hover:text-gray-800 focus:outline-none">
-                        Products
-                      </PopoverButton>
-                    </div>
-
-                    <PopoverPanel className="absolute inset-x-0 top-full text-sm text-gray-500">
-                      <div className="relative bg-white z-50">
-                        <div className="mx-auto max-w-7xl px-8">
-                          <div className="grid grid-cols-2 gap-x-8 gap-y-10 py-16">
-                            {/* Loop through categories */}
-                            {navigation.categories.map((category) => (
-                              <div key={category.id} className="col-span-1">
-                                <p className="font-medium text-gray-900">
-                                  {category.name}
-                                </p>
-                                {category.sections.map((section) => (
-                                  <div key={section.id} className="mt-4">
-                                    <p className="font-medium text-gray-700">{section.name}</p>
-                                    <ul className="mt-2 space-y-2">
-                                      {section.items.map((item) => (
-                                        <li key={item.name} className="text-gray-500 hover:text-gray-800">
-                                          <a href={item.href}>{item.name}</a>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                ))}
-                              </div>
+              {/* Desktop Navigation */}
+              <PopoverGroup className="hidden lg:flex lg:space-x-8">
+                {/* Modern Products Dropdown */}
+                <Popover className="relative">
+                  <PopoverButton className="text-sm font-medium text-gray-700 hover:text-gray-800">
+                    Products
+                  </PopoverButton>
+                  <PopoverPanel className="absolute left-0 z-50 mt-2 w-[500px] bg-white shadow-lg ring-1 ring-black ring-opacity-5 p-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      {navigation.categories.map((category) => (
+                        <div key={category.id}>
+                          <p className="font-medium text-gray-900 border-b pb-1">{category.name}</p>
+                          <ul className="mt-2 space-y-2">
+                            {category.sections.map((section) => (
+                              <li key={section.id}>
+                                <p className="text-gray-700 font-medium">{section.name}</p>
+                                <ul className="ml-4 mt-1 space-y-1">
+                                  {section.items.map((item) => (
+                                    <li key={item.name}>
+                                      <Link href={item.href} className="text-gray-500 hover:text-gray-800">
+                                        {item.name}
+                                      </Link>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </li>
                             ))}
-                          </div>
+                          </ul>
                         </div>
-                      </div>
-                    </PopoverPanel>
-                  </Popover>
+                      ))}
+                    </div>
+                  </PopoverPanel>
+                </Popover>
 
-                  {/* Other Navigation Pages */}
-                  {navigation.pages.map((page) => (
-                    <Link
-                      key={page.name}
-                      href={page.href}
-                      className="flex items-center text-sm font-medium text-gray-700 hover:text-gray-800"
-                    >
-                      {page.name}
-                    </Link>
-                  ))}
-                </div>
+                {/* Other Pages */}
+                {navigation.pages.map((page) => (
+                  <Link key={page.name} href={page.href} className="text-sm font-medium text-gray-700 hover:text-gray-800">
+                    {page.name}
+                  </Link>
+                ))}
               </PopoverGroup>
 
-              <div className="ml-auto flex items-center">
-                <div className="hidden lg:flex lg:flex-1 lg:items-center lg:justify-end lg:space-x-6">
-                  <Link href="signin" className="text-sm font-medium text-gray-700 hover:text-gray-800">
-                    Sign in
-                  </Link>
-                  <span aria-hidden="true" className="h-6 w-px bg-gray-200" />
-                  <Link href="signup" className="text-sm font-medium text-gray-700 hover:text-gray-800">
-                    Create account
-                  </Link>
-                </div>
+              {/* Search Icon */}
+              <div className="hidden lg:flex lg:items-center lg:space-x-4">
+                <Link href="#" className="p-2 text-gray-400 hover:text-gray-500">
+                  <MagnifyingGlassIcon className="h-6 w-6" />
+                </Link>
 
-                {/* Search */}
-                <div className="flex lg:ml-6">
-                  <Link href="#" className="p-2 text-gray-400 hover:text-gray-500">
-                    <span className="sr-only">Search</span>
-                    <MagnifyingGlassIcon aria-hidden="true" className="h-6 w-6" />
-                  </Link>
-                </div>
+                {/* Authentication UI */}
+                {session ? (
+                  <Menu as="div" className="relative z-50">
+                    <MenuButton className="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-gray-800 z-50">
+                      <Image src={fallbackImg} alt="User Avatar" width={32} height={32} className="rounded-full" />
+                    </MenuButton>
+                    <MenuItems className="absolute right-0 mt-2 w-48 bg-white shadow-lg ring-1 ring-black ring-opacity-5">
+                      <MenuItem>
+                        {({ active }) => (
+                          <Link href="/dashboard" className={`flex px-4 py-2 text-sm text-gray-500 ${active ? "bg-gray-100" : ""}`}>
+                            <Squares2X2Icon className="h-5 w-5 mr-2" />
+                            Dashboard
+                          </Link>
+                        )}
+                      </MenuItem>
+                      <MenuItem>
+                        {({ active }) => (
+                          <Link
+                            href="/dashboard/profile"
+                            className={`flex px-4 py-2 text-sm text-gray-500 ${active ? "bg-gray-100" : ""
+                              }`}
+                          >
+                            <UserCircleIcon className="h-5 w-5 mr-2" />
+                            Profile
+                          </Link>
+                        )}
+                      </MenuItem>
+                      <MenuItem>
+                        {({ active }) => (
+                          <button onClick={handleLogout} className={`flex w-full px-4 py-2 text-sm text-gray-500 ${active ? "bg-gray-100" : ""}`}>
+                            <ArrowLeftOnRectangleIcon className="h-5 w-5 mr-2" />
+                            Logout
+                          </button>
+                        )}
+                      </MenuItem>
+                    </MenuItems>
+                  </Menu>
+                ) : (
+                  <div className="flex space-x-4">
+                    <Link href="/signin" className="text-sm font-medium text-gray-700 hover:text-gray-800">
+                      Sign in
+                    </Link>
+                    <Link href="/signup" className="text-sm font-medium text-gray-700 hover:text-gray-800">
+                      Create account
+                    </Link>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </nav>
+
+        {/* Mobile Menu */}
+        <Dialog open={mobileMenuOpen} onClose={setMobileMenuOpen}>
+          <DialogPanel className="fixed inset-0 z-50 bg-white p-4">
+            <div className="flex justify-between items-center">
+              <Image src={logoImg} alt="Logo" className="h-8 w-auto" />
+              <button onClick={() => setMobileMenuOpen(false)}>
+                <XMarkIcon className="h-6 w-6 text-gray-400" />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              {/* Mobile Products Dropdown */}
+              <div>
+                <button className="text-sm font-medium text-gray-700 hover:text-gray-800 w-full text-left">
+                  Products
+                </button>
+                <div className="mt-2 pl-4">
+                  {navigation.categories.map((category) => (
+                    <div key={category.id} className="mb-2">
+                      <p className="font-medium text-gray-900">{category.name}</p>
+                      <ul className="ml-4 space-y-1">
+                        {category.sections.flatMap((section) =>
+                          section.items.map((item) => (
+                            <li key={item.name}>
+                              <Link href={item.href} className="text-gray-500 hover:text-gray-800">
+                                {item.name}
+                              </Link>
+                            </li>
+                          ))
+                        )}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </DialogPanel>
+        </Dialog>
       </header>
     </>
-  )
-}
+  );
+};
 
 export default Navbar;
+

@@ -1,4 +1,6 @@
-import CustomerNavbar from "@/components/CustomerNavbar";
+import dynamic from "next/dynamic";
+
+const CustomerNavbar = dynamic(() => import("@/components/CustomerNavbar"), { ssr: false });
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     return (

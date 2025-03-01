@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Bookmark, Bell, Search, List, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Bookmark, Bell, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { categories } from "@/constants"
 

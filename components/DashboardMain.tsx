@@ -1,13 +1,17 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { Plus, Rocket, Zap } from "lucide-react";
+import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+
 
 export default function DashboardMain() {
   // State for mobile view
   const [isMobile, setIsMobile] = useState(false);
+  const router = useRouter();
 
   // Handle window resize to update mobile state
   useEffect(() => {
@@ -26,7 +30,7 @@ export default function DashboardMain() {
       {/* Page Title */}
       <header className="flex justify-between items-center">
        {!isMobile ? (<h1 className="text-3xl text-gray-500 font-bold">Dashboard Overview</h1>) : (<h1 className="text-xl text-gray-500 font-bold">Dashboard</h1>)}
-        <Button className="flex bg-green-600 text-white hover:bg-green-700 text-sm">
+        <Button onClick={()=> router.push("/dashboard/new-ad")} className="flex bg-green-600 text-white hover:bg-green-700 text-sm">
           {!isMobile ? (<><Plus className="mr-2" /> Post New Ad</>) : (<><Plus className="mr-2" /> <span className="text-sm">Post New Ad</span></>)}
         </Button>
       </header>
@@ -86,7 +90,7 @@ export default function DashboardMain() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <Button variant="outline" className="w-full flex items-center justify-center">
+              <Button onClick={()=>router.push("/dashboard/promotions")} variant="outline" className="w-full flex items-center justify-center">
                 <Rocket className="mr-2" /> Boost Ads
               </Button>
               <Button variant="outline" className="w-full flex items-center justify-center">

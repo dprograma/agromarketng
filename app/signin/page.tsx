@@ -41,6 +41,7 @@ export default function SigninPage() {
         router.push("/signin");
       }
       console.log("session data received: ", session);
+      setSession(data.session);
       router.push('/dashboard');
     } else {
       const alert = 'invalid_login'

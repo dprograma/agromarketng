@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { User, Bell, Lock, Image, Mail, Shield } from "lucide-react";
+import { Image } from "lucide-react";
 import { cn } from "@/lib/utils"; 
 import  { userprofile } from "@/constants";
 import React from "react";
@@ -76,12 +76,12 @@ export default function ProfileSettings() {
         <div className="mt-6">
           <h3 className="text-lg font-semibold text-gray-700">🔔 Notification Preferences</h3>
           <div className="mt-4 space-y-4">
-            <label className="flex items-center space-x-2">
+            <label className="flex items-center space-x-2 text-gray-400">
               <input type="checkbox" className="form-checkbox text-green-600" />
               <span>Email notifications for ad activity</span>
             </label>
 
-            <label className="flex items-center space-x-2">
+            <label className="flex items-center space-x-2 text-gray-400">
               <input type="checkbox" className="form-checkbox text-green-600" />
               <span>SMS notifications for promotions</span>
             </label>
@@ -111,7 +111,7 @@ export default function ProfileSettings() {
               <input type="password" className="w-full mt-1 p-2 border rounded-md focus:ring-green-500 focus:border-green-500" placeholder="Confirm new password" />
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 text-gray-600">
               <input type="checkbox" className="form-checkbox text-green-600" />
               <span>Enable Two-Factor Authentication (2FA)</span>
             </div>

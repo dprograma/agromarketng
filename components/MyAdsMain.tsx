@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
@@ -10,6 +11,7 @@ import { Eye, Star, TrendingUp, MoreVertical, CheckCircle, Clock, XCircle } from
 import { adsData } from "@/constants";
 
 export default function MyAdsManagement() {
+  const router = useRouter();
   const [ads, setAds] = useState(adsData);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -149,7 +151,7 @@ export default function MyAdsManagement() {
             <Button variant="outline" onClick={handleNextPage} disabled={currentPage === Math.ceil(filteredAds.length / itemsPerPage)}>Next</Button>
           </div>
           {/* Add New Ad Button */}
-          <Button variant="outline" className="w-full sm:w-auto">Add New Ad</Button>
+          <Button onClick={()=> router.push("/dashboard/new-ad")} variant="outline" className="w-full sm:w-auto">Add New Ad</Button>
         </CardFooter>
       </Card>
     </div>

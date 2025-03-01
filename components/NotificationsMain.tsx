@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Bell, CheckCircle, Clock, XCircle, Info, Trash } from "lucide-react";
+import React, { useState } from "react";
+import { Bell, CheckCircle, Clock, XCircle, Trash } from "lucide-react";
 import toast from "react-hot-toast";
 import { initialNotifications } from "@/constants";
 

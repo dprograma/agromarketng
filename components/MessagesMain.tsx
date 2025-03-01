@@ -1,7 +1,7 @@
 "use client";
 
 import React,{ useState } from "react";
-import { MessageSquare, Inbox, ShieldAlert, User } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Message } from "@/types";
 import { sampleMessages, MessagesTabs } from "@/constants";
@@ -51,7 +51,7 @@ export default function Messages() {
                 >
                   <img src={msg.senderAvatar} alt={msg.sender} className="w-10 h-10 rounded-full" />
                   <div>
-                    <p className="font-semibold">{msg.sender}</p>
+                    <p className="font-semibold text-green-800">{msg.sender}</p>
                     <p className="text-sm text-gray-600">{msg.lastMessage}</p>
                     <p className="text-xs text-gray-400">{msg.timestamp}</p>
                   </div>
@@ -67,7 +67,7 @@ export default function Messages() {
               <h3 className="text-lg font-semibold text-gray-700">💬 Conversation</h3>
               <p className="text-sm text-gray-500">Ad: {selectedMessage.adTitle}</p>
               <div className="mt-4 p-3 border rounded-md bg-gray-50">
-                <p className="font-semibold">{selectedMessage.sender}</p>
+                <p className="font-semibold text-green-800">{selectedMessage.sender}</p>
                 <p className="text-gray-700">{selectedMessage.lastMessage}</p>
                 <p className="text-xs text-gray-400">{selectedMessage.timestamp}</p>
               </div>

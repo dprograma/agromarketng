@@ -1,34 +1,40 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/components/SessionWrapper";
 import { Session } from '@/types';
 import DashboardLayout from '@/components/DashboardLayout';
-import MyAdsMain from '@/components/MyAdsMain';
-import { useEffect } from "react";
+import dynamic from "next/dynamic";
 
+// Lazy load MyAdsMain to reduce initial JS bundle size
+const MyAdsMain = dynamic(() => import("@/components/MyAdsMain"), { ssr: false });
 
 export default function MyAds() {
     const session = useSession() as Session | null;
     const router = useRouter();
+    const [isCheckingSession, setIsCheckingSession] = useState(true);
 
     useEffect(() => {
-            if (!session) {
-            router.push("/signin");
+        if (session !== undefined) {
+            setIsCheckingSession(false);
         }
-        }, [session, router]);  
+    }, [session]);
+
+    useEffect(() => {
+        if (!isCheckingSession && !session) {
+            router.replace("/signin");
+        }
+    }, [isCheckingSession, session, router]);
+
+    if (isCheckingSession) {
+        return <p>Loading...</p>;
+    }
+
 
     return (
-        <div>
-            {session ? (
-                <>
-                    <DashboardLayout>
-                        <MyAdsMain />
-                    </DashboardLayout>
-                </>
-            ) : (
-                <></>
-            )}
-        </div>
+        <DashboardLayout>
+            <MyAdsMain />
+        </DashboardLayout>
     );
 }

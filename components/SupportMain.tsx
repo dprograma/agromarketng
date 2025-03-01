@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { LifeBuoy, HelpCircle, MessageCircle, Ticket, ChevronDown, Send } from "lucide-react";
+import { ChevronDown, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
 import { faqData, helpTabs } from "@/constants";
