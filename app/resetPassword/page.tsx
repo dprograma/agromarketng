@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Spinner from '@/components/Spinner';
 import Link from 'next/link';
 import Image from 'next/image';
 import heroImg from '../../public/assets/img/agromarket-logo.png';
@@ -15,9 +16,11 @@ const ResetPassword = () => {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [message, setMessage] = useState('');
+    const [isResetingPassword, setIsResetingPassword] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setIsResetingPassword(true);
         if (newPassword !== confirmPassword) {
             setMessage('Passwords do not match');
             return;
@@ -31,6 +34,7 @@ const ResetPassword = () => {
 
         const data = await res.json();
         setMessage(data.message || data.error);
+        setIsResetingPassword(false);
     };
 
     return ( 
@@ -71,7 +75,7 @@ const ResetPassword = () => {
                         type="submit"
                         className="w-full px-4 py-2 text-white bg-green-700 rounded-md hover:bg-green-800 focus:outline-none focus:ring focus:ring-green-400"
                     >
-                        Reset Password
+                        {isResetingPassword ? <Spinner/> : 'Reset Password'}
                     </button>
                 </form>
 

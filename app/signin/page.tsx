@@ -12,6 +12,7 @@ import authImgBg from '../../public/assets/img/auth-background.jpg';
 import SocialLoginIcons from '@/components/SocialLoginIcons';
 import Alert from '@/components/Alerts';
 import { AlertsMsg } from '@/components/AlertsMsg';
+import Spinner from '@/components/Spinner'; 
 
 
 export default function SigninPage() {
@@ -20,6 +21,7 @@ export default function SigninPage() {
   const [alerts, setAlerts] = useState<boolean>(false);
   const [alertMessages, setAlertMessages] = useState<string | undefined>();
   const [alertTypes, setAlertTypes] = useState<string | undefined>();
+  const [isSigningIn, setIsSigningIn] = useState(false);
   const searchParams = useSearchParams();
   const alert = searchParams.get('alert');
   const router = useRouter();
@@ -28,8 +30,12 @@ export default function SigninPage() {
   const alertsResponse = AlertsMsg({ alert: alert || '' });
   const { alertMessage = '', alertType = '' } = alertsResponse || {};
 
+  const { setSession } = useSession();
+
+
   const handleSignin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSigningIn(true);
     const res = await fetch('/api/signin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -37,11 +43,8 @@ export default function SigninPage() {
     });
     const data = await res.json();
     if (res.ok) {
-      if (!session) {
-        router.push("/signin");
-      }
-      console.log("session data received: ", session);
-      setSession(data.session);
+      const token = data.token;
+      setSession({ token });
       router.push('/dashboard');
     } else {
       const alert = 'invalid_login'
@@ -50,6 +53,7 @@ export default function SigninPage() {
       setAlertTypes(alertsResponse?.alertType);
       setAlertMessages(alertsResponse?.alertMessage);
     }
+    setIsSigningIn(false);
   };
 
   return (
@@ -92,7 +96,7 @@ export default function SigninPage() {
             type="submit"
             className="w-full px-4 py-2 text-white bg-green-700 rounded-md hover:bg-green-800 focus:outline-none focus:ring focus:ring-green-400"
           >
-            Sign In
+            {isSigningIn ? <Spinner /> : 'Sign In'}
           </button>
         </form>
 
@@ -112,7 +116,6 @@ export default function SigninPage() {
         <p className="text-center text-sm text-gray-600">
           Don't have an account?{" "}
           <a href="/signup" className="text-green-600 hover:underline">
-            Sign Up
           </a>
         </p>
       </div>

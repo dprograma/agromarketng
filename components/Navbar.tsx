@@ -1,13 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { navigation } from "@/constants";
 import Image from "next/image";
 import Link from "next/link";
 import { useSession } from "@/components/SessionWrapper";
-import { Session } from "@/types";
 import { useRouter } from "next/navigation";
-import { signOut } from "next-auth/react";
 import {
   Dialog,
   DialogPanel,
@@ -29,19 +27,32 @@ import {
   ArrowRightOnRectangleIcon,
   ArrowLeftOnRectangleIcon,
 } from "@heroicons/react/24/outline";
+import Spinner from "@/components/Spinner";
 import logoImg from "../public/assets/img/agromarket-logo.png";
 import fallbackImg from "../public/assets/img/fallback.jpg";
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
-  const session = useSession() as Session | null;
+  const sessionBody = useSession();
+  const {session} = useSession();
   const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const handleLogout = async () => {
-    await signOut({ callbackUrl: "/" });
-    router.refresh();
+  useEffect(() => {
+    if (!session) {
+      router.push('/');
+    }
+    console.log("session in navbar: ", session);
+  }, [session, router]);
+
+  const handleLogout = () => {
+    if (session) {
+      setIsLoggingOut(true);
+      sessionBody.setSession(null);
+    }
   };
 
+  
   return (
     <>
       <header className="relative bg-white shadow">
@@ -144,7 +155,7 @@ const Navbar = () => {
                         {({ active }) => (
                           <button onClick={handleLogout} className={`flex w-full px-4 py-2 text-sm text-gray-500 ${active ? "bg-gray-100" : ""}`}>
                             <ArrowLeftOnRectangleIcon className="h-5 w-5 mr-2" />
-                            Logout
+                            {isLoggingOut ? (<Spinner />) : "Logout"}
                           </button>
                         )}
                       </MenuItem>

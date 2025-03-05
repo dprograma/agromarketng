@@ -26,6 +26,31 @@ model User {
   verified  Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  ads        Ad[]
+  subscriptionPlanId String?
+  subscriptionPlan SubscriptionPlan? @relation(fields: [subscriptionPlanId], references: [id])
+}
+
+model Ad {
+  id        String   @id @default(cuid())
+  title     String
+  category  String
+  location  String
+  price     String
+  description String
+  contact   String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  subscriptionPlanId String?
+  subscriptionPlan SubscriptionPlan? @relation(fields: [subscriptionPlanId], references: [id])
+}
+
+model SubscriptionPlan {
+  id          String   @id @default(cuid())
+  name        String
+  price       String
+  expiryDate  DateTime
+  ads         Ad[]
 }
 
 model Account {

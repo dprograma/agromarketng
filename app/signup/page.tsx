@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Spinner from '@/components/Spinner';
 import Image from 'next/image';
 import authImgBg from '../../public/assets/img/auth-background.jpg';
 import heroImg from '../../public/assets/img/agromarket-logo.png';
@@ -25,6 +26,7 @@ export default function SignupPage() {
   const [alertType, setAlertType] = useState<string | undefined>();
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errors, setErrors] = useState<Errors>({});
+  const [isSigningUp, setIsSigningUp] = useState(false);
 
   const validateForm = () => {
     const newErrors: any = {};
@@ -62,6 +64,7 @@ export default function SignupPage() {
 
   const handleSignup = async (e: any) => {
     e.preventDefault();
+    setIsSigningUp(true);
     if (!validateForm()) return;
 
     const res = await fetch('/api/signup', {
@@ -83,6 +86,7 @@ export default function SignupPage() {
       setAlertType(alertsResponse?.alertType);
       setAlertMessage(alertsResponse?.alertMessage);
     }
+    setIsSigningUp(false);
   };
 
   return (
@@ -146,7 +150,7 @@ export default function SignupPage() {
             type="submit"
             className="w-full px-4 py-2 text-white bg-green-700 rounded-md hover:bg-green-800 focus:outline-none focus:ring focus:ring-green-400"
           >
-            Sign Up
+            {isSigningUp ? <Spinner /> : 'Sign Up'}
           </button>
         </form>
 

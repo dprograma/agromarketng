@@ -3,18 +3,23 @@
 import React, { useState, useEffect } from "react";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useSession } from "@/components/SessionWrapper";
 import { Menu, MenuItem, MenuButton, MenuItems } from "@headlessui/react";
 import { Settings } from "lucide-react";
 import { NAV_ITEMS } from "@/constants";
 import { SETTINGS } from "@/constants";
+import Spinner from "@/components/Spinner";
 import Image from "next/image";
 import Link from "next/link";
 import fallbackImg from "../public/assets/img/fallback.jpg";
 
 export default function NavigationPanel() {
+    const sessionBody = useSession();
+    const {session} = useSession();
     const router = useRouter();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     // Handle window resize to update mobile state
     useEffect(() => {
@@ -28,9 +33,19 @@ export default function NavigationPanel() {
     }, []);
 
 
-    const handleLogout = async () => {
-        await signOut({ callbackUrl: "/" }); // Redirect after logout
-    };
+     useEffect(() => {
+        if (!session) {
+          router.push('/');
+        }
+        console.log("session in dashboard menu: ", session);
+      }, [session, router]);
+    
+      const handleLogout = () => {
+        if (session) {
+        setIsLoggingOut(true);
+          sessionBody.setSession(null);
+        }
+      };
 
     return (
         <div className={`${isCollapsed ? (isMobile ? "w-20" : "w-24") : (isMobile ? "absolute w-72 z-50" : "w-72")}
@@ -111,7 +126,11 @@ export default function NavigationPanel() {
 
                                         className={`flex items-center w-full px-4 py-2 gap-x-2 ${active ? "bg-green-600 text-white" : "hover:bg-green-700"}`}
                                     >
-                                        {<item.icon />}
+                                        {item.action === "logout" && isLoggingOut ? (
+                                            <Spinner />
+                                        ) : (
+                                            <item.icon />
+                                        )}
                                         {!isCollapsed && <span>{item.name}</span>}
                                     </button>
                                 )}
