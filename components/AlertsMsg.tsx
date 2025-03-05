@@ -33,5 +33,11 @@ export const AlertsMsg = ({ alert }: { alert: string }) => {
   } else if (alert === 'error_signup') {
     return {'alertMessage': 'An error occurred while creating your account. Please try again later.',
       'alertType': 'error'};
+  }else if (alert === 'error_post_ad') {
+    return {'alertMessage': 'An error occurred while posting your ad. Please try again later.',
+      'alertType': 'error'};
+  }else if (alert === 'success_ad_post') {
+    return {'alertMessage': 'Your ad has been posted successfully!',
+      'alertType': 'success'};
   }
 };

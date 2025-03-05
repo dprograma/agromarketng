@@ -37,12 +37,11 @@ const SessionWrapper = ({ children, session }: any) => {
             setSessionState(JSON.parse(storedSession));
         }
     }, []);
-
     const setSession = (newSession: Session | null) => {
-        if (newSession) {
-            localStorage.setItem("session", JSON.stringify(newSession));
+        if (newSession && newSession.token) {
+            localStorage.setItem('token', newSession.token);
         } else {
-            localStorage.removeItem("session");
+            localStorage.removeItem('token');
         }
         setSessionState(newSession);
     };

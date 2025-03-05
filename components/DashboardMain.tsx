@@ -6,11 +6,13 @@ import { ActivityFeed } from "@/components/ActivityFeed";
 import { Plus, Rocket, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
+import Spinner from "@/components/Spinner";
 
 
 export default function DashboardMain() {
   // State for mobile view
   const [isMobile, setIsMobile] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
   const router = useRouter();
 
   // Handle window resize to update mobile state
@@ -30,8 +32,8 @@ export default function DashboardMain() {
       {/* Page Title */}
       <header className="flex justify-between items-center">
        {!isMobile ? (<h1 className="text-3xl text-gray-500 font-bold">Dashboard Overview</h1>) : (<h1 className="text-xl text-gray-500 font-bold">Dashboard</h1>)}
-        <Button onClick={()=> router.push("/dashboard/new-ad")} className="flex bg-green-600 text-white hover:bg-green-700 text-sm">
-          {!isMobile ? (<><Plus className="mr-2" /> Post New Ad</>) : (<><Plus className="mr-2" /> <span className="text-sm">Post New Ad</span></>)}
+        <Button onClick={()=> {setIsPosting(true); router.push("/dashboard/new-ad"); setIsPosting(false);}} className="flex bg-green-600 text-white hover:bg-green-700 text-sm">
+          {!isMobile ? (<><Plus className="mr-2" /> {isPosting ? <Spinner /> : 'Post New Ad'}</>) : (<><Plus className="mr-2" /> <span className="text-sm">{isPosting ? <Spinner /> : 'Post New Ad'}</span></>)}
         </Button>
       </header>
 

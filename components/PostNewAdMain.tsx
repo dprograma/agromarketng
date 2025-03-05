@@ -6,12 +6,17 @@ import InputField from "@/components/ui/input-field";
 import TextAreaField from "@/components/ui/text-field";
 import SelectField from "@/components/ui/select-field";
 import FileUpload from "@/components/ui/file-upload";
+import Alert from '@/components/Alerts';
+import { AlertsMsg } from '@/components/AlertsMsg';
 import { Loader2 } from "lucide-react";
 
 const categories = ["Fruits", "Vegetables", "Grains", "Livestock", "Machinery"];
 
 export default function PostNewAd() {
   const router = useRouter();
+  const [alerts, setAlerts] = useState<boolean>(false);
+  const [alertMessages, setAlertMessages] = useState<string | undefined>();
+  const [alertTypes, setAlertTypes] = useState<string | undefined>();
   const [formData, setFormData] = useState({
     title: "",
     category: "",
@@ -29,12 +34,31 @@ export default function PostNewAd() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
-    setTimeout(() => {
-      setLoading(false);
-      alert("Ad posted successfully!");
-      router.push("/ads");
-    }, 2000);
+  
+    const response = await fetch('/api/postAd', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData),
+    });
+  
+    const data = await response.json();
+  
+    if (response.ok) {
+      const alert = 'success_ad_post'
+      const alertsResponse = AlertsMsg({ alert: alert || '' });
+      setAlerts(true)
+      setAlertTypes(alertsResponse?.alertType);
+      setAlertMessages(alertsResponse?.alertMessage);
+      router.push('/ads');
+    } else {
+      const alert = 'error_post_ad'
+      const alertsResponse = AlertsMsg({ alert: alert || '' });
+      setAlerts(true)
+      setAlertTypes(alertsResponse?.alertType);
+      setAlertMessages(alertsResponse?.alertMessage);
+    }
+  
+    setLoading(false);
   };
 
   return (

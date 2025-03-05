@@ -3,15 +3,18 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import React, { useState } from 'react';
+import Spinner from '@/components/Spinner';
 import heroImg from '../../public/assets/img/agromarket-logo.png';
 import authImgBg from '../../public/assets/img/auth-background.jpg';
 
 const ForgotPassword = () => {
     const [email, setEmail] = useState('');
     const [message, setMessage] = useState('');
+    const [isSendingResetLink, setIsSendingResetLink] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setIsSendingResetLink(true);
         const res = await fetch('/api/auth', {
             method: 'FORGOT',
             headers: { 'Content-Type': 'application/json' },
@@ -20,6 +23,7 @@ const ForgotPassword = () => {
 
         const data = await res.json();
         setMessage(data.message || data.error);
+        setIsSendingResetLink(false);
     };
 
     return (
@@ -48,7 +52,7 @@ const ForgotPassword = () => {
                         type="submit"
                         className="w-full px-4 py-2 text-white bg-green-700 rounded-md hover:bg-green-800 focus:outline-none focus:ring focus:ring-green-400"
                     >
-                        Send Reset Link
+                        {isSendingResetLink ? <Spinner/> : 'Send Reset Link'}
                     </button>
                 </form>
 
