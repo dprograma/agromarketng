@@ -12,7 +12,7 @@ export function Table({ className, children }: TableProps) {
 }
 
 export function TableHeader({ className, children }: TableProps) {
-  return <thead className={cn("bg-white divide-y divide-gray-200", className)}>{children}</thead>;
+  return <thead className={cn("text-gray-700 bg-white divide-y divide-gray-200", className)}>{children}</thead>;
 }
 
 export function TableBody({ className, children }: TableProps) {

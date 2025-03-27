@@ -4,7 +4,6 @@
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -15,42 +14,65 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String   @db.VarChar(255)
-  email     String   @unique @db.VarChar(255)
-  emailVerified DateTime?
-  image         String?
-  accounts      Account[]
-  sessions      Session[]
-  password  String?   @db.VarChar(255)
-  verified  Boolean @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  ads        Ad[]
+  id                 String            @id @default(cuid())
+  name               String            @db.VarChar(255)
+  email              String            @unique @db.VarChar(255)
+  emailVerified      DateTime?
+  image              String?
+  accounts           Account[]
+  sessions           Session[]
+  password           String?           @db.VarChar(255)
+  verified           Boolean           @default(false)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  ads                Ad[]
   subscriptionPlanId String?
-  subscriptionPlan SubscriptionPlan? @relation(fields: [subscriptionPlanId], references: [id])
+  subscriptionPlan   SubscriptionPlan? @relation("UserSubscription", fields: [subscriptionPlanId], references: [id])
 }
 
+
 model Ad {
-  id        String   @id @default(cuid())
-  title     String
-  category  String
-  location  String
-  price     String
-  description String
-  contact   String
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  id                 String           @id @default(cuid())
+  title              String
+  category           String
+  location           String
+  price              Decimal          @db.Decimal(10, 2)
+  description        String
+  contact            String
+  images             String[]
+  status             String           @default("Pending")
+  views              Int              @default(0)
+  clicks             Int              @default(0)
+  shares             Int              @default(0)
+  featured           Boolean          @default(false)
+  userId             String
+  user               User             @relation(fields: [userId], references: [id])
+  boostType          Int?
+  boostStartDate     DateTime?
+  boostEndDate       DateTime?
+  boostStatus        String?          @default("inactive")
   subscriptionPlanId String?
-  subscriptionPlan SubscriptionPlan? @relation(fields: [subscriptionPlanId], references: [id])
+  subscriptionPlan   SubscriptionPlan? @relation("AdSubscription", fields: [subscriptionPlanId], references: [id])
+  listingPriority    Int              @default(0)
+  featuredOnHome     Boolean          @default(false)
+  topOfCategory      Boolean          @default(false)
+  exclusivePlacement Boolean          @default(false)
+  boostMultiplier    Float            @default(1.0)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 }
 
 model SubscriptionPlan {
-  id          String   @id @default(cuid())
-  name        String
-  price       String
-  expiryDate  DateTime
-  ads         Ad[]
+  id               String    @id @default(cuid())
+  name             String
+  price            Decimal   @db.Decimal(10, 2)
+  duration         Int       @default(30)
+  expiryDate       DateTime
+  benefits         String[]
+  features         Json      
+  listingPriority  Int       @default(0)
+  ads              Ad[]      @relation("AdSubscription")
+  users            User[]    @relation("UserSubscription")
 }
 
 model Account {
@@ -59,15 +81,15 @@ model Account {
   provider          String
   providerAccountId String
   type              String
-  refresh_token     String?  // Optional
-  access_token      String?  // Optional
-  expires_at        Int?     // Optional
-  scope             String?  // Optional
-  token_type        String?  // Optional
-  id_token          String?  // Optional
-  user              User     @relation(fields: [userId], references: [id])
+  refresh_token     String? // Optional
+  access_token      String? // Optional
+  expires_at        Int? // Optional
+  scope             String? // Optional
+  token_type        String? // Optional
+  id_token          String? // Optional
+  user              User    @relation(fields: [userId], references: [id])
 
-  @@unique([provider, providerAccountId]) 
+  @@unique([provider, providerAccountId])
 }
 
 model Session {
@@ -82,5 +104,6 @@ model VerificationToken {
   identifier String
   token      String
   expires    DateTime
+
   @@unique([identifier, token])
 }

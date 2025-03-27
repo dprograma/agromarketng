@@ -27,32 +27,82 @@ import {
   ArrowRightOnRectangleIcon,
   ArrowLeftOnRectangleIcon,
 } from "@heroicons/react/24/outline";
+import { ChevronRight } from "lucide-react";
+import { Disclosure } from "@headlessui/react";
 import Spinner from "@/components/Spinner";
 import logoImg from "../public/assets/img/agromarket-logo.png";
 import fallbackImg from "../public/assets/img/fallback.jpg";
+import { cn } from "@/lib/utils";
 
 const Navbar = () => {
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const { session, setSession } = useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
-  const sessionBody = useSession();
-  const {session} = useSession();
-  const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const router = useRouter();
 
-  useEffect(() => {
-    if (!session) {
-      router.push('/');
-    }
-    console.log("session in navbar: ", session);
-  }, [session, router]);
+  const CategoryPanel = ({
+    category,
+    isActive,
+    onSelect
+  }: {
+    category: any;
+    isActive: boolean;
+    onSelect: () => void;
+  }) => (
+    <div className="p-3 hover:bg-gray-50 rounded-lg cursor-pointer">
+      <button
+        onClick={onSelect}
+        className="w-full flex items-center justify-between text-left"
+      >
+        <span className="text-sm font-medium text-gray-900">{category.name}</span>
+        <ChevronRight className={cn(
+          "w-4 h-4 text-gray-500 transition-transform",
+          isActive && "rotate-90"
+        )} />
+      </button>
+      {isActive && (
+        <div className="mt-2 pl-4">
+          {category.sections.map((section: any) => (
+            <div key={section.id} className="mb-3">
+              <p className="text-sm font-medium text-gray-700 mb-1">
+                {section.name}
+              </p>
+              <ul className="space-y-1">
+                {section.items.map((item: any) => (
+                  <li key={item.name}>
+                    <Link
+                      href={item.href}
+                      className="text-sm text-gray-600 hover:text-gray-900 block py-1"
+                    >
+                      {item.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
-  const handleLogout = () => {
-    if (session) {
+  const handleLogout = async () => {
+    try {
       setIsLoggingOut(true);
-      sessionBody.setSession(null);
+      // Clear session
+      setSession(null);
+      // Remove cookie
+      document.cookie = 'next-auth.session-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+      router.push('/signin');
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
-  
+
   return (
     <>
       <header className="relative bg-white shadow">
@@ -83,31 +133,75 @@ const Navbar = () => {
                   <PopoverButton className="text-sm font-medium text-gray-700 hover:text-gray-800">
                     Products
                   </PopoverButton>
-                  <PopoverPanel className="absolute left-0 z-50 mt-2 w-[500px] bg-white shadow-lg ring-1 ring-black ring-opacity-5 p-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      {navigation.categories.map((category) => (
-                        <div key={category.id}>
-                          <p className="font-medium text-gray-900 border-b pb-1">{category.name}</p>
-                          <ul className="mt-2 space-y-2">
-                            {category.sections.map((section) => (
-                              <li key={section.id}>
-                                <p className="text-gray-700 font-medium">{section.name}</p>
-                                <ul className="ml-4 mt-1 space-y-1">
-                                  {section.items.map((item) => (
-                                    <li key={item.name}>
-                                      <Link href={item.href} className="text-gray-500 hover:text-gray-800">
-                                        {item.name}
-                                      </Link>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </li>
+                  <PopoverPanel className="absolute left-0 z-50 mt-2 w-screen max-w-xs transform px-2 sm:px-0 lg:max-w-lg">
+                    <div className="overflow-hidden rounded-lg shadow-lg ring-1 ring-black ring-opacity-5">
+                      <div className="relative bg-white">
+                        {/* Desktop View */}
+                        <div className="hidden lg:block max-h-[80vh] overflow-y-auto">
+                          <div className="p-4">
+                            {navigation.categories.map((category) => (
+                              <CategoryPanel
+                                key={category.id}
+                                category={category}
+                                isActive={activeCategory === category.id}
+                                onSelect={() => setActiveCategory(
+                                  activeCategory === category.id ? null : category.id
+                                )}
+                              />
                             ))}
-                          </ul>
+                          </div>
                         </div>
-                      ))}
+
+                        {/* Mobile View */}
+                        <div className="lg:hidden">
+                          {navigation.categories.map((category) => (
+                            <Disclosure key={category.id}>
+                              {({ open }) => (
+                                <div className="py-2">
+                                  <Disclosure.Button className="flex w-full items-center justify-between text-gray-900 py-2">
+                                    <span className="text-sm font-medium">{category.name}</span>
+                                    <ChevronRight
+                                      className={cn(
+                                        "w-4 h-4 text-gray-500 transition-transform",
+                                        open && "rotate-90"
+                                      )}
+                                    />
+                                  </Disclosure.Button>
+
+                                  <Disclosure.Panel className="mt-2 pl-4 space-y-2">
+                                    {category.sections.map((section) => (
+                                      <div key={section.id}>
+                                        <p className="text-sm font-medium text-gray-700">
+                                          {section.name}
+                                        </p>
+                                        <ul className="mt-1 space-y-1">
+                                          {section.items.map((item) => (
+                                            <li key={item.name}>
+                                              <Link
+                                                href={item.href}
+                                                className="text-sm text-gray-600 hover:text-gray-900 block py-1"
+                                              >
+                                                {item.name}
+                                              </Link>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    ))}
+                                  </Disclosure.Panel>
+                                </div>
+                              )}
+                            </Disclosure>
+                          ))}
+                        </div>
+
+
+                      </div>
                     </div>
                   </PopoverPanel>
+
+
+
                 </Popover>
 
                 {/* Other Pages */}
@@ -177,43 +271,129 @@ const Navbar = () => {
         </nav>
 
         {/* Mobile Menu */}
-        <Dialog open={mobileMenuOpen} onClose={setMobileMenuOpen}>
-          <DialogPanel className="fixed inset-0 z-50 bg-white p-4">
-            <div className="flex justify-between items-center">
-              <Image src={logoImg} alt="Logo" className="h-8 w-auto" />
-              <button onClick={() => setMobileMenuOpen(false)}>
-                <XMarkIcon className="h-6 w-6 text-gray-400" />
-              </button>
-            </div>
+{/* Mobile Menu */}
+<Dialog open={mobileMenuOpen} onClose={setMobileMenuOpen}>
+  <DialogPanel className="fixed inset-0 z-50 bg-white flex flex-col">
+    {/* Header - Fixed at top */}
+    <div className="p-4 border-b border-gray-200">
+      <div className="flex justify-between items-center">
+        <Image src={logoImg} alt="Logo" className="h-8 w-auto" />
+        <button 
+          onClick={() => setMobileMenuOpen(false)}
+          className="p-2 rounded-md hover:bg-gray-100"
+        >
+          <XMarkIcon className="h-6 w-6 text-gray-400" />
+        </button>
+      </div>
+    </div>
 
-            <div className="mt-4 space-y-2">
-              {/* Mobile Products Dropdown */}
-              <div>
-                <button className="text-sm font-medium text-gray-700 hover:text-gray-800 w-full text-left">
-                  Products
-                </button>
-                <div className="mt-2 pl-4">
-                  {navigation.categories.map((category) => (
-                    <div key={category.id} className="mb-2">
-                      <p className="font-medium text-gray-900">{category.name}</p>
-                      <ul className="ml-4 space-y-1">
-                        {category.sections.flatMap((section) =>
-                          section.items.map((item) => (
-                            <li key={item.name}>
-                              <Link href={item.href} className="text-gray-500 hover:text-gray-800">
-                                {item.name}
-                              </Link>
-                            </li>
-                          ))
+    {/* Scrollable Content */}
+    <div className="flex-1 overflow-y-auto">
+      <div className="p-4 space-y-4">
+        {/* Mobile Products Dropdown */}
+        <div>
+          <button className="text-sm font-medium text-gray-700 hover:text-gray-800 w-full text-left flex items-center justify-between">
+            Products
+            <ChevronRight className="h-4 w-4 text-gray-500" />
+          </button>
+          <div className="mt-2 pl-4">
+            {navigation.categories.map((category) => (
+              <Disclosure key={category.id}>
+                {({ open }) => (
+                  <div className="py-2">
+                    <Disclosure.Button className="flex w-full items-center justify-between text-gray-900 py-2">
+                      <span className="text-sm font-medium">{category.name}</span>
+                      <ChevronRight
+                        className={cn(
+                          "w-4 h-4 text-gray-500 transition-transform",
+                          open && "rotate-90"
                         )}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </DialogPanel>
-        </Dialog>
+                      />
+                    </Disclosure.Button>
+
+                    <Disclosure.Panel className="ml-4">
+                      {category.sections.map((section) => (
+                        <div key={section.id} className="py-2">
+                          <p className="text-sm font-medium text-gray-700 mb-1">
+                            {section.name}
+                          </p>
+                          <ul className="space-y-1 ml-4">
+                            {section.items.map((item) => (
+                              <li key={`${section.id}-${item.name}`}>
+                                <Link
+                                  href={item.href}
+                                  className="text-sm text-gray-600 hover:text-gray-900 block py-1"
+                                  onClick={() => setMobileMenuOpen(false)}
+                                >
+                                  {item.name}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </Disclosure.Panel>
+                  </div>
+                )}
+              </Disclosure>
+            ))}
+          </div>
+        </div>
+
+        {/* Other Navigation Items */}
+        <div className="border-t border-gray-200 pt-4">
+          {navigation.pages.map((page) => (
+            <Link
+              key={page.name}
+              href={page.href}
+              className="block py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              {page.name}
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    {/* Footer - Fixed at bottom */}
+    <div className="p-4 border-t border-gray-200">
+      {session ? (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Image src={fallbackImg} alt="User Avatar" width={32} height={32} className="rounded-full" />
+            <span className="text-sm font-medium text-gray-900">
+              {session.email}
+            </span>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="text-sm text-gray-600 hover:text-gray-900"
+          >
+            {isLoggingOut ? <Spinner /> : "Logout"}
+          </button>
+        </div>
+      ) : (
+        <div className="flex justify-between">
+          <Link
+            href="/signin"
+            className="text-sm font-medium text-gray-700 hover:text-gray-900"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            Sign in
+          </Link>
+          <Link
+            href="/signup"
+            className="text-sm font-medium text-gray-700 hover:text-gray-900"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            Create account
+          </Link>
+        </div>
+      )}
+    </div>
+  </DialogPanel>
+</Dialog>
       </header>
     </>
   );

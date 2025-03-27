@@ -3,7 +3,13 @@ import SessionWrapper from '@/components/SessionWrapper';
 import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
 // import { SessionProvider } from "next-auth/react";
+import { Session } from '@/types';
 import "./globals.css";
+import { initCronJobs } from '@/services/cron';
+
+if (process.env.NODE_ENV === 'development') {
+  initCronJobs();
+}
 
 export const metadata: Metadata = {
   title: "AgroMarket Nigeria | Buy and Sell Agricultural Products",
@@ -54,13 +60,16 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-
   const sessionCookie = (await cookies()).get('next-auth.session-token')?.value;
-  let session = null;
+  let initialSession = null;
 
   if (sessionCookie) {
     try {
-      session = jwt.verify(sessionCookie, process.env.NEXTAUTH_SECRET!); 
+      const decoded = jwt.verify(sessionCookie, process.env.NEXTAUTH_SECRET!) as Session;
+      initialSession = {
+        token: sessionCookie,
+        ...decoded
+      };
     } catch (err) {
       console.error('Invalid session token:', err);
     }
@@ -68,8 +77,11 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
+      <head>
+        <script src="https://js.paystack.co/v2/inline.js"></script>
+      </head>
       <body className="relative">
-        <SessionWrapper session={session}>
+        <SessionWrapper session={initialSession}>
           {children}
         </SessionWrapper>
       </body>

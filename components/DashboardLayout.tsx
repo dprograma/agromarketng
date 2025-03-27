@@ -1,8 +1,20 @@
+"use client";
+
 import dynamic from "next/dynamic";
+import { useSession } from "@/components/SessionWrapper"
+import { useRouter } from "next/navigation";
+
 
 const CustomerNavbar = dynamic(() => import("@/components/CustomerNavbar"), { ssr: false });
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+    const { session } = useSession();
+    const router = useRouter();
+
+    if (!session) {
+        router.push('/signin');
+    }
+    
     return (
         <div className="flex flex-col h-screen">
         <div className="flex min-h-screen">

@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ReactElement, ReactNode } from 'react';
-import { DropdownMenuProps, DropdownMenuTriggerProps, DropdownMenuContentProps, DropdownMenuItemProps } from "@/types";
+import { DropdownMenuProps, DropdownMenuTriggerProps, DropdownMenuContentProps, DropdownMenuItemProps, DisableableDropdownMenuItemProps } from "@/types";
 
 type ChildProps = {
   onClick?: () => void;
   isOpen?: boolean;
 };
+
 
 const DropdownMenu: React.FC<DropdownMenuProps> = ({ children }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -67,4 +68,22 @@ const DropdownMenuItem: React.FC<DropdownMenuItemProps> = ({ className, children
   );
 };
 
-export { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem };
+const DisableableDropdownMenuItem: React.FC<DisableableDropdownMenuItemProps> = ({ 
+  disabled = false, 
+  onClick, 
+  children, 
+  className 
+}) => {
+  return (
+    <button
+      onClick={disabled ? undefined : onClick}
+      className={`block w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 ${className} ${
+        disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+      }`}
+    >
+      {children}
+    </button>
+  );
+};
+
+export { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DisableableDropdownMenuItem };

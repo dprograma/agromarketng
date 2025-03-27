@@ -1,56 +1,62 @@
-// 'use client';
-// import { createContext, useContext } from 'react';
-
-// const SessionContext = createContext(null);
-
-// export const useSession = () => useContext(SessionContext);
-
-// export default function SessionWrapper({ children, session }: any) {
-//   return <SessionContext.Provider value={session}>{children}</SessionContext.Provider>;
-// }
-
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Session } from "@/types";
 
-// Context for storing the session
-const SessionContext = createContext<{ session: Session | null; setSession: (session: Session | null) => void } | null>(null);
+const SessionContext = createContext<{ 
+  session: Session | null; 
+  setSession: (session: Session | null) => void 
+} | null>(null);
 
-// Custom hook to access session
 export const useSession = () => {
-    const context = useContext(SessionContext);
-    if (!context) throw new Error("useSession must be used within a SessionProvider");
-    return context;
+  const context = useContext(SessionContext);
+  if (!context) throw new Error("useSession must be used within a SessionProvider");
+  return context;
 };
 
-// Session Provider Component
-const SessionWrapper = ({ children, session }: any) => {
-    const [sessionState, setSessionState] = useState<Session | null>(null);
-    const router = useRouter();
+const getCookie = (name: string): string | null => {
+  try {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+    return null;
+  } catch (error) {
+    console.error('Error getting cookie:', error);
+    return null;
+  }
+};
 
-    useEffect(() => {
-        // Check local storage for session data on page load
-        const storedSession = localStorage.getItem("session");
-        if (storedSession) {
-            setSessionState(JSON.parse(storedSession));
-        }
-    }, []);
-    const setSession = (newSession: Session | null) => {
-        if (newSession && newSession.token) {
-            localStorage.setItem('token', newSession.token);
-        } else {
-            localStorage.removeItem('token');
-        }
-        setSessionState(newSession);
-    };
+const SessionWrapper = ({ children, session: initialSession }: { 
+  children: React.ReactNode;
+  session: Session | null;
+}) => {
+  const [sessionState, setSessionState] = useState<Session | null>(initialSession);
+  const router = useRouter();
 
-    return (
-        <SessionContext.Provider value={{ session: sessionState, setSession }}>
-            {children}
-        </SessionContext.Provider>
-    );
+  // Update session state when initialSession changes
+  useEffect(() => {
+    if (initialSession) {
+      setSessionState(initialSession);
+    }
+  }, [initialSession]);
+
+  const setSession = (newSession: Session | null) => {
+    if (newSession?.token) {
+      // Update session state
+      setSessionState(newSession);
+    } else {
+      // Clear session
+      setSessionState(null);
+      document.cookie = 'next-auth.session-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+    }
+  };
+
+  return (
+    <SessionContext.Provider value={{ session: sessionState, setSession }}>
+      {children}
+    </SessionContext.Provider>
+  );
 };
 
 export default SessionWrapper;

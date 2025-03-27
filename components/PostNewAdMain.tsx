@@ -12,6 +12,8 @@ import { Loader2 } from "lucide-react";
 
 const categories = ["Fruits", "Vegetables", "Grains", "Livestock", "Machinery"];
 
+type FileState = File[];
+
 export default function PostNewAd() {
   const router = useRouter();
   const [alerts, setAlerts] = useState<boolean>(false);
@@ -24,41 +26,86 @@ export default function PostNewAd() {
     price: "",
     description: "",
     contact: "",
+    subscriptionPlanId: ""
   });
   const [loading, setLoading] = useState(false);
-
+  const [selectedFiles, setSelectedFiles] = useState<FileState>([]);
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleFileChange = (files: File[]) => {
+    setSelectedFiles(files);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-  
-    const response = await fetch('/api/postAd', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData),
-    });
-  
-    const data = await response.json();
-  
-    if (response.ok) {
-      const alert = 'success_ad_post'
+
+    try {
+      const submitFormData = new FormData();
+
+      // Validate price before submission
+      const price = parseFloat(formData.price);
+      if (isNaN(price) || price <= 0) {
+        throw new Error('Invalid price value');
+      }
+
+      // Validate files
+      if (selectedFiles.length === 0) {
+        throw new Error('Please upload at least one image');
+      }
+
+      if (selectedFiles.length > 5) {
+        throw new Error('Maximum 5 images allowed');
+      }
+
+      // Validate file types and sizes
+      for (const file of selectedFiles) {
+        if (!file.type.startsWith('image/')) {
+          throw new Error('Only image files are allowed');
+        }
+        if (file.size > 5 * 1024 * 1024) { // 5MB limit
+          throw new Error('Each image must be less than 5MB');
+        }
+      }
+
+      // Append form fields
+      Object.keys(formData).forEach(key => {
+        submitFormData.append(key, formData[key as keyof typeof formData]);
+      });
+
+      // Append files
+      selectedFiles.forEach((file, index) => {
+        submitFormData.append('images', file);
+      });
+
+      const response = await fetch('/api/postAd', {
+        method: 'POST',
+        body: submitFormData,
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        const alert = 'success_ad_post';
+        const alertsResponse = AlertsMsg({ alert: alert || '' });
+        setAlerts(true);
+        setAlertTypes(alertsResponse?.alertType);
+        setAlertMessages(alertsResponse?.alertMessage);
+        router.push('/dashboard/my-ads');
+      } else {
+        throw new Error(data.error || 'Failed to post ad');
+      }
+    } catch (error) {
+      const alert = 'error_post_ad';
       const alertsResponse = AlertsMsg({ alert: alert || '' });
-      setAlerts(true)
+      setAlerts(true);
       setAlertTypes(alertsResponse?.alertType);
-      setAlertMessages(alertsResponse?.alertMessage);
-      router.push('/ads');
-    } else {
-      const alert = 'error_post_ad'
-      const alertsResponse = AlertsMsg({ alert: alert || '' });
-      setAlerts(true)
-      setAlertTypes(alertsResponse?.alertType);
-      setAlertMessages(alertsResponse?.alertMessage);
+      setAlertMessages(error instanceof Error ? error.message : 'Failed to post ad');
+    } finally {
+      setLoading(false);
     }
-  
-    setLoading(false);
   };
 
   return (
@@ -71,7 +118,7 @@ export default function PostNewAd() {
         <InputField label="Price (₦)" name="price" type="number" value={formData.price} onChange={handleChange} placeholder="Enter price" required />
         <TextAreaField label="Description" name="description" value={formData.description} onChange={handleChange} placeholder="Provide more details about the ad..." required />
         <InputField label="Contact Details" name="contact" value={formData.contact} onChange={handleChange} placeholder="Phone number or email" required />
-        <FileUpload onFilesSelected={() => {}} />
+        <FileUpload onFilesSelected={handleFileChange} />
         <button type="submit" className="w-full bg-green-600 text-white py-2 rounded-md font-semibold hover:bg-green-700 flex items-center justify-center">
           {loading ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : "Post Ad"}
         </button>

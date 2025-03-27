@@ -1,25 +1,107 @@
+import * as React from "react";
 import { cn } from "@/lib/utils";
-import { CardFooterProps } from "@/types";
- 
-export function Card({ children, className }: React.PropsWithChildren<{ className?: string }>) {
-  return <div className={cn("bg-white p-4 rounded-2xl shadow-md text-gray-500 font-sans text-sm", className)}>{children}</div>;
-}
 
+const Card = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      "rounded-xl border border-gray-200 bg-white text-gray-900 shadow-sm transition-all hover:shadow-md",
+      className
+    )}
+    {...props}
+  />
+));
+Card.displayName = "Card";
 
+const CardHeader = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      "flex flex-col space-y-1.5 p-6 font-sans",
+      className
+    )}
+    {...props}
+  />
+));
+CardHeader.displayName = "CardHeader";
 
-export function CardHeader({ children, className }: React.PropsWithChildren<{ className?: string }>) {
-  return <div className={cn("mb-2", className)}>{children}</div>;
-}
+const CardTitle = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLHeadingElement>
+>(({ className, ...props }, ref) => (
+  <h3
+    ref={ref}
+    className={cn(
+      "text-lg font-semibold leading-tight tracking-tight text-gray-800",
+      "font-sans antialiased",
+      "transition-colors duration-200",
+      className
+    )}
+    {...props}
+  />
+));
+CardTitle.displayName = "CardTitle";
 
-export function CardContent({ children, className }: React.PropsWithChildren<{ className?: string }>) {
-  return <div className={className}>{children}</div>;
-}
+const CardDescription = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, ...props }, ref) => (
+  <p
+    ref={ref}
+    className={cn(
+      "text-sm text-gray-600 leading-relaxed font-normal",
+      "font-sans antialiased",
+      className
+    )}
+    {...props}
+  />
+));
+CardDescription.displayName = "CardDescription";
 
+const CardContent = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div 
+    ref={ref} 
+    className={cn(
+      "p-6 pt-0 text-gray-700 font-sans",
+      "text-[0.925rem] leading-relaxed",
+      className
+    )} 
+    {...props} 
+  />
+));
+CardContent.displayName = "CardContent";
 
-export function CardTitle({ children }: React.PropsWithChildren) {
-  return <h3 className="text-lg font-semibold">{children}</h3>;
-}
+const CardFooter = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      "flex items-center p-6 pt-0",
+      "border-t border-gray-100 mt-4",
+      "text-sm text-gray-600",
+      className
+    )}
+    {...props}
+  />
+));
+CardFooter.displayName = "CardFooter";
 
-export const CardFooter: React.FC<CardFooterProps> = ({ className, children }) => {
-  return <div className={`p-4 border-t border-gray-200 ${className}`}>{children}</div>;
+export { 
+  Card, 
+  CardHeader, 
+  CardTitle, 
+  CardDescription, 
+  CardContent, 
+  CardFooter 
 };
