@@ -25,7 +25,6 @@ export default function SigninPage() {
   const searchParams = useSearchParams();
   const alert = searchParams.get('alert');
   const router = useRouter();
-  const session = useSession() as Session | null;
 
   const alertsResponse = AlertsMsg({ alert: alert || '' });
   const { alertMessage = '', alertType = '' } = alertsResponse || {};
@@ -43,8 +42,16 @@ export default function SigninPage() {
     });
     const data = await res.json();
     if (res.ok) {
-      const token = data.token;
-      setSession({ token });
+      // Create session object
+      const session = {
+        token: data.token,
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.name
+      };
+      
+      // Set session in context
+      setSession(session);
       router.push('/dashboard');
     } else {
       const alert = 'invalid_login'
@@ -114,8 +121,8 @@ export default function SigninPage() {
 
         {/* Redirect to Sign In */}
         <p className="text-center text-sm text-gray-600">
-          Don't have an account?{" "}
-          <a href="/signup" className="text-green-600 hover:underline">
+          Don't have an account? 
+          <a href="/signup" className="text-green-600 hover:underline">Sign Up{" "}
           </a>
         </p>
       </div>

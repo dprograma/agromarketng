@@ -18,7 +18,7 @@ const TextAreaField: React.FC<TextAreaFieldProps> = ({
         onChange={onChange}
         required={required}
         rows={4}
-        className="mt-1 block w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-green-500 focus:border-green-500"
+        className="text-sm text-gray-600 mt-1 block w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-green-500 focus:border-green-500"
         placeholder={placeholder}
       ></textarea>
     </div>

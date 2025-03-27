@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/components/SessionWrapper";
 import { Menu, MenuItem, MenuButton, MenuItems } from "@headlessui/react";
@@ -14,8 +13,7 @@ import Link from "next/link";
 import fallbackImg from "../public/assets/img/fallback.jpg";
 
 export default function NavigationPanel() {
-    const sessionBody = useSession();
-    const {session} = useSession();
+    const { session, setSession } = useSession();
     const router = useRouter();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
@@ -27,25 +25,31 @@ export default function NavigationPanel() {
             setIsMobile(window.innerWidth < 640);
         };
 
-        handleResize(); // Initial check
+        handleResize();
         window.addEventListener("resize", handleResize);
         return () => window.removeEventListener("resize", handleResize);
     }, []);
 
 
-     useEffect(() => {
-        if (!session) {
-          router.push('/');
+    useEffect(() => {
+        console.log('Current session:', session);
+    }, [session]);
+
+    const handleLogout = async () => {
+        try {
+            setIsLoggingOut(true);
+            // Clear session
+            setSession(null);
+            // Remove cookie
+            document.cookie = 'next-auth.session-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+            router.push('/signin');
+        } catch (error) {
+            console.error('Logout error:', error);
+        } finally {
+            setIsLoggingOut(false);
         }
-        console.log("session in dashboard menu: ", session);
-      }, [session, router]);
-    
-      const handleLogout = () => {
-        if (session) {
-        setIsLoggingOut(true);
-          sessionBody.setSession(null);
-        }
-      };
+    };
+
 
     return (
         <div className={`${isCollapsed ? (isMobile ? "w-20" : "w-24") : (isMobile ? "absolute w-72 z-50" : "w-72")}
@@ -77,8 +81,8 @@ export default function NavigationPanel() {
                                 width={40}
                                 height={40}
                                 className="rounded-full"
-                            /><p className="font-semibold">John Doe</p>
-                            <p className="text-sm text-green-300">johndoe@example.com</p>
+                            /><p className="font-semibold">{ session?.name }</p>
+                            <p className="text-sm text-green-300">{ session?.email }</p>
                         </div>
                     ) : (<>
                         <Image

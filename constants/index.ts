@@ -192,15 +192,110 @@ export const adsData = [
 ];
 
 export const boostOptions = [
-  { id: 1, name: "Homepage Feature", duration: [7, 14, 30], price: 10 },
-  { id: 2, name: "Top of Category", duration: [7, 14, 30], price: 8 },
-  { id: 3, name: "Highlighted Listing", duration: [7, 14, 30], price: 5 },
+  {
+    id: 1,
+    name: "Homepage Feature",
+    duration: [7, 14],
+    price: {
+      7: 1000,
+      14: 2000
+    },
+    features: ["Featured on homepage", "Priority in search results"]
+  },
+  {
+    id: 2,
+    name: "Top of Category",
+    duration: [7, 14],
+    price: {
+      7: 1000,
+      14: 2000
+    },
+    features: ["Top position in category", "Category highlight"]
+  },
+  {
+    id: 3,
+    name: "Highlighted Listing",
+    duration: [7, 14],
+    price: {
+      7: 1000,
+      14: 2000
+    },
+    features: ["Visual highlight", "Search result priority"]
+  }
 ];
 
+export const FREE_USER_LIMITS = {
+  maxFreeAds: 5,
+  features: {
+    listingPriority: 0,
+    featuredOnHome: false,
+    adBoostDiscount: 0,
+    analyticsAccess: false,
+    maxActiveBoosts: 0
+  }
+};
+
 export const subscriptionPlans = [
-  { name: "Silver", price: 15, benefits: ["Featured on homepage", "Priority listing", "Analytics reports"] },
-  { name: "Gold", price: 30, benefits: ["All Silver benefits", "Top of category", "Ad banners"] },
-  { name: "Platinum", price: 50, benefits: ["All Gold benefits", "Exclusive placement", "Priority customer support"] },
+  {
+    id: 'silver',
+    name: "Silver",
+    price: 3000,
+    duration: 30,
+    benefits: [
+      "Unlimited ad posts",
+      "Featured on homepage",
+      "Priority listing",
+      "Analytics reports"
+    ],
+    features: {
+      listingPriority: 1,
+      featuredOnHome: true,
+      adBoostDiscount: 0,
+      analyticsAccess: true,
+      maxActiveBoosts: -1
+    }
+  },
+  {
+    id: 'gold',
+    name: "Gold",
+    price: 4000,
+    duration: 30,
+    benefits: [
+      "All Silver benefits",
+      "Top of category",
+      "Ad banners",
+      "10% boost discount"
+    ],
+    features: {
+      listingPriority: 2,
+      featuredOnHome: true,
+      topOfCategory: true,
+      adBoostDiscount: 10,
+      analyticsAccess: true,
+      maxActiveBoosts: -1
+    }
+  },
+  {
+    id: 'platinum',
+    name: "Platinum",
+    price: 5000,
+    duration: 30,
+    benefits: [
+      "All Gold benefits",
+      "Exclusive placement",
+      "Priority customer support",
+      "20% boost discount"
+    ],
+    features: {
+      listingPriority: 3,
+      featuredOnHome: true,
+      topOfCategory: true,
+      exclusivePlacement: true,
+      adBoostDiscount: 20,
+      analyticsAccess: true,
+      maxActiveBoosts: -1
+    }
+  }
 ];
 
 // Dummy data
