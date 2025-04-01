@@ -296,3 +296,35 @@ export interface ActivePromotion {
   plan?: string;
 }
 
+export interface RouteContext {
+  params: {
+    id: string;
+  };
+}
+
+
+export interface Suggestion {
+  type: 'category' | 'item';
+  name: string;
+  href: string;
+  category?: string;
+  section?: string;
+}
+
+export interface SearchSuggestionsProps {
+  searchTerm: string;
+  onSelect: (suggestion: Suggestion) => void;
+}
+
+export interface ProductCardProps {
+  product: Ad;
+}
+
+export interface FilterState {
+  minPrice: number;
+  maxPrice: number;
+  category: string;
+  subCategory: string;
+  location: string;
+  sortBy: string;
+}

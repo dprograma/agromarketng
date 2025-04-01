@@ -1,41 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useSession } from "@/components/SessionWrapper";
-import { Session } from '@/types';
-import DashboardLayout from '@/components/DashboardLayout';
-import dynamic from "next/dynamic";
-
-// Lazy load MessagesMain to reduce initial JS bundle size
-const MessagesMain = dynamic(() => import("@/components/MessagesMain"), { ssr: false });
-
+import MessagesMain from "@/components/MessagesMain";
 
 
 export default function AdsPromtion() {
-    const session = useSession() as Session | null;
-    const router = useRouter();
-    const [isCheckingSession, setIsCheckingSession] = useState(true);
-
-    useEffect(() => {
-        if (session !== undefined) {
-            setIsCheckingSession(false);
-        }
-    }, [session]);
-
-    useEffect(() => {
-        if (!isCheckingSession && !session) {
-            router.replace("/signin");
-        }
-    }, [isCheckingSession, session, router]);
-
-    if (isCheckingSession) {
-        return <p>Loading...</p>;
-    }
-
-    return (
-        <DashboardLayout>
-            <MessagesMain />
-        </DashboardLayout>
-    );
+    return <MessagesMain />;
 }
