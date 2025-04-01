@@ -1,25 +1,23 @@
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { Plus, Rocket, Zap } from "lucide-react";
-import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
 import Spinner from "@/components/Spinner";
 
 
 export default function DashboardMain() {
   // State for mobile view
+  const router = useRouter();
   const [isMobile, setIsMobile] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
-  const router = useRouter();
 
-  // Handle window resize to update mobile state
   useEffect(() => {
-      const handleResize = () => {
-          setIsMobile(window.innerWidth < 640);
-      };
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
 
       handleResize(); // Initial check
       window.addEventListener("resize", handleResize);

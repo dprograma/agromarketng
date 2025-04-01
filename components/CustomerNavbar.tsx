@@ -10,9 +10,11 @@ import { SETTINGS } from "@/constants";
 import Spinner from "@/components/Spinner";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from 'next/navigation';
 import fallbackImg from "../public/assets/img/fallback.jpg";
 
 export default function NavigationPanel() {
+    const pathname = usePathname();
     const { session, setSession } = useSession();
     const router = useRouter();
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -29,11 +31,6 @@ export default function NavigationPanel() {
         window.addEventListener("resize", handleResize);
         return () => window.removeEventListener("resize", handleResize);
     }, []);
-
-
-    useEffect(() => {
-        console.log('Current session:', session);
-    }, [session]);
 
     const handleLogout = async () => {
         try {
@@ -100,14 +97,14 @@ export default function NavigationPanel() {
                 <ul className="flex flex-col item-center space-y-2 px-4">
                     {NAV_ITEMS.map((item, index) => (
                         <li key={index}>
-                            <button
-                                onClick={() => router.push(item.route)}
+                            <Link
+                                href={item.route}
                                 className={`flex items-center p-2 rounded hover:bg-green-800 
                     ${isCollapsed ? "justify-center" : "gap-x-2"}`}
                             >
                                 {<item.icon />}
                                 {!isCollapsed && <span>{item.name}</span>}
-                            </button>
+                            </Link>
                         </li>
                     ))}
                 </ul>

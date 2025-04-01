@@ -194,14 +194,9 @@ const Navbar = () => {
                             </Disclosure>
                           ))}
                         </div>
-
-
                       </div>
                     </div>
                   </PopoverPanel>
-
-
-
                 </Popover>
 
                 {/* Other Pages */}
@@ -214,8 +209,11 @@ const Navbar = () => {
 
               {/* Search Icon */}
               <div className="hidden lg:flex lg:items-center lg:space-x-4">
-                <Link href="#" className="p-2 text-gray-400 hover:text-gray-500">
-                  <MagnifyingGlassIcon className="h-6 w-6" />
+                <Link href="/search" className="p-2 text-gray-400 hover:text-gray-500 group">
+                  <div className="flex items-center space-x-2">
+                    <MagnifyingGlassIcon className="h-6 w-6" />
+                    <span className="text-sm text-gray-500 group-hover:text-gray-700">Search</span>
+                  </div>
                 </Link>
 
                 {/* Authentication UI */}
@@ -266,134 +264,133 @@ const Navbar = () => {
                   </div>
                 )}
               </div>
+
             </div>
           </div>
         </nav>
-
         {/* Mobile Menu */}
-{/* Mobile Menu */}
-<Dialog open={mobileMenuOpen} onClose={setMobileMenuOpen}>
-  <DialogPanel className="fixed inset-0 z-50 bg-white flex flex-col">
-    {/* Header - Fixed at top */}
-    <div className="p-4 border-b border-gray-200">
-      <div className="flex justify-between items-center">
-        <Image src={logoImg} alt="Logo" className="h-8 w-auto" />
-        <button 
-          onClick={() => setMobileMenuOpen(false)}
-          className="p-2 rounded-md hover:bg-gray-100"
-        >
-          <XMarkIcon className="h-6 w-6 text-gray-400" />
-        </button>
-      </div>
-    </div>
+        <Dialog open={mobileMenuOpen} onClose={setMobileMenuOpen}>
+          <DialogPanel className="fixed inset-0 z-50 bg-white flex flex-col">
+            {/* Header - Fixed at top */}
+            <div className="p-4 border-b border-gray-200">
+              <div className="flex justify-between items-center">
+                <Image src={logoImg} alt="Logo" className="h-8 w-auto" />
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-2 rounded-md hover:bg-gray-100"
+                >
+                  <XMarkIcon className="h-6 w-6 text-gray-400" />
+                </button>
+              </div>
+            </div>
 
-    {/* Scrollable Content */}
-    <div className="flex-1 overflow-y-auto">
-      <div className="p-4 space-y-4">
-        {/* Mobile Products Dropdown */}
-        <div>
-          <button className="text-sm font-medium text-gray-700 hover:text-gray-800 w-full text-left flex items-center justify-between">
-            Products
-            <ChevronRight className="h-4 w-4 text-gray-500" />
-          </button>
-          <div className="mt-2 pl-4">
-            {navigation.categories.map((category) => (
-              <Disclosure key={category.id}>
-                {({ open }) => (
-                  <div className="py-2">
-                    <Disclosure.Button className="flex w-full items-center justify-between text-gray-900 py-2">
-                      <span className="text-sm font-medium">{category.name}</span>
-                      <ChevronRight
-                        className={cn(
-                          "w-4 h-4 text-gray-500 transition-transform",
-                          open && "rotate-90"
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-4 space-y-4">
+                {/* Mobile Products Dropdown */}
+                <div>
+                  <button className="text-sm font-medium text-gray-700 hover:text-gray-800 w-full text-left flex items-center justify-between">
+                    Products
+                    <ChevronRight className="h-4 w-4 text-gray-500" />
+                  </button>
+                  <div className="mt-2 pl-4">
+                    {navigation.categories.map((category) => (
+                      <Disclosure key={category.id}>
+                        {({ open }) => (
+                          <div className="py-2">
+                            <Disclosure.Button className="flex w-full items-center justify-between text-gray-900 py-2">
+                              <span className="text-sm font-medium">{category.name}</span>
+                              <ChevronRight
+                                className={cn(
+                                  "w-4 h-4 text-gray-500 transition-transform",
+                                  open && "rotate-90"
+                                )}
+                              />
+                            </Disclosure.Button>
+
+                            <Disclosure.Panel className="ml-4">
+                              {category.sections.map((section) => (
+                                <div key={section.id} className="py-2">
+                                  <p className="text-sm font-medium text-gray-700 mb-1">
+                                    {section.name}
+                                  </p>
+                                  <ul className="space-y-1 ml-4">
+                                    {section.items.map((item) => (
+                                      <li key={`${section.id}-${item.name}`}>
+                                        <Link
+                                          href={item.href}
+                                          className="text-sm text-gray-600 hover:text-gray-900 block py-1"
+                                          onClick={() => setMobileMenuOpen(false)}
+                                        >
+                                          {item.name}
+                                        </Link>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ))}
+                            </Disclosure.Panel>
+                          </div>
                         )}
-                      />
-                    </Disclosure.Button>
-
-                    <Disclosure.Panel className="ml-4">
-                      {category.sections.map((section) => (
-                        <div key={section.id} className="py-2">
-                          <p className="text-sm font-medium text-gray-700 mb-1">
-                            {section.name}
-                          </p>
-                          <ul className="space-y-1 ml-4">
-                            {section.items.map((item) => (
-                              <li key={`${section.id}-${item.name}`}>
-                                <Link
-                                  href={item.href}
-                                  className="text-sm text-gray-600 hover:text-gray-900 block py-1"
-                                  onClick={() => setMobileMenuOpen(false)}
-                                >
-                                  {item.name}
-                                </Link>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
-                    </Disclosure.Panel>
+                      </Disclosure>
+                    ))}
                   </div>
-                )}
-              </Disclosure>
-            ))}
-          </div>
-        </div>
+                </div>
 
-        {/* Other Navigation Items */}
-        <div className="border-t border-gray-200 pt-4">
-          {navigation.pages.map((page) => (
-            <Link
-              key={page.name}
-              href={page.href}
-              className="block py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              {page.name}
-            </Link>
-          ))}
-        </div>
-      </div>
-    </div>
+                {/* Other Navigation Items */}
+                <div className="border-t border-gray-200 pt-4">
+                  {navigation.pages.map((page) => (
+                    <Link
+                      key={page.name}
+                      href={page.href}
+                      className="block py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      {page.name}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
 
-    {/* Footer - Fixed at bottom */}
-    <div className="p-4 border-t border-gray-200">
-      {session ? (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Image src={fallbackImg} alt="User Avatar" width={32} height={32} className="rounded-full" />
-            <span className="text-sm font-medium text-gray-900">
-              {session.email}
-            </span>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="text-sm text-gray-600 hover:text-gray-900"
-          >
-            {isLoggingOut ? <Spinner /> : "Logout"}
-          </button>
-        </div>
-      ) : (
-        <div className="flex justify-between">
-          <Link
-            href="/signin"
-            className="text-sm font-medium text-gray-700 hover:text-gray-900"
-            onClick={() => setMobileMenuOpen(false)}
-          >
-            Sign in
-          </Link>
-          <Link
-            href="/signup"
-            className="text-sm font-medium text-gray-700 hover:text-gray-900"
-            onClick={() => setMobileMenuOpen(false)}
-          >
-            Create account
-          </Link>
-        </div>
-      )}
-    </div>
-  </DialogPanel>
-</Dialog>
+            {/* Footer - Fixed at bottom */}
+            <div className="p-4 border-t border-gray-200">
+              {session ? (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <Image src={fallbackImg} alt="User Avatar" width={32} height={32} className="rounded-full" />
+                    <span className="text-sm font-medium text-gray-900">
+                      {session.email}
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="text-sm text-gray-600 hover:text-gray-900"
+                  >
+                    {isLoggingOut ? <Spinner /> : "Logout"}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex justify-between">
+                  <Link
+                    href="/signin"
+                    className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Sign in
+                  </Link>
+                  <Link
+                    href="/signup"
+                    className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Create account
+                  </Link>
+                </div>
+              )}
+            </div>
+          </DialogPanel>
+        </Dialog>
       </header>
     </>
   );

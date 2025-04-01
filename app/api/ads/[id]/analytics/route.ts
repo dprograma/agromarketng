@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { RouteContext } from '@/types';
 
 export async function PATCH(
-    req: NextRequest,
-    { params }: { params: { id: string } }
+    request: NextRequest,
+    context: RouteContext
 ) {
     try {
-        const { type } = await req.json();
+        const { id } = context.params;
+        const { type } = await request.json();
         const validTypes = ['views', 'clicks', 'shares'];
 
         if (!validTypes.includes(type)) {
@@ -16,18 +18,23 @@ export async function PATCH(
             );
         }
 
-        const updateData = {
-            [type]: {
-                increment: 1
-            }
-        };
-
         const updatedAd = await prisma.ad.update({
-            where: { id: params.id },
-            data: updateData,
+            where: { id },
+            data: {
+                ...(type === 'view' ? {  views: { increment: 1 } } : {}),
+                ...(type === 'click' ? {  clicks: { increment: 1 } } : {}),
+                ...(type === 'share' ? {  shares: { increment: 1 } } : {}),
+            },
         });
 
-        return NextResponse.json({ ad: updatedAd });
+        return NextResponse.json({
+            success: true,
+            data: {
+              views: updatedAd.views,
+              clicks: updatedAd.clicks
+            }
+          });
+          
     } catch (error) {
         console.error('Error updating analytics:', error);
         return NextResponse.json(
