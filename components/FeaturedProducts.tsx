@@ -42,6 +42,7 @@ export default function FeaturedProducts() {
 
         // Map the category names from the UI to the appropriate query parameters
         let queryParams = new URLSearchParams();
+        console.log("Starting fetch for category:", activeCategory);
 
         if (activeCategory !== "All") {
           // Create a direct mapping between UI categories and database categories
@@ -58,13 +59,12 @@ export default function FeaturedProducts() {
 
           // Get the mapping for the active category
           const mapping = categoryMapping[activeCategory];
+          console.log("Category mapping result:", mapping);
 
           if (mapping) {
             // Use the mapped category
             queryParams.append('category', mapping.category);
-
-            // We don't need subcategory or section anymore with the simplified structure
-            // The API will handle finding the appropriate subcategories based on the category
+            console.log('Query params after mapping:', queryParams.toString());
 
             // Log the mapping for debugging
             console.log(`Mapped UI category "${activeCategory}" to database category "${mapping.category}"`);
@@ -75,11 +75,40 @@ export default function FeaturedProducts() {
           }
         }
 
+        console.log("Final query params:", queryParams.toString());
+
         const response = await fetch(`/api/featured-products?${queryParams.toString()}`);
-        if (!response.ok) throw new Error('Failed to fetch products');
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('API response error:', errorText);
+          throw new Error(`Failed to fetch products: ${response.status} ${response.statusText}`);
+        }
+
         const data = await response.json();
-        setProducts(data.products);
-        console.log("products: ", data.products);
+        console.log("API response data:", data);
+
+        if (data.products && Array.isArray(data.products)) {
+          setProducts(data.products);
+          console.log(`Received ${data.products.length} products`);
+
+          // Check if we have any Farm Machinery products
+          const farmMachineryProducts = data.products.filter(p =>
+            p.category === 'Farm Machinery' ||
+            p.subcategory === 'Tractors'
+          );
+
+          console.log(`Farm Machinery products: ${farmMachineryProducts.length}`,
+            farmMachineryProducts.map(p => ({
+              id: p.id,
+              title: p.title,
+              category: p.category,
+              subcategory: p.subcategory
+            }))
+          );
+        } else {
+          console.error('Invalid products data received:', data);
+          setProducts([]);
+        }
       } catch (error) {
         console.error('Error fetching products:', error);
         toast.error('Failed to load featured products');

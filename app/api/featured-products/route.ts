@@ -34,6 +34,8 @@ export async function GET(request: NextRequest) {
 
     // Add category filter
     if (category && category !== 'All') {
+      console.log(`Processing category filter: "${category}"`);
+
       // Create a more flexible category matching approach
       // This will match both exact and partial matches, and handle variations in naming
 
@@ -62,19 +64,38 @@ export async function GET(request: NextRequest) {
 
         console.log(`Found subcategories for ${navCategory.name}:`, subcategories);
 
-        // Create a comprehensive query for this category
-        whereConditions.OR = [
-          // Direct category match
-          { category: { equals: navCategory.name, mode: 'insensitive' } },
+        // Special handling for Farm Machinery
+        if (navCategory.name === 'Farm Machinery') {
+          console.log('Applying special handling for Farm Machinery category');
 
-          // Match by subcategories - with more flexible matching
-          ...subcategories.map(sub => ({
-            subcategory: { contains: sub, mode: 'insensitive' }
-          }))
-        ];
+          // Create a comprehensive query for Farm Machinery
+          whereConditions.OR = [
+            // Direct category match
+            { category: { equals: 'Farm Machinery', mode: 'insensitive' } },
+            { category: { contains: 'Farm Machinery', mode: 'insensitive' } },
+            { category: { contains: 'Machinery', mode: 'insensitive' } },
 
-        // No special handling needed for Farm Machinery anymore
-        // We're using the simplified category structure from constants/index.ts
+            // Match by subcategories with more flexible matching
+            ...subcategories.map(sub => ({
+              subcategory: { contains: sub, mode: 'insensitive' }
+            })),
+
+            // Special case for Tractors subcategory
+            { subcategory: { equals: 'Tractors', mode: 'insensitive' } },
+            { subcategory: { contains: 'Tractor', mode: 'insensitive' } }
+          ];
+        } else {
+          // Standard handling for other categories
+          whereConditions.OR = [
+            // Direct category match
+            { category: { equals: navCategory.name, mode: 'insensitive' } },
+
+            // Match by subcategories with more flexible matching
+            ...subcategories.map(sub => ({
+              subcategory: { contains: sub, mode: 'insensitive' }
+            }))
+          ];
+        }
 
         // Log the exact query for debugging
         console.log(`Category query for ${navCategory.name}:`, JSON.stringify(whereConditions.OR, null, 2));
@@ -164,16 +185,34 @@ export async function GET(request: NextRequest) {
       if (foundSubcategory) {
         console.log(`Using special handling for subcategory: ${subCategory}`);
 
-        subCategoryConditions = {
-          OR: [
-            // Direct match with more flexible options
-            { subcategory: { equals: subCategory, mode: 'insensitive' } },
-            { subcategory: { contains: subCategory, mode: 'insensitive' } }
-          ]
-        };
+        // Special handling for Tractors subcategory
+        if (subCategory === 'Tractors') {
+          console.log('Applying special handling for Tractors subcategory');
 
-        // No special handling needed for Tractors subcategory anymore
-        // We're using the simplified category structure from constants/index.ts
+          subCategoryConditions = {
+            OR: [
+              // Direct match with more flexible options
+              { subcategory: { equals: 'Tractors', mode: 'insensitive' } },
+              { subcategory: { contains: 'Tractor', mode: 'insensitive' } },
+              // Also match in the category field for legacy data
+              { category: { contains: 'Tractor', mode: 'insensitive' } }
+            ]
+          };
+
+          // Make sure we're also looking in the Farm Machinery category
+          whereConditions.category = {
+            in: ['Farm Machinery', 'Farm Machinery & Tools'],
+            mode: 'insensitive'
+          };
+        } else {
+          subCategoryConditions = {
+            OR: [
+              // Direct match with more flexible options
+              { subcategory: { equals: subCategory, mode: 'insensitive' } },
+              { subcategory: { contains: subCategory, mode: 'insensitive' } }
+            ]
+          };
+        }
 
         // Log the exact query for debugging
         console.log(`Subcategory query for ${subCategory}:`, JSON.stringify(subCategoryConditions, null, 2));
