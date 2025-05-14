@@ -13,9 +13,8 @@ export const Hero = () => {
         <Image
           src={heroImg}
           alt="Agro-market hero background"
-          layout="fill"
-          objectFit="cover"
-          className="opacity-70"
+          fill
+          className="opacity-70 object-cover"
         />
         <div className="absolute inset-0 bg-green-900/50"></div> {/* Overlay */}
       </div>

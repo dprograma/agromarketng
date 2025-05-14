@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import SessionWrapper from '@/components/SessionWrapper';
 import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
-// import { SessionProvider } from "next-auth/react";
 import { Session } from '@/types';
 import "./globals.css";
 import { initCronJobs } from '@/services/cron';
+import { Toaster } from 'react-hot-toast';
+import ConditionalChatButton from "@/components/LiveChat/ConditionalChatButton";
+import CookieConsent from "@/components/CookieConsent";
 
 if (process.env.NODE_ENV === 'development') {
   initCronJobs();
@@ -84,6 +86,9 @@ export default async function RootLayout({
       <body className="relative">
         <SessionWrapper session={initialSession}>
           {children}
+          <Toaster position="top-right" />
+          <ConditionalChatButton />
+          <CookieConsent />
         </SessionWrapper>
       </body>
     </html>

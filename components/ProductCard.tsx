@@ -8,7 +8,7 @@ import { formatDistanceToNow } from 'date-fns';
 
 export default function ProductCard({ product }: ProductCardProps) {
   return (
-    <Link 
+    <Link
       href={`/products/${product.id}`}
       className="group bg-white rounded-xl overflow-hidden border border-gray-100 transition-all hover:shadow-lg hover:border-gray-200"
     >
@@ -38,7 +38,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         <h3 className="text-base font-medium text-gray-900 line-clamp-1">
           {product.title}
         </h3>
-        
+
         <p className="text-lg font-bold text-green-600 whitespace-nowrap">
           {formatCurrency(product.price)}
         </p>
@@ -65,9 +65,16 @@ export default function ProductCard({ product }: ProductCardProps) {
               {product.shares}
             </span>
           </div>
-          <span className="text-xs font-medium text-gray-600">
-            {product.category}
-          </span>
+          <div className="flex flex-col items-end">
+            <span className="text-xs font-medium text-gray-600">
+              {product.category}
+            </span>
+            {product.subcategory && (
+              <span className="text-xs text-gray-500">
+                {product.subcategory}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </Link>

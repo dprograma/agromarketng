@@ -7,11 +7,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DisableableDropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Eye, Star, TrendingUp, MoreVertical, CheckCircle, Clock, XCircle } from "lucide-react";
+import {
+  Eye, Star, TrendingUp, MoreVertical, CheckCircle, Clock, XCircle,
+  Search, PlusCircle, Filter, ChevronLeft, ChevronRight, AlertCircle,
+  Share2, Edit, Trash2, BarChart2
+} from "lucide-react";
 import { Ad, SubscriptionPlan, MyAdsResponse } from '@/types';
-import Alert from '@/components/Alerts';
+import { showToast } from "@/lib/toast-utils";
 import BoostAdModal from '@/components/BoostAdModal';
 import { formatCurrency } from '@/lib/utils';
+import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
+import Alert from '@/components/Alerts';
 
 
 export default function MyAdsManagement() {
@@ -20,7 +27,7 @@ export default function MyAdsManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
-  const itemsPerPage = 5;
+  const itemsPerPage = 6; // Increased from 5 to 6 for better grid layout
   const [alerts, setAlerts] = useState<boolean>(false);
   const [alertMessages, setAlertMessages] = useState<string | undefined>();
   const [alertTypes, setAlertTypes] = useState<string | undefined>();
@@ -28,6 +35,7 @@ export default function MyAdsManagement() {
   const [selectedAd, setSelectedAd] = useState<Ad | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionPlan | null>(null);
   const [maxFreeAds, setMaxFreeAds] = useState<number>(5);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   // Fetch ads from the database
   useEffect(() => {
@@ -63,14 +71,14 @@ export default function MyAdsManagement() {
       try {
         setIsLoading(true);
         const response = await fetch('/api/ads/my-ads');
-        
+
         if (!response.ok) {
           setAlerts(true)
           setAlertTypes('error');
           setAlertMessages('Failed to fetch ads');
           return;
         }
-        
+
         const data: MyAdsResponse = await response.json();
         console.log("my ads response: ", data);
         // Check if data contains ads array
@@ -78,7 +86,7 @@ export default function MyAdsManagement() {
           setAds(data.ads);
           setSubscription(data.subscription);
           setMaxFreeAds(data.maxFreeAds);
-          setAlerts(false); 
+          setAlerts(false);
         } else {
           setAlerts(true)
           setAlertTypes('error');
@@ -89,7 +97,7 @@ export default function MyAdsManagement() {
         setAlerts(true);
         setAlertTypes('error');
         setAlertMessages('Failed to fetch ads');
-        setAds([]); 
+        setAds([]);
       } finally {
         setIsLoading(false);
       }
@@ -103,11 +111,17 @@ export default function MyAdsManagement() {
   // Add subscription check for new ad button
   const canAddNewAd = subscription || ads.length < maxFreeAds;
 
-  // Handle search functionality
+  // Handle search and filter functionality
   const filteredAds = ads.filter(
-    (ad) =>
-      ad.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ad.price.toString().includes(searchTerm.toLowerCase())
+    (ad) => {
+      const matchesSearch = ad.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ad.price.toString().includes(searchTerm.toLowerCase()) ||
+        ad.category.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesStatus = statusFilter === 'all' || ad.status === statusFilter;
+
+      return matchesSearch && matchesStatus;
+    }
   );
 
   // Handle pagination
@@ -152,6 +166,16 @@ export default function MyAdsManagement() {
 
   const handleBoostAd = async (adId: string, boostType: number, duration: number) => {
     try {
+      // Show loading state
+      setAlerts(true);
+      setAlertTypes('info');
+      setAlertMessages('Processing your request...');
+
+      // Check network connectivity
+      if (!navigator.onLine) {
+        throw new Error('No internet connection. Please check your network and try again.');
+      }
+
       const response = await fetch(`/api/ads/${adId}/boost`, {
         method: 'POST',
         headers: {
@@ -167,7 +191,7 @@ export default function MyAdsManagement() {
         if (response.status === 403 && data.status === 'SUBSCRIPTION_REQUIRED') {
           setAlerts(true);
           setAlertTypes('warning');
-          setAlertMessages('Subscription required to boost ads');
+          setAlertMessages('Subscription required to boost ads. Redirecting to subscription page...');
 
           // Close boost modal
           setIsBoostModalOpen(false);
@@ -177,15 +201,35 @@ export default function MyAdsManagement() {
           sessionStorage.setItem('pendingBoost', JSON.stringify({
             adId,
             boostType,
-            duration
+            duration,
+            timestamp: Date.now() // Add timestamp for expiration check
           }));
 
-          // Redirect to promotions page
-          router.push(data.redirectUrl);
+          // Redirect to promotions page after a short delay
+          setTimeout(() => {
+            router.push(data.redirectUrl);
+          }, 1500);
           return;
         }
 
-        throw new Error(data.error || 'Failed to boost ad');
+        // Handle payment required case
+        if (response.status === 402 && data.status === 'PAYMENT_REQUIRED') {
+          setAlerts(true);
+          setAlertTypes('warning');
+          setAlertMessages('Payment required to boost this ad. Redirecting to payment page...');
+
+          // Close boost modal
+          setIsBoostModalOpen(false);
+          setSelectedAd(null);
+
+          // Redirect to payment page after a short delay
+          setTimeout(() => {
+            router.push(data.redirectUrl || '/dashboard/billing');
+          }, 1500);
+          return;
+        }
+
+        throw new Error(data.error || `Failed to boost ad (Error ${response.status})`);
       }
 
       // Update local state if successful
@@ -193,59 +237,42 @@ export default function MyAdsManagement() {
         ad.id === adId ? { ...ad, featured: true, status: 'Active' } : ad
       ));
 
+      // Close boost modal
+      setIsBoostModalOpen(false);
+      setSelectedAd(null);
+
       setAlerts(true);
       setAlertTypes('success');
-      setAlertMessages('Ad boosted successfully!');
+      setAlertMessages(data.message || 'Ad boosted successfully! Your ad is now featured.');
     } catch (error) {
+      console.error('Error boosting ad:', error);
       setAlerts(true);
       setAlertTypes('error');
-      setAlertMessages(error instanceof Error ? error.message : 'Error boosting ad');
+      setAlertMessages(error instanceof Error ? error.message : 'Error boosting ad. Please try again.');
     }
   };
 
-  //   try {
-  //     const response = await fetch(`/api/ads/${id}/feature`, {
-  //       method: 'PATCH',
-  //       headers: {
-  //         'Content-Type': 'application/json',
-  //       },
-  //     });
-
-  //     const data = await response.json();
-
-  //     if (!response.ok) {
-  //       setAlerts(true)
-  //       setAlertTypes('error');
-  //       setAlertMessages('Failed to feature ad: ' + data.error);
-  //     }
-
-  //     if (data.ad) {
-  //       setAds(ads.map((currentAd) =>
-  //         currentAd.id === id ? {
-  //           ...currentAd,
-  //           featured: data.ad.featured,
-  //           status: data.ad.status
-  //         } : currentAd
-  //       ));
-
-  //       // Show success message
-  //       setAlerts(true);
-  //       setAlertTypes('success');
-  //       setAlertMessages(data.message || 'Ad has been featured successfully!');
-  //     }
-  //   } catch (error) {
-  //     setAlerts(true)
-  //     setAlertTypes('error');
-  //     setAlertMessages('Error featuring ad: ' + error);
-  //   }
-  // };
-
-  // Update the DropdownMenuContent section in the return statement:
+  // Function to handle featuring an ad
+  // This opens the boost modal which allows the user to select boost options
 
   const handleFeature = async (ad: Ad) => {
     if (!ad.featured) {
+      // Check if ad is active before allowing it to be featured
+      if (ad.status !== "Active") {
+        setAlerts(true);
+        setAlertTypes('warning');
+        setAlertMessages('Ad must be active before it can be featured. Please set the ad to active first.');
+        return;
+      }
+
+      // Set the selected ad and open the boost modal
       setSelectedAd(ad);
       setIsBoostModalOpen(true);
+    } else {
+      // If already featured, show information about current feature status
+      setAlerts(true);
+      setAlertTypes('info');
+      setAlertMessages('This ad is already featured. It will remain featured until the boost period ends.');
     }
   };
 
@@ -337,178 +364,321 @@ export default function MyAdsManagement() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {alerts && <Alert message={alertMessages || ''} type={alertTypes || ''} />}
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">My Ads Management</h1>
-
-      <div className="mb-4 flex items-center space-x-4">
-        <input
-          type="text"
-          placeholder="Search Ads"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="border border-gray-300 px-4 py-2 rounded-md w-1/3"
-        />
-        <Button variant="outline" className="px-6 py-2">Search</Button>
-      </div>
-
-      <Card className="shadow-lg border border-gray-200">
-        <CardHeader className="bg-gray-100 p-4 rounded-t-lg">
-          <h2 className="text-lg font-semibold text-gray-700">Your Ads</h2>
-        </CardHeader>
-
-        <CardContent className="p-6">
-          {ads.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">No ads found. Create your first ad!</p>
-            </div>
-          ) : (
-            <Table className="w-full border border-gray-200 rounded-md">
-              <TableHeader>
-                <TableRow className="bg-gray-100">
-                  <TableHead className="px-4 py-3 text-left">Title</TableHead>
-                  <TableHead className="px-4 py-3 text-center">Status</TableHead>
-                  <TableHead className="px-4 py-3 text-center">Analytics</TableHead>
-                  <TableHead className="px-4 py-3 text-center">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {currentAds.map((ad) => (
-                  <TableRow key={ad.id} className="hover:bg-gray-50 transition">
-                    <TableCell className="px-4 py-4">
-                      <p className="font-semibold text-gray-900">{ad.title}</p>
-                      <p className="text-sm text-gray-500">{formatCurrency(Number(ad.price))}</p>
-                    </TableCell>
-
-                    <TableCell className="px-4 py-4 text-center">
-                      <Badge
-                        className={`px-3 py-1 text-sm font-medium rounded-full ${ad.status === "Active"
-                          ? "bg-green-100 text-green-700"
-                          : ad.status === "Pending"
-                            ? "bg-yellow-100 text-yellow-700"
-                            : "bg-gray-200 text-gray-700"
-                          }`}
-                      >
-                        {ad.status}
-                      </Badge>
-                    </TableCell>
-
-                    <TableCell className="px-4 py-4 text-center">
-                      <div className="text-sm space-y-2">
-                        <button
-                          onClick={() => handleView(ad.id)}
-                          className="flex items-center justify-center space-x-2 w-full hover:bg-gray-50 p-1 rounded"
-                        >
-                          <Eye className="w-4 h-4 text-blue-500" />
-                          <span>{ad.views || 0} Views</span>
-                        </button>
-                        <button
-                          onClick={() => handleClick(ad.id)}
-                          className="flex items-center justify-center space-x-2 w-full hover:bg-gray-50 p-1 rounded"
-                        >
-                          <TrendingUp className="w-4 h-4 text-green-500" />
-                          <span>{ad.clicks || 0} Clicks</span>
-                        </button>
-                        <button
-                          onClick={() => handleShare(ad.id)}
-                          className="flex items-center justify-center space-x-2 w-full hover:bg-gray-50 p-1 rounded"
-                        >
-                          <Star className="w-4 h-4 text-yellow-500" />
-                          <span>{ad.shares || 0} Shares</span>
-                        </button>
-                      </div>
-                    </TableCell>
-
-                    <TableCell className="px-4 py-4 text-center">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="hover:bg-gray-200 p-2 rounded-lg">
-                            <MoreVertical className="w-5 h-5 text-gray-600" />
-                          </Button>
-                        </DropdownMenuTrigger>
-
-                        <DropdownMenuContent align="right" className="bg-white shadow-lg rounded-lg border border-gray-200">
-                          <DisableableDropdownMenuItem
-                            onClick={() => updateStatus(ad.id, "Sold")}
-                            className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50"
-                            disabled={ad.status === "Sold"}
-                          >
-                            <CheckCircle className={`w-4 h-4 ${ad.status === "Sold" ? "text-gray-400" : "text-green-500"}`} />
-                            <span>Mark as Sold</span>
-                          </DisableableDropdownMenuItem>
-
-                          <DisableableDropdownMenuItem
-                            onClick={() => updateStatus(ad.id, "Active")}
-                            className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50"
-                            disabled={ad.status === "Active"}
-                          >
-                            <Clock className={`w-4 h-4 ${ad.status === "Active" ? "text-gray-400" : "text-yellow-500"}`} />
-                            <span>Set as Active</span>
-                          </DisableableDropdownMenuItem>
-
-                          <DisableableDropdownMenuItem
-                            onClick={() => updateStatus(ad.id, "Inactive")}
-                            className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50"
-                            disabled={ad.status === "Inactive"}
-                          >
-                            <XCircle className={`w-4 h-4 ${ad.status === "Inactive" ? "text-gray-400" : "text-gray-500"}`} />
-                            <span>Mark as Inactive</span>
-                          </DisableableDropdownMenuItem>
-
-                          <DisableableDropdownMenuItem
-                            onClick={() => handleFeature(ad)}
-                            className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50"
-                            disabled={ad.featured}
-                          >
-                            <Star className={`w-4 h-4 ${ad.featured ? "text-gray-400" : "text-purple-500"}`} />
-                            <span>{ad.featured ? "Featured" : "Upgrade to Featured"}</span>
-                          </DisableableDropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-
-        {!subscription && ads.length >= maxFreeAds && (
-        <Alert 
-          type="warning" 
-          message={`You've reached your free ad limit (${maxFreeAds}). Subscribe to post more ads!`}
-        />
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="container mx-auto p-6 space-y-6"
+    >
+      {alerts && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-4"
+        >
+          <Alert message={alertMessages || ''} type={alertTypes || ''} />
+        </motion.div>
       )}
 
-        <CardFooter className="flex flex-wrap justify-between items-center p-4 bg-gray-50 rounded-b-lg gap-2">
-          <div className="flex items-center space-x-4">
-            <Button
-              variant="outline"
-              onClick={handlePrevPage}
-              disabled={currentPage === 1}
-            >
-              Previous
-            </Button>
-            <p>Page {currentPage} of {Math.ceil(filteredAds.length / itemsPerPage)}</p>
-            <Button
-              variant="outline"
-              onClick={handleNextPage}
-              disabled={currentPage === Math.ceil(filteredAds.length / itemsPerPage)}
-            >
-              Next
-            </Button>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+        <h1 className="text-3xl font-bold text-gray-900">My Ads</h1>
+        <Button
+          onClick={() => router.push('/dashboard/new-ad')}
+          className={`mt-4 md:mt-0 ${canAddNewAd ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400'} text-white flex items-center gap-2`}
+          disabled={!canAddNewAd}
+        >
+          <PlusCircle className="h-4 w-4" />
+          Post New Ad
+        </Button>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex flex-col md:flex-row justify-between gap-4">
+            <div className="relative flex-grow max-w-md">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search by title, price, or category..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                className="px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">All Status</option>
+                <option value="Active">Active</option>
+                <option value="Pending">Pending</option>
+                <option value="Inactive">Inactive</option>
+                <option value="Sold">Sold</option>
+              </select>
+            </div>
           </div>
-          <Button
-            onClick={() => router.push("/dashboard/new-ad")}
-            variant="outline"
-            className="w-full sm:w-auto"
-            disabled={!canAddNewAd}
-            title={!canAddNewAd ? "Subscribe to post more ads" : ""}
-          >
-            Add New Ad
-          </Button>
-        </CardFooter>
-      </Card>
+        </div>
+
+        <div className="overflow-x-auto">
+          {ads.length === 0 ? (
+            <div className="text-center py-16 px-4">
+              <div className="mx-auto h-24 w-24 text-gray-400 mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900">No ads found</h3>
+              <p className="mt-2 text-gray-500 max-w-md mx-auto">
+                You haven't posted any ads yet. Create your first ad to start selling your products or services.
+              </p>
+              <div className="mt-6">
+                <Button
+                  onClick={() => router.push('/dashboard/new-ad')}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  Post Your First Ad
+                </Button>
+              </div>
+            </div>
+          ) : filteredAds.length === 0 ? (
+            <div className="text-center py-16 px-4">
+              <div className="mx-auto h-16 w-16 text-gray-400 mb-4">
+                <Search className="h-16 w-16" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900">No matching ads found</h3>
+              <p className="mt-2 text-gray-500 max-w-md mx-auto">
+                Try adjusting your search or filter criteria to find what you're looking for.
+              </p>
+              <div className="mt-6">
+                <Button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setStatusFilter('all');
+                  }}
+                  variant="outline"
+                >
+                  Clear Filters
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+              <AnimatePresence>
+                {currentAds.map((ad, index) => (
+                  <motion.div
+                    key={ad.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.2, delay: index * 0.05 }}
+                    className="bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <div className="relative aspect-video bg-gray-100">
+                      {ad.images && ad.images.length > 0 ? (
+                        <Image
+                          src={ad.images[0]}
+                          alt={ad.title}
+                          fill
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      )}
+
+                      <div className="absolute top-2 right-2">
+                        <Badge
+                          className={`px-2 py-1 text-xs font-medium ${
+                            ad.status === "Active" ? "bg-green-100 text-green-800 border border-green-200" :
+                            ad.status === "Pending" ? "bg-yellow-100 text-yellow-800 border border-yellow-200" :
+                            ad.status === "Sold" ? "bg-blue-100 text-blue-800 border border-blue-200" :
+                            "bg-gray-100 text-gray-800 border border-gray-200"
+                          }`}
+                        >
+                          {ad.status}
+                        </Badge>
+                      </div>
+
+                      {ad.featured && (
+                        <div className="absolute top-2 left-2">
+                          <Badge className="bg-purple-100 text-purple-800 border border-purple-200 px-2 py-1 text-xs font-medium">
+                            Featured
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="p-4">
+                      <h3 className="font-semibold text-gray-900 text-lg mb-1 truncate">{ad.title}</h3>
+                      <p className="text-green-600 font-medium">{formatCurrency(Number(ad.price))}</p>
+
+                      <div className="mt-3 flex items-center text-sm text-gray-500">
+                        <div className="flex items-center mr-4">
+                          <Eye className="h-4 w-4 mr-1 text-gray-400" />
+                          <span>{ad.views || 0}</span>
+                        </div>
+                        <div className="flex items-center mr-4">
+                          <TrendingUp className="h-4 w-4 mr-1 text-gray-400" />
+                          <span>{ad.clicks || 0}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <Share2 className="h-4 w-4 mr-1 text-gray-400" />
+                          <span>{ad.shares || 0}</span>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex justify-between items-center">
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-1 text-xs"
+                            onClick={() => router.push(`/dashboard/edit-ad/${ad.id}`)}
+                          >
+                            <Edit className="h-3 w-3" />
+                            Edit
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-1 text-xs"
+                            onClick={() => handleShare(ad.id)}
+                          >
+                            <Share2 className="h-3 w-3" />
+                            Share
+                          </Button>
+                        </div>
+
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DisableableDropdownMenuItem
+                              onClick={() => updateStatus(ad.id, "Sold")}
+                              className="flex items-center gap-2 cursor-pointer"
+                              disabled={ad.status === "Sold"}
+                            >
+                              <CheckCircle className={`h-4 w-4 ${ad.status === "Sold" ? "text-gray-400" : "text-green-500"}`} />
+                              <span>Mark as Sold</span>
+                            </DisableableDropdownMenuItem>
+
+                            <DisableableDropdownMenuItem
+                              onClick={() => updateStatus(ad.id, "Active")}
+                              className="flex items-center gap-2 cursor-pointer"
+                              disabled={ad.status === "Active"}
+                            >
+                              <Clock className={`h-4 w-4 ${ad.status === "Active" ? "text-gray-400" : "text-yellow-500"}`} />
+                              <span>Set as Active</span>
+                            </DisableableDropdownMenuItem>
+
+                            <DisableableDropdownMenuItem
+                              onClick={() => updateStatus(ad.id, "Inactive")}
+                              className="flex items-center gap-2 cursor-pointer"
+                              disabled={ad.status === "Inactive"}
+                            >
+                              <XCircle className={`h-4 w-4 ${ad.status === "Inactive" ? "text-gray-400" : "text-gray-500"}`} />
+                              <span>Mark as Inactive</span>
+                            </DisableableDropdownMenuItem>
+
+                            {/* Separator before featured option */}
+                            <div className="h-px bg-gray-200 my-1"></div>
+
+                            <DisableableDropdownMenuItem
+                              onClick={() => handleFeature(ad)}
+                              className={`flex items-center gap-2 cursor-pointer ${!ad.featured ? 'bg-purple-50 hover:bg-purple-100' : ''}`}
+                              disabled={ad.featured}
+                            >
+                              <Star className={`h-4 w-4 ${ad.featured ? "text-gray-400" : "text-purple-600"}`} />
+                              <span className={`${!ad.featured ? 'font-medium text-purple-700' : ''}`}>
+                                {ad.featured ? "Featured" : "Set as Featured Ad"}
+                              </span>
+                              {!ad.featured && (
+                                <span className="ml-1 text-xs bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded">
+                                  Premium
+                                </span>
+                              )}
+                            </DisableableDropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
+        </div>
+
+        {!subscription && ads.length >= maxFreeAds && (
+          <div className="px-6 py-4 bg-yellow-50 border-t border-yellow-200">
+            <div className="flex items-start">
+              <AlertCircle className="h-5 w-5 text-yellow-500 mt-0.5 mr-3" />
+              <div>
+                <p className="text-sm font-medium text-yellow-800">
+                  You've reached your free ad limit ({maxFreeAds}).
+                </p>
+                <p className="text-sm text-yellow-700 mt-1">
+                  Subscribe to post more ads and unlock premium features!
+                </p>
+                <Button
+                  onClick={() => router.push('/dashboard/subscription')}
+                  className="mt-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm"
+                  size="sm"
+                >
+                  View Subscription Plans
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {filteredAds.length > 0 && (
+          <div className="flex justify-between items-center p-4 border-t border-gray-200">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrevPage}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+
+              <span className="text-sm text-gray-600">
+                Page {currentPage} of {Math.ceil(filteredAds.length / itemsPerPage)}
+              </span>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={currentPage === Math.ceil(filteredAds.length / itemsPerPage)}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="text-sm text-gray-500">
+              Showing {Math.min(startIndex + 1, filteredAds.length)} - {Math.min(startIndex + itemsPerPage, filteredAds.length)} of {filteredAds.length} ads
+            </div>
+          </div>
+        )}
+      </div>
+
       {selectedAd && (
         <BoostAdModal
           isOpen={isBoostModalOpen}
@@ -520,6 +690,6 @@ export default function MyAdsManagement() {
           onBoost={handleBoostAd}
         />
       )}
-    </div>
+    </motion.div>
   );
 }

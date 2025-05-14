@@ -16,6 +16,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  image: string;
   password: string;
   createdAt: Date;
   updatedAt: Date;
@@ -43,6 +44,10 @@ export interface Session {
   id?: string;
   email?: string;
   name?: string;
+  image?: string;
+  role: 'user' | 'agent' | 'admin';
+  isAgent?: boolean;
+  agentId?: string;
   exp?: number;
   iat?: number;
 }
@@ -101,7 +106,7 @@ export interface TableHeadProps {
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
   className?: string;
-  variant?: "default" | "outline" | "ghost";
+  variant?: "default" | "outline" | "ghost" | "destructive";
 }
 
 export interface InputFieldProps {
@@ -134,9 +139,11 @@ export interface SelectFieldProps {
 
 export interface FileUploadProps {
   onFilesSelected: (files: File[]) => void;
+  maxFiles?: number;
+  error?: string;
 }
 
-export interface Message {
+export interface AdMessage {
   id: number;
   sender: string;
   senderAvatar: string;
@@ -150,6 +157,8 @@ export interface Ad {
   id: string;
   title: string;
   category: string;
+  subcategory?: string;  // Added subcategory field
+  section?: string;      // Added section field
   location: string;
   price: number;
   description: string;
@@ -327,4 +336,55 @@ export interface FilterState {
   subCategory: string;
   location: string;
   sortBy: string;
+}
+
+export interface Message {
+  id: string;
+  content: string;
+  senderId: string;
+  sender: {
+    id: string;
+    name: string;
+    image: string;
+  };
+  createdAt: string;
+}
+
+export interface Chat {
+  id: string;
+  ad: {
+    title: string;
+    images: string[];
+  };
+  participants: {
+    user: {
+      id: string;
+      name: string;
+      image: string;
+    };
+    unreadCount: number;
+  }[];
+  messages: Message[];
+  updatedAt: string;
+}
+
+export interface DialogTitleProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+export interface DialogTriggerProps {
+  children: React.ReactNode;
+  asChild?: boolean;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: string;
+  message: string;
+  read: boolean;
+  time?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }

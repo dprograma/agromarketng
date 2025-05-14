@@ -1,7 +1,7 @@
 "use client";
 
-import AnalyticsMain from '@/components/AnalyticsMain';
+import EnhancedAnalyticsMain from '@/components/EnhancedAnalyticsMain';
 
 export default function Analytics() {
-    return <AnalyticsMain />
+    return <EnhancedAnalyticsMain />
 }

@@ -1,6 +1,17 @@
 import React from 'react';
-import { Message } from "@/types";
-import { Home, PlusCircle, BarChart, DollarSign, User, LogOut, Settings, CreditCard, Megaphone, FileText, Receipt, Wallet, AlertCircle, Image, Bell, Shield, Inbox, ShieldAlert, HelpCircle, Ticket, MessageCircle, BookmarkCheckIcon } from "lucide-react";
+import { AdMessage } from "@/types";
+import {
+  Home, PlusCircle, BarChart, DollarSign, User, LogOut, Settings, CreditCard, Megaphone, FileText, Receipt, Wallet, AlertCircle, Image, Bell, Shield, Inbox, ShieldAlert, HelpCircle, Ticket, MessageCircle, BookmarkCheckIcon, UserPlus, Headset, LayoutDashboard,
+  Users,
+  MessageSquare,
+  Menu,
+  X,
+  Wheat,
+  Tractor,
+  Beef,
+  Sprout,
+  Wrench,
+} from "lucide-react";
 
 
 export const navigation = {
@@ -8,128 +19,101 @@ export const navigation = {
     {
       id: 'farm-animals',
       name: 'Farm Animals',
-      sections: [
-        {
-          id: 'animals',
-          name: 'Animals',
-          items: [
-            { name: 'Cattle', href: '#' },
-            { name: 'Goats', href: '#' },
-            { name: 'Sheep', href: '#' },
-            { name: 'Pigs', href: '#' },
-            { name: 'Horses', href: '#' },
-            { name: 'Rabbits', href: '#' },
-            { name: 'Browse All', href: '#' },
-          ],
-        },
+      items: [
+        { name: 'Cattle', href: '#' },
+        { name: 'Goats', href: '#' },
+        { name: 'Sheep', href: '#' },
+        { name: 'Pigs', href: '#' },
+        { name: 'Horses', href: '#' },
+        { name: 'Rabbits', href: '#' },
+        { name: 'Browse All', href: '#' },
       ],
     },
     {
       id: 'poultry',
       name: 'Poultry',
-      sections: [
-        {
-          id: 'birds',
-          name: 'Birds',
-          items: [
-            { name: 'Chickens', href: '#' },
-            { name: 'Ducks', href: '#' },
-            { name: 'Turkeys', href: '#' },
-            { name: 'Geese', href: '#' },
-            { name: 'Quails', href: '#' },
-            { name: 'Pigeons', href: '#' },
-            { name: 'Browse All', href: '#' },
-          ],
-        },
+      items: [
+        { name: 'Chickens', href: '#' },
+        { name: 'Ducks', href: '#' },
+        { name: 'Turkeys', href: '#' },
+        { name: 'Geese', href: '#' },
+        { name: 'Quails', href: '#' },
+        { name: 'Pigeons', href: '#' },
+        { name: 'Browse All', href: '#' },
       ],
     },
     {
       id: 'plants',
       name: 'Plants',
-      sections: [
-        {
-          id: 'crops',
-          name: 'Crops',
-          items: [
-            { name: 'Vegetables', href: '#' },
-            { name: 'Fruits', href: '#' },
-            { name: 'Herbs', href: '#' },
-            { name: 'Legumes', href: '#' },
-            { name: 'Tubers', href: '#' },
-            { name: 'Spices', href: '#' },
-            { name: 'Browse All', href: '#' },
-          ],
-        },
-        {
-          id: 'cereals',
-          name: 'Cereals & Grains',
-          items: [
-            { name: 'Maize', href: '#' },
-            { name: 'Rice', href: '#' },
-            { name: 'Wheat', href: '#' },
-            { name: 'Millet', href: '#' },
-            { name: 'Sorghum', href: '#' },
-            { name: 'Oats', href: '#' },
-            { name: 'Browse All', href: '#' },
-          ],
-        },
+      items: [
+        { name: 'Vegetables', href: '#' },
+        { name: 'Fruits', href: '#' },
+        { name: 'Herbs', href: '#' },
+        { name: 'Legumes', href: '#' },
+        { name: 'Tubers', href: '#' },
+        { name: 'Spices', href: '#' },
+        { name: 'Browse All', href: '#' },
+      ],
+    },
+    {
+      id: 'cereals',
+      name: 'Cereals & Grains',
+      items: [
+        { name: 'Maize', href: '#' },
+        { name: 'Rice', href: '#' },
+        { name: 'Wheat', href: '#' },
+        { name: 'Millet', href: '#' },
+        { name: 'Sorghum', href: '#' },
+        { name: 'Oats', href: '#' },
+        { name: 'Browse All', href: '#' },
       ],
     },
     {
       id: 'machinery',
-      name: 'Farm Machinery & Tools',
-      sections: [
-        {
-          id: 'machinery',
-          name: 'Machinery',
-          items: [
-            { name: 'Tractors', href: '#' },
-            { name: 'Ploughs', href: '#' },
-            { name: 'Harrows', href: '#' },
-            { name: 'Seeders', href: '#' },
-            { name: 'Harvesters', href: '#' },
-            { name: 'Cultivators', href: '#' },
-            { name: 'Browse All', href: '#' },
-          ],
-        },
-        {
-          id: 'tools',
-          name: 'Tools',
-          items: [
-            { name: 'Hoes', href: '#' },
-            { name: 'Spades', href: '#' },
-            { name: 'Rakes', href: '#' },
-            { name: 'Watering Cans', href: '#' },
-            { name: 'Sickles', href: '#' },
-            { name: 'Browse All', href: '#' },
-          ],
-        },
+      name: 'Farm Machinery',
+      items: [
+        { name: 'Tractors', href: '#' },
+        { name: 'Ploughs', href: '#' },
+        { name: 'Harrows', href: '#' },
+        { name: 'Seeders', href: '#' },
+        { name: 'Harvesters', href: '#' },
+        { name: 'Cultivators', href: '#' },
+        { name: 'Browse All', href: '#' },
+      ],
+    },
+    {
+      id: 'tools',
+      name: 'Tools',
+      items: [
+        { name: 'Hoes', href: '#' },
+        { name: 'Spades', href: '#' },
+        { name: 'Rakes', href: '#' },
+        { name: 'Watering Cans', href: '#' },
+        { name: 'Sickles', href: '#' },
+        { name: 'Browse All', href: '#' },
       ],
     },
     {
       id: 'accessories',
       name: 'Farm Accessories',
-      sections: [
-        {
-          id: 'accessories',
-          name: 'Farm Accessories',
-          items: [
-            { name: 'Fencing', href: '#' },
-            { name: 'Feeders & Drinkers', href: '#' },
-            { name: 'Storage Bins', href: '#' },
-            { name: 'Greenhouses', href: '#' },
-            { name: 'Irrigation Systems', href: '#' },
-            { name: 'Fertilizer Dispensers', href: '#' },
-            { name: 'Browse All', href: '#' },
-          ],
-        },
+      items: [
+        { name: 'Fencing', href: '#' },
+        { name: 'Feeders & Drinkers', href: '#' },
+        { name: 'Storage Bins', href: '#' },
+        { name: 'Greenhouses', href: '#' },
+        { name: 'Irrigation Systems', href: '#' },
+        { name: 'Fertilizer Dispensers', href: '#' },
+        { name: 'Browse All', href: '#' },
       ],
     },
   ],
   pages: [
-    { name: 'About Us', href: '#' },
-    { name: 'Contact Us', href: '#' },
-    { name: 'Stores', href: '#' },
+    // { name: 'About Us', href: '/about' },
+    { name: 'Services', href: '/services' },
+    { name: 'Products', href: '/products' },
+    // { name: 'Success Stories', href: '/testimonials' },
+    { name: 'News', href: '/news' },
+    // { name: 'Contact Us', href: '/contact' },
   ],
 };
 
@@ -149,6 +133,7 @@ export const NAV_ITEMS = [
   { name: "Messages", icon: Inbox, route: "/dashboard/messages" },
   { name: "Saved Searches", icon: BookmarkCheckIcon, route: "/dashboard/saved-searches" },
   { name: "Notifications", icon: Bell, route: "/dashboard/notifications" },
+  { name: "Agent Management", icon: UserPlus, route: "/admin/agents", adminOnly: true, },
 ];
 
 export const SETTINGS = [
@@ -353,10 +338,11 @@ export const userprofile = [
   { key: "avatar", label: "Profile Picture", icon: Image },
   { key: "notifications", label: "Notifications", icon: Bell },
   { key: "security", label: "Security", icon: Shield },
+  { key: "logout", label: "Logout", icon: LogOut },
 ];
 
 
-export const sampleMessages: Message[] = [
+export const sampleMessages: AdMessage[] = [
   {
     id: 1,
     sender: "John Doe",
@@ -409,20 +395,36 @@ export const faqData = [
 export const helpTabs = [
   { key: "faq", label: "FAQ", icon: HelpCircle },
   { key: "tickets", label: "Support Tickets", icon: Ticket },
-  { key: "live-chat", label: "Live Chat", icon: MessageCircle },
+  // { key: "live-chat", label: "Live Chat", icon: MessageCircle },
 ];
 
-export const categories = [
-  { name: "🌾 Agriculture", slug: "agriculture" },
-  { name: "🚜 Farm Machinery", slug: "farm-machinery" },
-  { name: "🐄 Livestock", slug: "livestock" },
-  { name: "🌱 Seeds & Plants", slug: "seeds-plants" },
-  { name: "🛠 Tools & Equipment", slug: "tools-equipment" },
-];
 
 export const initialNotifications = [
   { id: 1, type: "ad", message: "🎉 Your ad 'Organic Tomatoes' has been approved!", time: "2h ago" },
   { id: 2, type: "promotion", message: "⏳ Your featured ad boost expires in 3 days!", time: "1d ago" },
   { id: 3, type: "payment", message: "✅ Payment for ad promotion was successful.", time: "2d ago" },
   { id: 4, type: "payment-failed", message: "⚠️ Your payment for 'Premium Listing' failed.", time: "3d ago" },
+];
+
+export const ADMIN_NAV_ITEMS = [
+  {
+    title: "Dashboard",
+    href: "/admin/dashboard",
+    icon: LayoutDashboard,
+  },
+  {
+    title: "Manage Agents",
+    href: "/admin/agents",
+    icon: Users,
+  },
+  {
+    title: "Chats",
+    href: "/admin/chats",
+    icon: MessageSquare,
+  },
+  {
+    title: "Settings",
+    href: "/admin/settings",
+    icon: Settings,
+  },
 ];

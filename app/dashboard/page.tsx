@@ -1,7 +1,11 @@
 "use client";
 
-import DashboardMain from "@/components/DashboardMain";
+import { useSearchParams } from "next/navigation";
+import EnhancedDashboardMain from "@/components/EnhancedDashboardMain";
 
 export default function Dashboard() {
-  return <DashboardMain />;
+  const searchParams = useSearchParams();
+  const tab = searchParams.get("tab") || "dashboard";
+
+  return <EnhancedDashboardMain defaultTab={tab} />;
 }

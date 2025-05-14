@@ -1,14 +1,24 @@
-import { authOptions } from "@/lib/authOptions"; 
-import { getServerSession } from "next-auth";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
-export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
+export async function POST(req: NextRequest) {
+    try {
+        // Clear all auth-related cookies on the server side
+        const cookieStore = await cookies();
+        const allCookies = cookieStore.getAll();
 
-  if (!session) {
-    return NextResponse.json({ message: "No active session" }, { status: 401 });
-  }
+        for (const cookie of allCookies) {
+            if (cookie.name.includes("next-auth")) {
+                cookieStore.delete(cookie.name);
+            }
+        }
 
-  // Return a response instructing NextAuth to remove the session cookie
-  return NextResponse.redirect("/api/auth/signout");
+        return NextResponse.json({ success: true, message: "Logged out successfully" });
+    } catch (error) {
+        console.error("Logout error:", error);
+        return NextResponse.json(
+            { success: false, message: "Failed to log out" },
+            { status: 500 }
+        );
+    }
 }

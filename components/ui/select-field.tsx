@@ -11,17 +11,17 @@ const SelectField: React.FC<SelectFieldProps> = ({
 }) => {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700">{label}</label>
+      <label className="block text-sm font-semibold text-gray-800">{label}{required && <span className="text-red-500 ml-1">*</span>}</label>
       <select
         name={name}
         value={value}
         onChange={onChange}
         required={required}
-        className="text-sm text-gray-600 mt-1 block w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-green-500 focus:border-green-500"
+        className="text-sm font-medium text-gray-800 mt-1 block w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-green-500 focus:border-green-500 shadow-sm"
       >
-        <option value="">Select {label}</option>
+        <option value="" className="font-medium text-gray-800">Select {label}</option>
         {options.map((option) => (
-          <option key={option} value={option}>
+          <option key={option} value={option} className="font-medium text-gray-800">
             {option}
           </option>
         ))}

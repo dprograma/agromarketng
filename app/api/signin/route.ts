@@ -11,7 +11,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        Agent: true
+      }
+    });
     if (!user) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
     }
@@ -25,16 +30,37 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
     }
 
+    // Determine user role and include relevant data
+    const userData = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      image: user.image,
+      role: user.role,
+      isAgent: !!user.Agent,
+      agentId: user.Agent?.id
+    };
+
+    console.log("user data from signin handler: ", userData)
+
     // Generate JWT token
     const token = jwt.sign(
-      { id: user.id, email: user.email, name: user.name },
+      {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        image: user.image,
+        role: user.role,
+        isAgent: !!user.Agent,
+        agentId: user.Agent?.id
+      },
       process.env.NEXTAUTH_SECRET!,
       { expiresIn: '1h' }
     );
 
     const response = NextResponse.json({
       message: 'Login successful',
-      user: { id: user.id, email: user.email, name: user.name },
+      user: userData,
       token: token,
     });
 

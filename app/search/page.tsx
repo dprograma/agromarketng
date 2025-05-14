@@ -59,31 +59,6 @@ export default function SearchResults() {
         )}
 
         {/* Search Results */}
-        {/* <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {isLoading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-green-600" />
-            </div>
-          ) : results.length > 0 ? (
-            <>
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">
-                {results.length} Results Found
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {results.map((ad) => (
-                  <ProductCard key={ad.id} product={ad} />
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-lg text-gray-600">
-                No results found. Try adjusting your search criteria.
-              </p>
-            </div>
-          )}
-        </div> */}
-
         {searchParams.toString() && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {isLoading ? (
@@ -111,7 +86,7 @@ export default function SearchResults() {
               <div className="text-center py-12 bg-white rounded-xl shadow-sm">
                 <div className="mb-4">
                   <img 
-                    src="/no-results.svg" 
+                    src="/assets/svg/no-results.svg" 
                     alt="No results" 
                     className="w-40 h-40 mx-auto opacity-75"
                   />

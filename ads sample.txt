@@ -1,0 +1,39 @@
+1. 
+title: Premium Organic Vegetables Bundle - Farm Fresh
+category: Plants
+subcategory: Vegetables
+section: Crops
+location: Lagos, Nigeria
+price: 50000
+description: Enjoy our premium selection of farm-fresh organic vegetables, harvested daily for maximum freshness and nutrition. This bundle includes locally grown spinach, tomatoes, peppers, and carrots - perfect for traditional African delicacies and family meals. Our vegetables are grown without harmful pesticides, ensuring you get the healthiest produce for your family. Bulk discounts available for regular customers.
+contact: 234859305825
+
+2.
+title: Premium Quality Corn - 100% Organic & Pest-Free
+category: Plants
+subcategory: Maize
+section: Cereals & Grains
+location: Kano, Nigeria
+price: 80000
+description: Our premium quality corn is carefully selected, cleaned, and dried to perfection. Grown using traditional farming methods without chemical fertilizers or pesticides, this corn is ideal for both retail sellers and home consumption. Each batch undergoes rigorous quality control to ensure it's free from pests and contaminants. Available in various quantities with discounts for bulk purchases. Perfect for making traditional dishes, animal feed, or for reselling.
+contact: 2349023846148
+
+3. 
+title: High-Performance John Deere Tractor - Low Hours
+category: Farm Machinery & Tools
+subcategory: Tractors
+section: Machinery
+location: Abuja, Nigeria
+price: 25000000
+description: Invest in your farm's productivity with our high-performance John Deere tractor. This modern, fuel-efficient machine features a powerful 90HP engine, advanced hydraulic system, and ergonomic operator station for maximum comfort during long working hours. With only 500 hours of operation, this tractor is in excellent condition and comes with a full service history. Perfect for large-scale farming operations, it handles plowing, harrowing, and cultivation with ease. Financing options available for qualified buyers. Includes free delivery and initial setup.
+contact: 2347037384234
+
+4. 
+title: Premium Organic Mangoes - Direct from Farm
+category: Plants
+subcategory: Fruits
+section: Crops
+location: Kwara, Nigeria
+price: 200000
+description: Indulge in the sweet, juicy flavor of our premium organic mangoes, hand-picked at peak ripeness for maximum taste and nutritional value. Our mangoes are naturally grown without chemical fertilizers or pesticides, resulting in exceptionally delicious fruit with vibrant color and perfect texture. This batch includes 100kg of export-quality mangoes, ideal for retail sale, juice production, or family consumption. We offer careful packaging to ensure freshness during transport and can arrange delivery to major cities. Bulk discounts available for regular customers.
+contact: 2349034842395

@@ -9,6 +9,7 @@ export function Button({ children, className, variant = "default", ...props }: B
     default: "bg-green-500 text-white hover:bg-green-600",
     outline: "border border-green-500 text-green-500 hover:bg-green-100",
     ghost: "text-gray-700 hover:bg-gray-200", 
+    destructive: "bg-red-500 text-white hover:bg-red-600",
   };
 
   return (

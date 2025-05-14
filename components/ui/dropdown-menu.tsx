@@ -86,4 +86,21 @@ const DisableableDropdownMenuItem: React.FC<DisableableDropdownMenuItemProps> = 
   );
 };
 
-export { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DisableableDropdownMenuItem };
+const DropdownMenuLabel: React.FC<{ className?: string; children: React.ReactNode }> = ({ 
+  className, 
+  children 
+}) => {
+  return (
+    <div className={`px-4 py-2 text-sm font-medium text-gray-700 ${className}`}>
+      {children}
+    </div>
+  );
+};
+
+const DropdownMenuSeparator: React.FC<{ className?: string }> = ({ className }) => {
+  return (
+    <div className={`h-px my-1 bg-gray-200 ${className}`} />
+  );
+};
+
+export { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DisableableDropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator };
