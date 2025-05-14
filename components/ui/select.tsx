@@ -14,9 +14,10 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex h-10 w-full items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-sm",
-      "ring-offset-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2",
+      "flex h-10 w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-800",
+      "ring-offset-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2",
       "disabled:cursor-not-allowed disabled:opacity-50",
+      "shadow-sm",
       className
     )}
     {...props}
@@ -59,7 +60,7 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none",
+      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm font-medium text-gray-800 outline-none",
       "focus:bg-gray-100 focus:text-gray-900 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className
     )}
@@ -81,7 +82,7 @@ const SelectValue = React.forwardRef<
 >(({ className, children, ...props }, ref) => (
     <SelectPrimitive.Value
         ref={ref}
-        className={cn("text-sm", className)}
+        className={cn("text-sm font-medium text-gray-800", className)}
         {...props}
     >
         {children}

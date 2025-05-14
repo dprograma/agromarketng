@@ -14,6 +14,8 @@ type UserWithSubscriptionPlan = Prisma.UserGetPayload<{
 interface PostAdRequestBody {
   title: string;
   category: string;
+  subcategory?: string;
+  section?: string;
   location: string;
   price: number;
   description: string;
@@ -56,6 +58,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const formData = await req.formData();
     const title = formData.get('title')?.toString();
     const category = formData.get('category')?.toString();
+    const subcategory = formData.get('subcategory')?.toString();
+    const section = formData.get('section')?.toString();
     const location = formData.get('location')?.toString();
     const priceStr = formData.get('price')?.toString();
     const description = formData.get('description')?.toString();
@@ -107,8 +111,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         data: {
           title,
           category,
+          subcategory: subcategory || null,
+          section: section || null,
           location,
-          price: price.toNumber(), 
+          price: price.toNumber(),
           description,
           contact,
           images: imageUrls,

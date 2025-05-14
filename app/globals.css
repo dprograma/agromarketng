@@ -20,6 +20,23 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Improved form element typography and contrast */
+input, select, textarea, option {
+  color: #333333 !important; /* Darker text for better readability */
+  font-weight: 500 !important; /* Medium weight for better visibility */
+}
+
+input::placeholder, textarea::placeholder {
+  color: #666666 !important; /* Darker placeholder text */
+  opacity: 1 !important;
+}
+
+select option {
+  color: #333333 !important; /* Ensure dropdown options are clearly visible */
+  background-color: white !important;
+  font-weight: 500 !important;
+}
+
 /* styles/globals.css */
 .spinner {
   position: relative;
@@ -36,7 +53,7 @@ body {
   position: absolute;
   top: 0;
   left: 0;
-  
+
   -webkit-animation: sk-bounce 2.0s infinite ease-in-out;
   animation: sk-bounce 2.0s infinite ease-in-out;
 }
@@ -47,18 +64,18 @@ body {
 }
 
 @-webkit-keyframes sk-bounce {
-  0%, 100% { 
+  0%, 100% {
     -webkit-transform: scale(0.0)
-  } 50% { 
+  } 50% {
     -webkit-transform: scale(1.0)
   }
 }
 
 @keyframes sk-bounce {
-  0%, 100% { 
+  0%, 100% {
     transform: scale(0.0);
     -webkit-transform: scale(0.0);
-  } 50% { 
+  } 50% {
     transform: scale(1.0);
     -webkit-transform: scale(1.0);
   }
@@ -67,5 +84,43 @@ body {
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+}
+
+/* Add these styles for the typing indicator */
+.dot-typing {
+  position: relative;
+  left: -9999px;
+  width: 6px;
+  height: 6px;
+  border-radius: 5px;
+  background-color: #9880ff;
+  color: #9880ff;
+  box-shadow: 9984px 0 0 0 #9880ff, 9999px 0 0 0 #9880ff, 10014px 0 0 0 #9880ff;
+  animation: dot-typing 1.5s infinite linear;
+  margin-right: 24px;
+}
+
+@keyframes dot-typing {
+  0% {
+    box-shadow: 9984px 0 0 0 #9880ff, 9999px 0 0 0 #9880ff, 10014px 0 0 0 #9880ff;
+  }
+  16.667% {
+    box-shadow: 9984px -10px 0 0 #9880ff, 9999px 0 0 0 #9880ff, 10014px 0 0 0 #9880ff;
+  }
+  33.333% {
+    box-shadow: 9984px 0 0 0 #9880ff, 9999px 0 0 0 #9880ff, 10014px 0 0 0 #9880ff;
+  }
+  50% {
+    box-shadow: 9984px 0 0 0 #9880ff, 9999px -10px 0 0 #9880ff, 10014px 0 0 0 #9880ff;
+  }
+  66.667% {
+    box-shadow: 9984px 0 0 0 #9880ff, 9999px 0 0 0 #9880ff, 10014px 0 0 0 #9880ff;
+  }
+  83.333% {
+    box-shadow: 9984px 0 0 0 #9880ff, 9999px 0 0 0 #9880ff, 10014px -10px 0 0 #9880ff;
+  }
+  100% {
+    box-shadow: 9984px 0 0 0 #9880ff, 9999px 0 0 0 #9880ff, 10014px 0 0 0 #9880ff;
   }
 }

@@ -57,113 +57,6 @@ export default function Search() {
   };
 
   return (
-    // <div className="w-full max-w-4xl mx-auto">
-    //   <form onSubmit={handleSearch} className="space-y-4">
-    //     <div className="flex gap-2 relative">
-    //       <div className="flex-1 relative">
-
-    //       </div>
-    //       <Input
-    //         type="search"
-    //         placeholder="Search for agricultural products..."
-    //         value={searchTerm}
-    //         onChange={(e) => {
-    //           setSearchTerm(e.target.value);
-    //           setShowSuggestions(true);
-    //         }}
-    //         onFocus={() => setShowSuggestions(true)}
-    //         className="flex-1"
-    //       />
-    //       {showSuggestions && (
-    //         <SearchSuggestions
-    //           searchTerm={searchTerm}
-    //           onSelect={handleSuggestionSelect}
-    //         />
-    //       )}
-    //       <Button type="submit" className="bg-green-600 hover:bg-green-700">
-    //         <SearchIcon className="h-4 w-4 mr-2" />
-    //         Search
-    //       </Button>
-    //       <Button
-    //         type="button"
-    //         variant="outline"
-    //         onClick={() => setShowFilters(!showFilters)}
-    //       >
-    //         <Filter className="h-4 w-4" />
-    //       </Button>
-    //     </div>
-
-    //     {showFilters && (
-    //       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 border rounded-lg">
-    //         <div className="space-y-2">
-    //           <label className="text-sm font-medium">Category</label>
-    //           <Select
-    //             value={filters.category}
-    //             onValueChange={(value) => setFilters({ ...filters, category: value })}
-    //           >
-    //             <SelectTrigger>
-    //               <SelectValue placeholder="Select category" />
-    //             </SelectTrigger>
-    //             <SelectContent>
-    //               {categories.map((category) => (
-    //                 <SelectItem key={category.slug} value={category.slug}>
-    //                   {category.name}
-    //                 </SelectItem>
-    //               ))}
-    //             </SelectContent>
-    //           </Select>
-    //         </div>
-
-    //         <div className="space-y-2">
-    //           <label className="text-sm font-medium">Price Range</label>
-    //           <div className="flex gap-2">
-    //             <Input
-    //               type="number"
-    //               placeholder="Min"
-    //               value={filters.minPrice}
-    //               onChange={(e) => setFilters({ ...filters, minPrice: Number(e.target.value) })}
-    //             />
-    //             <Input
-    //               type="number"
-    //               placeholder="Max"
-    //               value={filters.maxPrice}
-    //               onChange={(e) => setFilters({ ...filters, maxPrice: Number(e.target.value) })}
-    //             />
-    //           </div>
-    //         </div>
-
-    //         <div className="space-y-2">
-    //           <label className="text-sm font-medium">Location</label>
-    //           <Input
-    //             type="text"
-    //             placeholder="Enter location"
-    //             value={filters.location}
-    //             onChange={(e) => setFilters({ ...filters, location: e.target.value })}
-    //           />
-    //         </div>
-
-    //         <div className="space-y-2">
-    //           <label className="text-sm font-medium">Sort By</label>
-    //           <Select
-    //             value={filters.sortBy}
-    //             onValueChange={(value) => setFilters({ ...filters, sortBy: value })}
-    //           >
-    //             <SelectTrigger>
-    //               <SelectValue placeholder="Sort by..." />
-    //             </SelectTrigger>
-    //             <SelectContent>
-    //               <SelectItem value="recent">Most Recent</SelectItem>
-    //               <SelectItem value="price_asc">Price: Low to High</SelectItem>
-    //               <SelectItem value="price_desc">Price: High to Low</SelectItem>
-    //               <SelectItem value="views">Most Viewed</SelectItem>
-    //             </SelectContent>
-    //           </Select>
-    //         </div>
-    //       </div>
-    //     )}
-    //   </form>
-    // </div>
-
     <div className="min-h-screen flex flex-col">
       {/* Main Content Area */}
       <div className="flex-grow bg-gradient-to-b from-white to-gray-50">
@@ -236,7 +129,7 @@ export default function Search() {
                       value={filters.category}
                       onValueChange={(value) => setFilters({ ...filters, category: value })}
                     >
-                      <SelectTrigger className="h-10 w-full border-gray-200">
+                      <SelectTrigger className="text-gray-400 h-10 w-full border-gray-200">
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
@@ -258,7 +151,7 @@ export default function Search() {
                         placeholder="Min"
                         value={filters.minPrice}
                         onChange={(e) => setFilters({ ...filters, minPrice: Number(e.target.value) })}
-                        className="h-10 border-gray-200"
+                        className="text-gray-400 h-10 border-gray-200"
                       />
                       <span className="text-gray-500 self-center">to</span>
                       <Input
@@ -266,7 +159,7 @@ export default function Search() {
                         placeholder="Max"
                         value={filters.maxPrice}
                         onChange={(e) => setFilters({ ...filters, maxPrice: Number(e.target.value) })}
-                        className="h-10 border-gray-200"
+                        className="text-gray-400 h-10 border-gray-200"
                       />
                     </div>
                   </div>
@@ -279,7 +172,7 @@ export default function Search() {
                       placeholder="Enter location"
                       value={filters.location}
                       onChange={(e) => setFilters({ ...filters, location: e.target.value })}
-                      className="h-10 border-gray-200"
+                      className="text-gray-400 h-10 border-gray-200"
                     />
                   </div>
 
@@ -290,7 +183,7 @@ export default function Search() {
                       value={filters.sortBy}
                       onValueChange={(value) => setFilters({ ...filters, sortBy: value })}
                     >
-                      <SelectTrigger className="h-10 w-full border-gray-200">
+                      <SelectTrigger className="text-gray-400 h-10 w-full border-gray-200">
                         <SelectValue placeholder="Sort by..." />
                       </SelectTrigger>
                       <SelectContent>
