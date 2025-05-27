@@ -39,7 +39,7 @@ export default function PostNewAd() {
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
-  const [availableSubcategories, setAvailableSubcategories] = useState<{name: string}[]>([]);
+  const [availableSubcategories, setAvailableSubcategories] = useState<{ name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<FileState>([]);
   const [formSubmitted, setFormSubmitted] = useState(false);
@@ -212,7 +212,7 @@ export default function PostNewAd() {
         firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
       // Show toast for validation errors
-      showToast('Please fix the errors in the form', 'error');
+      showToast({ message: 'Please fix the errors in the form', type: 'error' });
       return;
     }
 
@@ -263,7 +263,7 @@ export default function PostNewAd() {
         const data = await response.json();
 
         if (response.ok) {
-          showToast('Your ad has been posted successfully!', 'success');
+          showToast({ message: 'Your ad has been posted successfully!', type: 'success' });
 
           // Show success state briefly before redirecting
           setTimeout(() => {
@@ -289,7 +289,7 @@ export default function PostNewAd() {
       }
     } catch (error) {
       console.error('Ad posting error:', error);
-      showToast(error instanceof Error ? error.message : 'Failed to post ad', 'error');
+      showToast({ message: error instanceof Error ? error.message : 'Failed to post ad', type: 'error' });
       setLoading(false);
     }
   };

@@ -4,9 +4,9 @@ import jwt from 'jsonwebtoken';
 import { format } from 'date-fns';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export async function GET(
@@ -14,8 +14,8 @@ export async function GET(
   { params }: RouteParams
 ) {
   try {
-    const { id } = params;
-    
+    const { id } = await params;
+
     // Get token from cookies
     const token = req.cookies.get('next-auth.session-token')?.value;
     if (!token) {
@@ -66,7 +66,7 @@ export async function GET(
     });
   } catch (error) {
     console.error("Error downloading invoice:", error);
-    
+
     // Provide more specific error messages based on the error type
     if (error instanceof jwt.JsonWebTokenError) {
       return NextResponse.json(
@@ -81,8 +81,8 @@ export async function GET(
     } else if (error instanceof Error) {
       // Return a generic error message but with the specific error name for debugging
       return NextResponse.json(
-        { 
-          error: "Failed to download invoice", 
+        {
+          error: "Failed to download invoice",
           code: "SERVER_ERROR",
           message: error.message,
           name: error.name
@@ -90,7 +90,7 @@ export async function GET(
         { status: 500 }
       );
     }
-    
+
     // Fallback for unknown errors
     return NextResponse.json(
       { error: "An unexpected error occurred", code: "UNKNOWN_ERROR" },
@@ -105,7 +105,7 @@ function generateInvoiceHtml(invoice: any): string {
   const formattedDate = format(new Date(invoice.createdAt), 'MMMM dd, yyyy');
   const formattedDueDate = format(new Date(invoice.dueDate), 'MMMM dd, yyyy');
   const formattedPaidDate = invoice.paidDate ? format(new Date(invoice.paidDate), 'MMMM dd, yyyy') : 'Not paid yet';
-  
+
   return `
     <!DOCTYPE html>
     <html lang="en">

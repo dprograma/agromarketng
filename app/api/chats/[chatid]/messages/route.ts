@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { chatId: string } }
+  { params }: { params: Promise<{chatId: string  }> }
 ) {
   try {
     const token = req.cookies.get('next-auth.session-token')?.value;
@@ -17,7 +17,7 @@ export async function GET(
 
     const messages = await prisma.message.findMany({
       where: {
-        chatId: params.chatId,
+        chatId: (await params).chatId,
         chat: {
           participants: {
             some: {

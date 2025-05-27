@@ -4,10 +4,10 @@ import jwt from 'jsonwebtoken';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { chatId: string } }
+  { params }: { params: Promise<{ chatId: string }> }
 ) {
   try {
-// Get and validate token
+    // Get and validate token
     const token = req.cookies.get('next-auth.session-token')?.value;
     if (!token) {
       return NextResponse.json(
@@ -22,6 +22,8 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { chatId } = await params;
+
     const agent = await prisma.agent.findUnique({
       where: { userId: session.id }
     });
@@ -31,7 +33,7 @@ export async function POST(
     }
 
     const chat = await prisma.supportChat.update({
-      where: { id: params.chatId },
+      where: { id: chatId },
       data: {
         status: 'active',
         agentId: agent.id

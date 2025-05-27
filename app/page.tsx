@@ -10,6 +10,7 @@ import FarmerHighlights from "@/components/FarmerHighlights";
 import LatestNews from "@/components/LatestNews";
 
 export default function Home() {
+  console.log('Rendering Home Page');
   return (
     <>
       <Navbar />

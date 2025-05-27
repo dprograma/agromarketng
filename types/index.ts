@@ -74,6 +74,9 @@ export interface DropdownMenuContentProps {
   children: React.ReactNode;
   isOpen?: boolean;
   align?: "left" | "right" | "center";
+  sideOffset?: number;
+  avoidCollisions?: boolean;
+  collisionPadding?: number;
 }
 
 export interface DropdownMenuItemProps {
@@ -92,7 +95,7 @@ export interface TableRowProps {
   children: React.ReactNode;
 }
 
-export interface TableCellProps {
+export interface TableCellProps extends React.TdHTMLAttributes<HTMLTableCellElement> {
   className?: string;
   children: React.ReactNode;
   isHeader?: boolean;
@@ -106,7 +109,8 @@ export interface TableHeadProps {
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
   className?: string;
-  variant?: "default" | "outline" | "ghost" | "destructive";
+  variant?: "default" | "outline" | "ghost" | "destructive" | "link";
+  size?: "default" | "sm" | "lg" | "icon";
 }
 
 export interface InputFieldProps {

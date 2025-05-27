@@ -26,6 +26,7 @@ import {
   Loader2,
   Save,
   CheckCircle,
+  X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -99,7 +100,7 @@ export default function Settings() {
   const fetchAgentProfile = async () => {
     try {
       setIsLoading(true);
-      
+
       // In a real app, this would be an API call
       // For now, we'll use mock data
       setTimeout(() => {
@@ -116,7 +117,7 @@ export default function Settings() {
           activeChats: 2,
           lastActive: new Date().toISOString(),
         };
-        
+
         setProfile(mockProfile);
         setSpecialties(mockProfile.specialties);
         setIsLoading(false);
@@ -134,11 +135,11 @@ export default function Settings() {
       // For now, we'll use mock data or localStorage
       const savedNotifications = localStorage.getItem("agentNotificationSettings");
       const savedAppearance = localStorage.getItem("agentAppearanceSettings");
-      
+
       if (savedNotifications) {
         setNotificationSettings(JSON.parse(savedNotifications));
       }
-      
+
       if (savedAppearance) {
         setAppearanceSettings(JSON.parse(savedAppearance));
       }
@@ -149,10 +150,10 @@ export default function Settings() {
 
   const handleProfileUpdate = async () => {
     if (!profile) return;
-    
+
     try {
       setIsSaving(true);
-      
+
       // In a real app, this would be an API call
       // For now, we'll simulate it
       setTimeout(() => {
@@ -161,7 +162,7 @@ export default function Settings() {
           ...profile,
           specialties,
         });
-        
+
         toast.success('Profile updated successfully');
         setIsSaving(false);
       }, 1000);
@@ -175,11 +176,11 @@ export default function Settings() {
   const handleNotificationSettingsUpdate = async () => {
     try {
       setIsSaving(true);
-      
+
       // In a real app, this would be an API call
       // For now, we'll save to localStorage
       localStorage.setItem("agentNotificationSettings", JSON.stringify(notificationSettings));
-      
+
       setTimeout(() => {
         toast.success('Notification settings updated');
         setIsSaving(false);
@@ -194,11 +195,11 @@ export default function Settings() {
   const handleAppearanceSettingsUpdate = async () => {
     try {
       setIsSaving(true);
-      
+
       // In a real app, this would be an API call
       // For now, we'll save to localStorage
       localStorage.setItem("agentAppearanceSettings", JSON.stringify(appearanceSettings));
-      
+
       setTimeout(() => {
         toast.success('Appearance settings updated');
         setIsSaving(false);
@@ -234,7 +235,7 @@ export default function Settings() {
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold text-gray-900">Agent Settings</h2>
       </div>
-      
+
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-4">
           <TabsTrigger value="profile">
@@ -254,7 +255,7 @@ export default function Settings() {
             Security
           </TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="profile">
           <Card>
             <CardHeader>
@@ -267,56 +268,55 @@ export default function Settings() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="name">Full Name</Label>
-                  <Input 
-                    id="name" 
-                    value={profile?.name || ""} 
-                    onChange={(e) => setProfile(prev => prev ? {...prev, name: e.target.value} : null)}
+                  <Input
+                    id="name"
+                    value={profile?.name || ""}
+                    onChange={(e) => setProfile(prev => prev ? { ...prev, name: e.target.value } : null)}
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input 
-                    id="email" 
-                    value={profile?.email || ""} 
+                  <Input
+                    id="email"
+                    value={profile?.email || ""}
                     disabled
                   />
                 </div>
-                
+
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="bio">Bio</Label>
-                  <Textarea 
-                    id="bio" 
+                  <Textarea
+                    id="bio"
                     rows={4}
-                    value={profile?.bio || ""} 
-                    onChange={(e) => setProfile(prev => prev ? {...prev, bio: e.target.value} : null)}
+                    value={profile?.bio || ""}
+                    onChange={(e) => setProfile(prev => prev ? { ...prev, bio: e.target.value } : null)}
                     placeholder="Tell us about your experience and expertise"
                   />
                 </div>
               </div>
-              
+
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <Label>Specialties</Label>
                   <div className="flex gap-2">
-                    <Input 
-                      placeholder="Add specialty" 
+                    <Input
+                      placeholder="Add specialty"
                       value={newSpecialty}
                       onChange={(e) => setNewSpecialty(e.target.value)}
                       className="w-48"
                     />
-                    <Button onClick={addSpecialty} size="sm">Add</Button>
+                    <Button onClick={addSpecialty} className="h-8 px-3">Add</Button>
                   </div>
                 </div>
-                
+
                 <div className="flex flex-wrap gap-2">
                   {specialties.map((specialty, index) => (
                     <div key={index} className="flex items-center bg-gray-100 rounded-full px-3 py-1">
                       <span className="text-sm">{specialty}</span>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-5 w-5 ml-1"
+                      <Button
+                        variant="ghost"
+                        className="h-5 w-5 ml-1 p-0"
                         onClick={() => removeSpecialty(specialty)}
                       >
                         <X className="h-3 w-3" />
@@ -325,13 +325,13 @@ export default function Settings() {
                   ))}
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <div className="flex items-center space-x-2">
-                  <Switch 
-                    id="available" 
+                  <Switch
+                    id="available"
                     checked={profile?.isAvailable || false}
-                    onCheckedChange={(checked) => setProfile(prev => prev ? {...prev, isAvailable: checked} : null)}
+                    onCheckedChange={(checked) => setProfile(prev => prev ? { ...prev, isAvailable: checked } : null)}
                   />
                   <Label htmlFor="available">Available for new chats and tickets</Label>
                 </div>
@@ -339,7 +339,7 @@ export default function Settings() {
                   When turned off, you won't receive new chat or ticket assignments
                 </p>
               </div>
-              
+
               <div className="flex justify-end">
                 <Button onClick={handleProfileUpdate} disabled={isSaving}>
                   {isSaving ? (
@@ -358,7 +358,7 @@ export default function Settings() {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="notifications">
           <Card>
             <CardHeader>
@@ -370,7 +370,7 @@ export default function Settings() {
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Event Notifications</h3>
-                
+
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
@@ -379,14 +379,14 @@ export default function Settings() {
                         Receive notifications when a new chat is assigned to you
                       </p>
                     </div>
-                    <Switch 
-                      id="newChatAssigned" 
+                    <Switch
+                      id="newChatAssigned"
                       checked={notificationSettings.newChatAssigned}
-                      onCheckedChange={(checked) => setNotificationSettings({...notificationSettings, newChatAssigned: checked})}
+                      onCheckedChange={(checked) => setNotificationSettings({ ...notificationSettings, newChatAssigned: checked })}
                     />
                   </div>
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
@@ -395,14 +395,14 @@ export default function Settings() {
                         Receive notifications when a new ticket is assigned to you
                       </p>
                     </div>
-                    <Switch 
-                      id="newTicketAssigned" 
+                    <Switch
+                      id="newTicketAssigned"
                       checked={notificationSettings.newTicketAssigned}
-                      onCheckedChange={(checked) => setNotificationSettings({...notificationSettings, newTicketAssigned: checked})}
+                      onCheckedChange={(checked) => setNotificationSettings({ ...notificationSettings, newTicketAssigned: checked })}
                     />
                   </div>
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
@@ -411,14 +411,14 @@ export default function Settings() {
                         Receive notifications for updates to your active chats
                       </p>
                     </div>
-                    <Switch 
-                      id="chatUpdates" 
+                    <Switch
+                      id="chatUpdates"
                       checked={notificationSettings.chatUpdates}
-                      onCheckedChange={(checked) => setNotificationSettings({...notificationSettings, chatUpdates: checked})}
+                      onCheckedChange={(checked) => setNotificationSettings({ ...notificationSettings, chatUpdates: checked })}
                     />
                   </div>
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
@@ -427,14 +427,14 @@ export default function Settings() {
                         Receive notifications for updates to your assigned tickets
                       </p>
                     </div>
-                    <Switch 
-                      id="ticketUpdates" 
+                    <Switch
+                      id="ticketUpdates"
                       checked={notificationSettings.ticketUpdates}
-                      onCheckedChange={(checked) => setNotificationSettings({...notificationSettings, ticketUpdates: checked})}
+                      onCheckedChange={(checked) => setNotificationSettings({ ...notificationSettings, ticketUpdates: checked })}
                     />
                   </div>
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
@@ -443,18 +443,18 @@ export default function Settings() {
                         Receive notifications for important system announcements
                       </p>
                     </div>
-                    <Switch 
-                      id="systemAnnouncements" 
+                    <Switch
+                      id="systemAnnouncements"
                       checked={notificationSettings.systemAnnouncements}
-                      onCheckedChange={(checked) => setNotificationSettings({...notificationSettings, systemAnnouncements: checked})}
+                      onCheckedChange={(checked) => setNotificationSettings({ ...notificationSettings, systemAnnouncements: checked })}
                     />
                   </div>
                 </div>
               </div>
-              
+
               <div className="space-y-4 pt-4 border-t">
                 <h3 className="text-lg font-medium">Notification Channels</h3>
-                
+
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
@@ -463,14 +463,14 @@ export default function Settings() {
                         Receive notifications via email
                       </p>
                     </div>
-                    <Switch 
-                      id="emailNotifications" 
+                    <Switch
+                      id="emailNotifications"
                       checked={notificationSettings.emailNotifications}
-                      onCheckedChange={(checked) => setNotificationSettings({...notificationSettings, emailNotifications: checked})}
+                      onCheckedChange={(checked) => setNotificationSettings({ ...notificationSettings, emailNotifications: checked })}
                     />
                   </div>
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
@@ -479,14 +479,14 @@ export default function Settings() {
                         Receive browser notifications when the app is open
                       </p>
                     </div>
-                    <Switch 
-                      id="desktopNotifications" 
+                    <Switch
+                      id="desktopNotifications"
                       checked={notificationSettings.desktopNotifications}
-                      onCheckedChange={(checked) => setNotificationSettings({...notificationSettings, desktopNotifications: checked})}
+                      onCheckedChange={(checked) => setNotificationSettings({ ...notificationSettings, desktopNotifications: checked })}
                     />
                   </div>
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
@@ -495,15 +495,15 @@ export default function Settings() {
                         Play sound alerts for new notifications
                       </p>
                     </div>
-                    <Switch 
-                      id="soundAlerts" 
+                    <Switch
+                      id="soundAlerts"
                       checked={notificationSettings.soundAlerts}
-                      onCheckedChange={(checked) => setNotificationSettings({...notificationSettings, soundAlerts: checked})}
+                      onCheckedChange={(checked) => setNotificationSettings({ ...notificationSettings, soundAlerts: checked })}
                     />
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex justify-end">
                 <Button onClick={handleNotificationSettingsUpdate} disabled={isSaving}>
                   {isSaving ? (
@@ -522,7 +522,7 @@ export default function Settings() {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="appearance">
           <Card>
             <CardHeader>
@@ -535,9 +535,9 @@ export default function Settings() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="theme">Theme</Label>
-                  <Select 
+                  <Select
                     value={appearanceSettings.theme}
-                    onValueChange={(value) => setAppearanceSettings({...appearanceSettings, theme: value})}
+                    onValueChange={(value) => setAppearanceSettings({ ...appearanceSettings, theme: value })}
                   >
                     <SelectTrigger id="theme">
                       <SelectValue placeholder="Select theme" />
@@ -549,12 +549,12 @@ export default function Settings() {
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="fontSize">Font Size</Label>
-                  <Select 
+                  <Select
                     value={appearanceSettings.fontSize}
-                    onValueChange={(value) => setAppearanceSettings({...appearanceSettings, fontSize: value})}
+                    onValueChange={(value) => setAppearanceSettings({ ...appearanceSettings, fontSize: value })}
                   >
                     <SelectTrigger id="fontSize">
                       <SelectValue placeholder="Select font size" />
@@ -566,12 +566,12 @@ export default function Settings() {
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="chatLayout">Chat Layout</Label>
-                  <Select 
+                  <Select
                     value={appearanceSettings.chatLayout}
-                    onValueChange={(value) => setAppearanceSettings({...appearanceSettings, chatLayout: value})}
+                    onValueChange={(value) => setAppearanceSettings({ ...appearanceSettings, chatLayout: value })}
                   >
                     <SelectTrigger id="chatLayout">
                       <SelectValue placeholder="Select chat layout" />
@@ -584,7 +584,7 @@ export default function Settings() {
                   </Select>
                 </div>
               </div>
-              
+
               <div className="space-y-4 pt-4">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -594,14 +594,14 @@ export default function Settings() {
                         Show timestamps for all messages in chats
                       </p>
                     </div>
-                    <Switch 
-                      id="showTimestamps" 
+                    <Switch
+                      id="showTimestamps"
                       checked={appearanceSettings.showTimestamps}
-                      onCheckedChange={(checked) => setAppearanceSettings({...appearanceSettings, showTimestamps: checked})}
+                      onCheckedChange={(checked) => setAppearanceSettings({ ...appearanceSettings, showTimestamps: checked })}
                     />
                   </div>
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
@@ -610,15 +610,15 @@ export default function Settings() {
                         Use a more compact layout to fit more content on screen
                       </p>
                     </div>
-                    <Switch 
-                      id="compactView" 
+                    <Switch
+                      id="compactView"
                       checked={appearanceSettings.compactView}
-                      onCheckedChange={(checked) => setAppearanceSettings({...appearanceSettings, compactView: checked})}
+                      onCheckedChange={(checked) => setAppearanceSettings({ ...appearanceSettings, compactView: checked })}
                     />
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex justify-end">
                 <Button onClick={handleAppearanceSettingsUpdate} disabled={isSaving}>
                   {isSaving ? (
@@ -637,7 +637,7 @@ export default function Settings() {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="security">
           <Card>
             <CardHeader>
@@ -649,31 +649,31 @@ export default function Settings() {
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Change Password</h3>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="currentPassword">Current Password</Label>
                   <Input id="currentPassword" type="password" />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="newPassword">New Password</Label>
                   <Input id="newPassword" type="password" />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="confirmPassword">Confirm New Password</Label>
                   <Input id="confirmPassword" type="password" />
                 </div>
-                
+
                 <Button>
                   <Shield className="w-4 h-4 mr-2" />
                   Update Password
                 </Button>
               </div>
-              
+
               <div className="space-y-4 pt-6 border-t">
                 <h3 className="text-lg font-medium">Two-Factor Authentication</h3>
-                
+
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
@@ -688,15 +688,15 @@ export default function Settings() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="space-y-4 pt-6 border-t">
                 <h3 className="text-lg font-medium">Session Management</h3>
-                
+
                 <div className="space-y-2">
                   <p className="text-sm text-gray-500">
                     You are currently logged in from this device.
                   </p>
-                  
+
                   <Button variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50">
                     Log Out All Other Devices
                   </Button>

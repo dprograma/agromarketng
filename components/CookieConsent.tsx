@@ -49,16 +49,14 @@ export default function CookieConsent() {
           <div className="flex flex-wrap gap-2 mt-2 md:mt-0">
             <Button 
               variant="outline" 
-              size="sm"
               onClick={acceptEssential}
-              className="text-xs md:text-sm"
+              className="text-xs md:text-sm mt-4 h-8 px-3"
             >
               Essential Only
             </Button>
             <Button 
               onClick={acceptAll}
-              size="sm"
-              className="bg-green-600 hover:bg-green-700 text-xs md:text-sm"
+              className="bg-green-600 hover:bg-green-700 text-xs md:text-sm mt-4 h-8 px-3"
             >
               Accept All
             </Button>

@@ -8,6 +8,7 @@ import { AlertsMsg } from '@/components/AlertsMsg';
 import { useSession } from "@/components/SessionWrapper";
 import { BoostAdModalProps, PaymentDetails } from "@/types";
 import PaymentModal from "@/components/PaymentModal";
+import { CheckCircle, Star, TrendingUp, BarChart2 } from "lucide-react";
 
 export default function BoostAdModal({ isOpen, onClose, ad, onBoost }: BoostAdModalProps) {
   const { session } = useSession();
@@ -28,7 +29,7 @@ export default function BoostAdModal({ isOpen, onClose, ad, onBoost }: BoostAdMo
       const verifyResponse = await fetch('/api/payments/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reference })
+        body: JSON.stringify({ reference, type: paymentDetails?.type, adId: paymentDetails?.adId, boostType: paymentDetails?.boostType, boostDuration: paymentDetails?.boostDuration })
       });
 
       const verifyData = await verifyResponse.json();
@@ -47,7 +48,9 @@ export default function BoostAdModal({ isOpen, onClose, ad, onBoost }: BoostAdMo
         // Optionally refresh the page to show updated subscription status
         window.location.href = '/dashboard/promotions';
       } else {
-        throw new Error('Payment verification failed');
+        console.error('Backend verification response:', verifyData);
+        const backendError = verifyData.message || verifyData.error || 'Unknown verification error';
+        throw new Error(`Payment verification failed: ${backendError}`);
       }
     } catch (error) {
       console.error('Error processing payment:', error);
@@ -93,7 +96,8 @@ export default function BoostAdModal({ isOpen, onClose, ad, onBoost }: BoostAdMo
       plan: option.name,
       adId: ad.id,
       boostType: selectedBoost,
-      boostDuration: selectedDuration
+      boostDuration: selectedDuration,
+      type: 'boost'
     };
 
     setPaymentDetails(details);
@@ -141,14 +145,25 @@ export default function BoostAdModal({ isOpen, onClose, ad, onBoost }: BoostAdMo
                 >
                   <h4 className="text-md font-medium">{option.name}</h4>
                   <p className="text-sm text-gray-600 mt-1">{getPriceDisplay(option)}</p>
-                  <div className="mt-2 flex gap-2 flex-wrap">
+
+                  {/* Add features list */}
+                  <ul className="mt-2 space-y-1">
+                    {option.features.map((feature, index) => (
+                      <li key={index} className="text-xs text-gray-600 flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3 text-green-500" />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="mt-3 flex gap-2 flex-wrap">
                     {option.duration.map((days) => (
                       <button
                         key={days}
                         className={cn(
-                          "px-3 py-1 text-sm rounded-md border",
+                          "px-3 py-1 text-sm rounded-md border transition-colors",
                           selectedBoost === option.id && selectedDuration === days
-                            ? "bg-green-500 text-white"
+                            ? "bg-green-500 text-white border-green-600"
                             : "border-gray-300 hover:bg-gray-100"
                         )}
                         onClick={(e) => handleDurationClick(e, days, option.id)}
@@ -160,6 +175,25 @@ export default function BoostAdModal({ isOpen, onClose, ad, onBoost }: BoostAdMo
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Add boost benefits section */}
+          <div className="mt-6 p-4 bg-purple-50 rounded-lg">
+            <h4 className="text-sm font-medium text-purple-800 mb-2">Boost Benefits</h4>
+            <ul className="space-y-2">
+              <li className="text-sm text-purple-700 flex items-center gap-2">
+                <Star className="h-4 w-4 text-purple-500" />
+                Increased visibility in search results
+              </li>
+              <li className="text-sm text-purple-700 flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-purple-500" />
+                Higher engagement rates
+              </li>
+              <li className="text-sm text-purple-700 flex items-center gap-2">
+                <BarChart2 className="h-4 w-4 text-purple-500" />
+                Detailed performance analytics
+              </li>
+            </ul>
           </div>
 
           <div className="mt-6 flex justify-end gap-3">

@@ -176,17 +176,17 @@ export default function ChatManagement() {
   const fetchChats = async () => {
     try {
       setIsLoading(true);
-      
+
       // Fetch active chats
       const activeResponse = await fetch('/api/agent/chats?status=active', {
         credentials: 'include'
       });
-      
+
       // Fetch pending chats
       const pendingResponse = await fetch('/api/agent/chats?status=pending', {
         credentials: 'include'
       });
-      
+
       // Fetch closed chats
       const closedResponse = await fetch('/api/agent/chats?status=closed', {
         credentials: 'include'
@@ -242,15 +242,15 @@ export default function ChatManagement() {
       }
 
       const acceptedChat = await response.json();
-      
+
       // Remove from pending and add to active
       setPendingChats(prev => prev.filter(chat => chat.id !== chatId));
       setActiveChats(prev => [acceptedChat, ...prev]);
-      
+
       // Select the newly accepted chat
       setSelectedChat(acceptedChat);
       setActiveTab("active");
-      
+
       toast.success('Chat accepted successfully');
     } catch (error) {
       console.error('Error accepting chat:', error);
@@ -270,16 +270,16 @@ export default function ChatManagement() {
       }
 
       const closedChat = await response.json();
-      
+
       // Remove from active and add to closed
       setActiveChats(prev => prev.filter(chat => chat.id !== chatId));
       setClosedChats(prev => [closedChat, ...prev]);
-      
+
       // If this was the selected chat, clear selection
       if (selectedChat?.id === chatId) {
         setSelectedChat(null);
       }
-      
+
       toast.success('Chat closed successfully');
     } catch (error) {
       console.error('Error closing chat:', error);
@@ -305,7 +305,7 @@ export default function ChatManagement() {
       }
 
       const newMessage = await response.json();
-      
+
       // Update the selected chat with the new message
       setSelectedChat(prev => {
         if (!prev) return null;
@@ -315,7 +315,7 @@ export default function ChatManagement() {
           updatedAt: new Date().toISOString()
         };
       });
-      
+
       // Also update in the active chats list
       setActiveChats(prev => prev.map(chat => {
         if (chat.id === selectedChat.id) {
@@ -327,10 +327,10 @@ export default function ChatManagement() {
         }
         return chat;
       }));
-      
+
       // Clear the message input
       setMessage('');
-      
+
       // Emit the message to the socket
       socket?.emit('new_support_message', {
         chatId: selectedChat.id,
@@ -357,7 +357,7 @@ export default function ChatManagement() {
       if (chat) {
         setActiveChats(prev => prev.filter(c => c.id !== chatId));
         setClosedChats(prev => [chat, ...prev]);
-        
+
         // If this was the selected chat, clear selection
         if (selectedChat?.id === chatId) {
           setSelectedChat(null);
@@ -386,17 +386,17 @@ export default function ChatManagement() {
   const filterChats = (chats: Chat[]) => {
     return chats.filter(chat => {
       // Search term filter
-      const matchesSearch = searchTerm === '' || 
+      const matchesSearch = searchTerm === '' ||
         chat.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         chat.user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         chat.messages.some(m => m.content.toLowerCase().includes(searchTerm.toLowerCase()));
-      
+
       // Category filter
       const matchesCategory = categoryFilter === 'all' || chat.category === categoryFilter;
-      
+
       // Priority filter
       const matchesPriority = priorityFilter === 'all' || chat.priority.toString() === priorityFilter;
-      
+
       return matchesSearch && matchesCategory && matchesPriority;
     });
   };
@@ -434,7 +434,7 @@ export default function ChatManagement() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          
+
           <div className="flex space-x-2">
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-full">
@@ -448,7 +448,7 @@ export default function ChatManagement() {
                 <SelectItem value="product">Product</SelectItem>
               </SelectContent>
             </Select>
-            
+
             <Select value={priorityFilter} onValueChange={setPriorityFilter}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Priority" />
@@ -462,7 +462,7 @@ export default function ChatManagement() {
             </Select>
           </div>
         </div>
-        
+
         {/* Tabs for chat status */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
           <div className="px-2 border-b">
@@ -481,7 +481,7 @@ export default function ChatManagement() {
               </TabsTrigger>
             </TabsList>
           </div>
-          
+
           <TabsContent value="active" className="flex-1 overflow-y-auto p-2 space-y-2">
             {filteredActiveChats.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
@@ -492,9 +492,8 @@ export default function ChatManagement() {
               filteredActiveChats.map(chat => (
                 <div
                   key={chat.id}
-                  className={`p-3 rounded-lg cursor-pointer ${
-                    selectedChat?.id === chat.id ? 'bg-green-50 border border-green-200' : 'hover:bg-gray-50 border'
-                  }`}
+                  className={`p-3 rounded-lg cursor-pointer ${selectedChat?.id === chat.id ? 'bg-green-50 border border-green-200' : 'hover:bg-gray-50 border'
+                    }`}
                   onClick={() => setSelectedChat(chat)}
                 >
                   <div className="flex justify-between items-center">
@@ -516,7 +515,7 @@ export default function ChatManagement() {
               ))
             )}
           </TabsContent>
-          
+
           <TabsContent value="pending" className="flex-1 overflow-y-auto p-2 space-y-2">
             {filteredPendingChats.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
@@ -540,13 +539,13 @@ export default function ChatManagement() {
                   </p>
                   <div className="flex justify-between items-center mt-2">
                     <Badge variant="outline">{chat.category}</Badge>
-                    <Button size="sm" onClick={() => handleAcceptChat(chat.id)}>Accept</Button>
+                    <Button variant="default" className="h-8 px-3" onClick={() => handleAcceptChat(chat.id)}>Accept</Button>
                   </div>
                 </div>
               ))
             )}
           </TabsContent>
-          
+
           <TabsContent value="closed" className="flex-1 overflow-y-auto p-2 space-y-2">
             {filteredClosedChats.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
@@ -557,9 +556,8 @@ export default function ChatManagement() {
               filteredClosedChats.map(chat => (
                 <div
                   key={chat.id}
-                  className={`p-3 rounded-lg cursor-pointer ${
-                    selectedChat?.id === chat.id ? 'bg-green-50 border border-green-200' : 'hover:bg-gray-50 border'
-                  }`}
+                  className={`p-3 rounded-lg cursor-pointer ${selectedChat?.id === chat.id ? 'bg-green-50 border border-green-200' : 'hover:bg-gray-50 border'
+                    }`}
                   onClick={() => setSelectedChat(chat)}
                 >
                   <div className="flex justify-between items-center">
@@ -581,7 +579,7 @@ export default function ChatManagement() {
           </TabsContent>
         </Tabs>
       </div>
-      
+
       {/* Chat Window */}
       <div className="flex-1 flex flex-col">
         {selectedChat ? (
@@ -598,14 +596,14 @@ export default function ChatManagement() {
                   <Badge variant={selectedChat.priority === 3 ? "destructive" : selectedChat.priority === 2 ? "default" : "outline"}>
                     Priority: {selectedChat.priority === 3 ? "High" : selectedChat.priority === 2 ? "Medium" : "Low"}
                   </Badge>
-                  
+
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
+                      <Button variant="ghost" className="h-8 w-8 p-0">
                         <MoreVertical size={18} />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="right">
                       {selectedChat.status === 'active' && (
                         <DropdownMenuItem onClick={() => handleCloseChat(selectedChat.id)}>
                           Close Chat
@@ -622,7 +620,7 @@ export default function ChatManagement() {
                 <span>Status: {selectedChat.status.charAt(0).toUpperCase() + selectedChat.status.slice(1)}</span>
               </div>
             </div>
-            
+
             {/* Chat Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {selectedChat.messages.map((msg) => (
@@ -631,11 +629,10 @@ export default function ChatManagement() {
                   className={`flex ${msg.senderType === 'agent' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[70%] rounded-lg p-3 ${
-                      msg.senderType === 'agent'
-                        ? 'bg-green-100 text-green-900'
-                        : 'bg-gray-100 text-gray-900'
-                    }`}
+                    className={`max-w-[70%] rounded-lg p-3 ${msg.senderType === 'agent'
+                      ? 'bg-green-100 text-green-900'
+                      : 'bg-gray-100 text-gray-900'
+                      }`}
                   >
                     <p>{msg.content}</p>
                     <p className="text-xs mt-1 opacity-70">
@@ -646,7 +643,7 @@ export default function ChatManagement() {
               ))}
               <div ref={messagesEndRef} />
             </div>
-            
+
             {/* Quick Replies */}
             {selectedChat.status === 'active' && (
               <div className="p-2 border-t flex gap-2 overflow-x-auto">
@@ -662,7 +659,7 @@ export default function ChatManagement() {
                 ))}
               </div>
             )}
-            
+
             {/* Message Input */}
             {selectedChat.status === 'active' ? (
               <div className="p-4 border-t flex gap-2">
@@ -679,10 +676,10 @@ export default function ChatManagement() {
                   }}
                 />
                 <div className="flex flex-col gap-2">
-                  <Button onClick={handleSendMessage} size="icon">
+                  <Button onClick={handleSendMessage} className="h-8 w-8 p-0">
                     <Send size={18} />
                   </Button>
-                  <Button onClick={addQuickReply} size="icon" variant="outline">
+                  <Button onClick={addQuickReply} className="h-8 w-8 p-0" variant="outline">
                     <ThumbsUp size={18} />
                   </Button>
                 </div>

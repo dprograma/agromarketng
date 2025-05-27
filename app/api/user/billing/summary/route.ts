@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 
+interface PaymentMethod {
+  id: string;
+  type: string;
+  provider: string;
+  last4?: string;
+  email?: string;
+  displayName?: string;
+}
+
 export async function GET(req: NextRequest) {
   try {
     // Get token from cookies
@@ -47,7 +56,7 @@ export async function GET(req: NextRequest) {
 
     // Get unpaid invoices
     const unpaidInvoices = await prisma.invoice.findMany({
-      where: { 
+      where: {
         userId,
         status: 'unpaid'
       },
@@ -56,7 +65,7 @@ export async function GET(req: NextRequest) {
 
     // Calculate billing summary
     const currentDate = new Date();
-    
+
     // Calculate total spent in the current month
     const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const totalSpentThisMonth = await prisma.transaction.aggregate({
@@ -97,20 +106,19 @@ export async function GET(req: NextRequest) {
     // Format default payment method
     const defaultPaymentMethod = paymentMethods.find(method => method.isDefault);
     let formattedDefaultMethod = null;
-    
+
     if (defaultPaymentMethod) {
       formattedDefaultMethod = {
-        id: defaultPaymentMethod.id,
-        type: defaultPaymentMethod.type,
-        provider: defaultPaymentMethod.provider
+        ...defaultPaymentMethod,
+        displayName: `${defaultPaymentMethod.provider} •••• ${defaultPaymentMethod.last4}`
       };
-      
+
       if (defaultPaymentMethod.type === 'card') {
         formattedDefaultMethod.displayName = `${defaultPaymentMethod.provider} •••• ${defaultPaymentMethod.last4}`;
       } else if (defaultPaymentMethod.type === 'paypal') {
         formattedDefaultMethod.displayName = `PayPal (${defaultPaymentMethod.email})`;
       } else if (defaultPaymentMethod.type === 'bank_account') {
-        formattedDefaultMethod.displayName = `${defaultPaymentMethod.bankName} •••• ${defaultPaymentMethod.last4}`;
+        formattedDefaultMethod.displayName = `Bank Account •••• ${defaultPaymentMethod.last4}`;
       }
     }
 
@@ -135,7 +143,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error("Error fetching billing summary:", error);
-    
+
     // Provide more specific error messages based on the error type
     if (error instanceof jwt.JsonWebTokenError) {
       return NextResponse.json(
@@ -150,8 +158,8 @@ export async function GET(req: NextRequest) {
     } else if (error instanceof Error) {
       // Return a generic error message but with the specific error name for debugging
       return NextResponse.json(
-        { 
-          error: "Failed to fetch billing summary", 
+        {
+          error: "Failed to fetch billing summary",
           code: "SERVER_ERROR",
           message: error.message,
           name: error.name
@@ -159,7 +167,7 @@ export async function GET(req: NextRequest) {
         { status: 500 }
       );
     }
-    
+
     // Fallback for unknown errors
     return NextResponse.json(
       { error: "An unexpected error occurred", code: "UNKNOWN_ERROR" },

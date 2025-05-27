@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
+import { apiErrorResponse } from '@/lib/errorHandling';
 
 // Helper function to validate admin session
 async function validateAdmin(req: NextRequest) {
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
   try {
     const session = await validateAdmin(req);
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
     }
 
     // Default settings
@@ -52,9 +53,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(defaultSettings);
   } catch (error) {
     console.error("Error fetching settings:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch settings" },
-      { status: 500 }
+    return apiErrorResponse(
+      "Failed to fetch settings",
+      500,
+      "FETCH_SETTINGS_FAILED",
+      error instanceof Error ? error.message : String(error)
     );
   }
 }
@@ -63,30 +66,33 @@ export async function POST(req: NextRequest) {
   try {
     const session = await validateAdmin(req);
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
     }
 
     const settings = await req.json();
-    
+
     // Validate settings
     if (typeof settings !== 'object') {
-      return NextResponse.json(
-        { error: "Invalid settings format" },
-        { status: 400 }
+      return apiErrorResponse(
+        "Invalid settings format",
+        400,
+        "INVALID_INPUT"
       );
     }
 
     // In a real app, you would save settings to the database
     // For now, we'll just return success
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: "Settings updated successfully",
       settings
     });
   } catch (error) {
     console.error("Error updating settings:", error);
-    return NextResponse.json(
-      { error: "Failed to update settings" },
-      { status: 500 }
+    return apiErrorResponse(
+      "Failed to update settings",
+      500,
+      "UPDATE_SETTINGS_FAILED",
+      error instanceof Error ? error.message : String(error)
     );
   }
 }

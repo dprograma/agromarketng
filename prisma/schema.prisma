@@ -66,6 +66,11 @@ model Ad {
   subscriptionPlan   SubscriptionPlan? @relation("AdSubscription", fields: [subscriptionPlanId], references: [id])
   user               User              @relation(fields: [userId], references: [id])
   Chat               Chat[]
+
+  @@index([category])
+  @@index([location])
+  @@index([createdAt])
+  @@index([price])
 }
 
 model SubscriptionPlan {

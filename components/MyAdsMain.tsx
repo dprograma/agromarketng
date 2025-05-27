@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DisableableDropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DisableableDropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Eye, Star, TrendingUp, MoreVertical, CheckCircle, Clock, XCircle,
@@ -19,15 +20,18 @@ import { formatCurrency } from '@/lib/utils';
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import Alert from '@/components/Alerts';
+import { debugRSC } from '@/lib/rsc-debug';
 
+type AlertType = 'success' | 'error' | 'warning' | 'info';
 
 export default function MyAdsManagement() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [ads, setAds] = useState<Ad[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
-  const itemsPerPage = 6; // Increased from 5 to 6 for better grid layout
+  const itemsPerPage = 6;
   const [alerts, setAlerts] = useState<boolean>(false);
   const [alertMessages, setAlertMessages] = useState<string | undefined>();
   const [alertTypes, setAlertTypes] = useState<string | undefined>();
@@ -37,272 +41,178 @@ export default function MyAdsManagement() {
   const [maxFreeAds, setMaxFreeAds] = useState<number>(5);
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  // Fetch ads from the database
-  useEffect(() => {
-    const fetchAds = async () => {
+  // Fetch ads with React Query
+  const { data: adsData, isLoading: isAdsLoading, error } = useQuery({
+    queryKey: ['myAds'],
+    queryFn: async (): Promise<MyAdsResponse> => {
       try {
-        const response = await fetch('/api/ads/my-ads');
+        const response = await fetch('/api/ads/my-ads', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
         if (!response.ok) {
-          setAlerts(true)
-          setAlertTypes('error');
-          setAlertMessages('Failed to fetch ads');
-          return;
+          if (response.status === 401) {
+            throw new Error('Authentication required');
+          }
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const data: MyAdsResponse = await response.json();
-        setAds(data.ads);
-        setSubscription(data.subscription);
-        setMaxFreeAds(data.maxFreeAds);
+
+        const data = await response.json();
+        return data;
       } catch (error) {
-        setAlerts(true)
-        setAlertTypes('error');
-        setAlertMessages('Failed to fetch ads');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchAds();
-  }, []);
-
-
-  // Fetch ads from the database
-  useEffect(() => {
-    const fetchAds = async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch('/api/ads/my-ads');
-
-        if (!response.ok) {
-          setAlerts(true)
-          setAlertTypes('error');
-          setAlertMessages('Failed to fetch ads');
-          return;
+        if (error instanceof TypeError && error.message === 'Failed to fetch') {
+          throw new Error('Network connection failed. Please check your internet connection.');
         }
+        throw error;
+      }
+    },
+    staleTime: 30000,
+    gcTime: 5 * 60 * 1000,
+    retry: (failureCount, error) => {
+      if (error instanceof Error &&
+        (error.message.includes('Network connection failed') ||
+          error.message.includes('Authentication required'))) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    refetchOnWindowFocus: false,
+    refetchOnMount: true,
+  });
 
-        const data: MyAdsResponse = await response.json();
-        console.log("my ads response: ", data);
-        // Check if data contains ads array
-        if (data && Array.isArray(data.ads)) {
-          setAds(data.ads);
-          setSubscription(data.subscription);
-          setMaxFreeAds(data.maxFreeAds);
-          setAlerts(false);
+  // Handle query errors
+  useEffect(() => {
+    if (error) {
+      setAlerts(true);
+      setAlertTypes('error');
+
+      if (error instanceof Error) {
+        if (error.message.includes('Authentication required')) {
+          setAlertMessages('Please log in to view your ads');
+          router.push('/signin');
+        } else if (error.message.includes('Network connection failed')) {
+          setAlertMessages('Network connection failed. Please check your internet connection and try again.');
         } else {
-          setAlerts(true)
-          setAlertTypes('error');
-          setAlertMessages('Invalid data format received');
-          return;
+          setAlertMessages(error.message || 'Failed to fetch ads');
         }
-      } catch (error) {
-        setAlerts(true);
-        setAlertTypes('error');
-        setAlertMessages('Failed to fetch ads');
-        setAds([]);
-      } finally {
-        setIsLoading(false);
       }
-    };
+    }
+  }, [error, router]);
 
-    fetchAds();
-  }, []);
+  // Update local state when data changes
+  useEffect(() => {
+    if (adsData?.ads) {
+      setAds(adsData.ads);
+      setSubscription(adsData.subscription);
+      setMaxFreeAds(adsData.maxFreeAds);
+      setIsLoading(false);
+    }
+  }, [adsData]);
 
+  // Memoize filtered ads
+  const filteredAds = useMemo(() => {
+    if (!adsData?.ads) return [];
+    return adsData.ads.filter((ad) => {
+      const matchesSearch = ad.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ad.price.toString().includes(searchTerm.toLowerCase()) ||
+        ad.category.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || ad.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [adsData?.ads, searchTerm, statusFilter]);
 
+  // Memoize current page ads
+  const currentAds = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredAds.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredAds, currentPage, itemsPerPage]);
 
   // Add subscription check for new ad button
   const canAddNewAd = subscription || ads.length < maxFreeAds;
 
-  // Handle search and filter functionality
-  const filteredAds = ads.filter(
-    (ad) => {
-      const matchesSearch = ad.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        ad.price.toString().includes(searchTerm.toLowerCase()) ||
-        ad.category.toLowerCase().includes(searchTerm.toLowerCase());
+  // Optimistic updates for status changes
+  const updateStatus = useCallback(async (id: string, newStatus: string) => {
+    queryClient.setQueryData(['myAds'], (oldData: MyAdsResponse | undefined) => {
+      if (!oldData) return oldData;
+      return {
+        ...oldData,
+        ads: oldData.ads.map(ad =>
+          ad.id === id ? { ...ad, status: newStatus } : ad
+        )
+      };
+    });
 
-      const matchesStatus = statusFilter === 'all' || ad.status === statusFilter;
-
-      return matchesSearch && matchesStatus;
-    }
-  );
-
-  // Handle pagination
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentAds = filteredAds.slice(startIndex, startIndex + itemsPerPage);
-
-  // Update ad status
-  const updateStatus = async (id: string, newStatus: string) => {
     try {
-      const response = await fetch(`/api/ads/${id}/status`, {
+      const { data } = await debugRSC.safeApiCall(`/api/ads/${id}/status`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ status: newStatus }),
-      });
+      }, `Update Ad Status - ${id}`);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setAlerts(true)
-        setAlertTypes('error');
-        setAlertMessages('Failed to update status');
-      }
-
-      if (data.ad) {
-        setAds(ads.map((ad) =>
-          ad.id === id ? { ...ad, status: data.ad.status } : ad
-        ));
-
-        // Show success message
-        setAlerts(true);
-        setAlertTypes('success');
-        setAlertMessages(data.message || 'Status updated successfully');
-      }
+      showToast({ type: 'success', message: data.message || 'Status updated successfully' });
     } catch (error) {
-      setAlerts(true);
-      setAlertTypes('error');
-      setAlertMessages(error instanceof Error ? error.message : 'Error updating status');
+      queryClient.invalidateQueries({ queryKey: ['myAds'] });
+      showToast({ type: 'error', message: error instanceof Error ? error.message : 'Error updating status' });
     }
-  };
+  }, [queryClient]);
 
-  const handleBoostAd = async (adId: string, boostType: number, duration: number) => {
+  // Handle boost ad
+  const handleBoostAd = useCallback(async (adId: string, boostType: number, duration: number) => {
     try {
-      // Show loading state
-      setAlerts(true);
-      setAlertTypes('info');
-      setAlertMessages('Processing your request...');
-
-      // Check network connectivity
-      if (!navigator.onLine) {
-        throw new Error('No internet connection. Please check your network and try again.');
-      }
-
-      const response = await fetch(`/api/ads/${adId}/boost`, {
+      const { data } = await debugRSC.safeApiCall(`/api/ads/${adId}/boost`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ boostType, duration }),
-      });
+      }, `Boost Ad - ${adId}`);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        // Handle subscription required case
-        if (response.status === 403 && data.status === 'SUBSCRIPTION_REQUIRED') {
-          setAlerts(true);
-          setAlertTypes('warning');
-          setAlertMessages('Subscription required to boost ads. Redirecting to subscription page...');
-
-          // Close boost modal
-          setIsBoostModalOpen(false);
-          setSelectedAd(null);
-
-          // Store ad info in sessionStorage for after subscription
-          sessionStorage.setItem('pendingBoost', JSON.stringify({
-            adId,
-            boostType,
-            duration,
-            timestamp: Date.now() // Add timestamp for expiration check
-          }));
-
-          // Redirect to promotions page after a short delay
-          setTimeout(() => {
-            router.push(data.redirectUrl);
-          }, 1500);
-          return;
-        }
-
-        // Handle payment required case
-        if (response.status === 402 && data.status === 'PAYMENT_REQUIRED') {
-          setAlerts(true);
-          setAlertTypes('warning');
-          setAlertMessages('Payment required to boost this ad. Redirecting to payment page...');
-
-          // Close boost modal
-          setIsBoostModalOpen(false);
-          setSelectedAd(null);
-
-          // Redirect to payment page after a short delay
-          setTimeout(() => {
-            router.push(data.redirectUrl || '/dashboard/billing');
-          }, 1500);
-          return;
-        }
-
-        throw new Error(data.error || `Failed to boost ad (Error ${response.status})`);
-      }
-
-      // Update local state if successful
-      setAds(ads.map((ad) =>
-        ad.id === adId ? { ...ad, featured: true, status: 'Active' } : ad
-      ));
-
-      // Close boost modal
+      queryClient.invalidateQueries({ queryKey: ['myAds'] });
+      showToast({ type: 'success', message: 'Ad boosted successfully!' });
       setIsBoostModalOpen(false);
       setSelectedAd(null);
-
-      setAlerts(true);
-      setAlertTypes('success');
-      setAlertMessages(data.message || 'Ad boosted successfully! Your ad is now featured.');
     } catch (error) {
-      console.error('Error boosting ad:', error);
-      setAlerts(true);
-      setAlertTypes('error');
-      setAlertMessages(error instanceof Error ? error.message : 'Error boosting ad. Please try again.');
-    }
-  };
-
-  // Function to handle featuring an ad
-  // This opens the boost modal which allows the user to select boost options
-
-  const handleFeature = async (ad: Ad) => {
-    if (!ad.featured) {
-      // Check if ad is active before allowing it to be featured
-      if (ad.status !== "Active") {
-        setAlerts(true);
-        setAlertTypes('warning');
-        setAlertMessages('Ad must be active before it can be featured. Please set the ad to active first.');
+      // Handle subscription required error
+      if (error instanceof Error && error.message.includes('subscription')) {
+        showToast({ type: 'warning', message: 'Subscription required to boost ads' });
+        setIsBoostModalOpen(false);
+        setSelectedAd(null);
+        debugRSC.safeNavigate(router, '/dashboard/billing');
         return;
       }
 
-      // Set the selected ad and open the boost modal
+      showToast({ type: 'error', message: error instanceof Error ? error.message : 'Error boosting ad' });
+    }
+  }, [queryClient, router]);
+
+  // Handle feature
+  const handleFeature = useCallback((ad: Ad) => {
+    if (!ad.featured) {
+      if (ad.status !== "Active") {
+        showToast({ type: 'warning', message: 'Ad must be active before it can be featured' });
+        return;
+      }
       setSelectedAd(ad);
       setIsBoostModalOpen(true);
     } else {
-      // If already featured, show information about current feature status
-      setAlerts(true);
-      setAlertTypes('info');
-      setAlertMessages('This ad is already featured. It will remain featured until the boost period ends.');
+      showToast({ type: 'info', message: 'This ad is already featured' });
     }
-  };
+  }, []);
 
   const updateAnalytics = async (id: string, type: 'views' | 'clicks' | 'shares') => {
     try {
-      const response = await fetch(`/api/ads/${id}/analytics`, {
+      const { data } = await debugRSC.safeApiCall(`/api/ads/${id}/analytics`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ type }),
-      });
+      }, `Update Analytics - ${type}`);
 
-      if (!response.ok) {
-
-        setAlerts(true)
-        setAlertTypes('error');
-        setAlertMessages('Failed to update analytics');
-      }
-
-      const { ad } = await response.json();
-
-      // Update the local state with new analytics
       setAds(ads.map((currentAd) =>
-        currentAd.id === id ? { ...currentAd, [type]: ad[type] } : currentAd
+        currentAd.id === id ? { ...currentAd, [type]: data.ad[type] } : currentAd
       ));
     } catch (error) {
       setAlerts(true)
       setAlertTypes('error');
-      setAlertMessages(`Error updating ${type}: ` + error);
+      setAlertMessages(`Error updating ${type}: ` + (error instanceof Error ? error.message : error));
     }
   };
 
@@ -314,51 +224,58 @@ export default function MyAdsManagement() {
     updateAnalytics(id, 'clicks');
   };
 
-  const handleShare = async (id: string) => {
-    const ad = ads.find(ad => ad.id === id);
-    if (!ad) return;
+  // Handle share
+  const handleShare = useCallback(async (id: string) => {
+    const ad = adsData?.ads.find(ad => ad.id === id);
+    if (!ad) {
+      return;
+    }
 
     try {
-      // Use Web Share API if available
+      const shareUrl = `${window.location.origin}/ads/${ad.id}`;
+
       if (navigator.share) {
         await navigator.share({
           title: ad.title,
           text: `Check out this ad: ${ad.title}`,
-          url: `${window.location.origin}/ads/${ad.id}`,
+          url: shareUrl,
         });
-        updateAnalytics(id, 'shares');
       } else {
-        // Fallback to copying to clipboard
-        await navigator.clipboard.writeText(`${window.location.origin}/ads/${ad.id}`);
-        setAlerts(true)
-        setAlertTypes('success');
-        setAlertMessages('Ad link copied to clipboard!');
-        updateAnalytics(id, 'shares');
+        await navigator.clipboard.writeText(shareUrl);
+        showToast({ type: 'success', message: 'Ad link copied to clipboard!' });
       }
+
+      updateAnalytics(id, 'shares');
     } catch (error) {
-      setAlerts(true)
-      setAlertTypes('success');
-      setAlertMessages('Error sharing: ' + error);
+      showToast({ type: 'error', message: 'Error sharing: ' + (error instanceof Error ? error.message : error) });
     }
-  };
+  }, [adsData?.ads]);
 
-  const handlePrevPage = () => {
+  const handlePrevPage = useCallback(() => {
     if (currentPage > 1) setCurrentPage(currentPage - 1);
-  };
+  }, [currentPage]);
 
-  const handleNextPage = () => {
+  const handleNextPage = useCallback(() => {
     if (currentPage < Math.ceil(filteredAds.length / itemsPerPage)) {
       setCurrentPage(currentPage + 1);
     }
-  };
+  }, [currentPage, filteredAds.length, itemsPerPage]);
 
-  if (isLoading) {
+  if (isAdsLoading) {
     return (
       <div className="container mx-auto p-6 space-y-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">My Ads Management</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">My Ads</h1>
         <div className="flex justify-center items-center h-64">
-          <p className="text-gray-500">Loading ads...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto p-6 space-y-6">
+        <Alert message="Failed to load ads. Please try again later." type="error" />
       </div>
     );
   }
@@ -391,7 +308,7 @@ export default function MyAdsManagement() {
         </Button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
+      <div className="bg-white rounded-xl shadow-md border border-gray-200 relative overflow-visible">
         <div className="p-6 border-b border-gray-200">
           <div className="flex flex-col md:flex-row justify-between gap-4">
             <div className="relative flex-grow max-w-md">
@@ -423,7 +340,7 @@ export default function MyAdsManagement() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="relative overflow-visible">
           {ads.length === 0 ? (
             <div className="text-center py-16 px-4">
               <div className="mx-auto h-24 w-24 text-gray-400 mb-4">
@@ -466,7 +383,7 @@ export default function MyAdsManagement() {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6 relative overflow-visible">
               <AnimatePresence>
                 {currentAds.map((ad, index) => (
                   <motion.div
@@ -475,7 +392,8 @@ export default function MyAdsManagement() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.2, delay: index * 0.05 }}
-                    className="bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+                    className="bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow relative"
+                    style={{ zIndex: currentAds.length - index }}
                   >
                     <div className="relative aspect-video bg-gray-100">
                       {ad.images && ad.images.length > 0 ? (
@@ -495,121 +413,99 @@ export default function MyAdsManagement() {
 
                       <div className="absolute top-2 right-2">
                         <Badge
-                          className={`px-2 py-1 text-xs font-medium ${
-                            ad.status === "Active" ? "bg-green-100 text-green-800 border border-green-200" :
+                          className={`px-2 py-1 text-xs font-medium ${ad.status === "Active" ? "bg-green-100 text-green-800 border border-green-200" :
                             ad.status === "Pending" ? "bg-yellow-100 text-yellow-800 border border-yellow-200" :
-                            ad.status === "Sold" ? "bg-blue-100 text-blue-800 border border-blue-200" :
-                            "bg-gray-100 text-gray-800 border border-gray-200"
-                          }`}
+                              ad.status === "Sold" ? "bg-blue-100 text-blue-800 border border-blue-200" :
+                                "bg-gray-100 text-gray-800 border border-gray-200"
+                            }`}
                         >
                           {ad.status}
                         </Badge>
                       </div>
-
-                      {ad.featured && (
-                        <div className="absolute top-2 left-2">
-                          <Badge className="bg-purple-100 text-purple-800 border border-purple-200 px-2 py-1 text-xs font-medium">
-                            Featured
-                          </Badge>
-                        </div>
-                      )}
                     </div>
 
                     <div className="p-4">
-                      <h3 className="font-semibold text-gray-900 text-lg mb-1 truncate">{ad.title}</h3>
-                      <p className="text-green-600 font-medium">{formatCurrency(Number(ad.price))}</p>
+                      <h3 className="font-semibold text-gray-900 mb-1">{ad.title}</h3>
+                      <p className="text-sm text-gray-500 mb-2">{ad.category}</p>
+                      <p className="text-lg font-bold text-green-600">{formatCurrency(Number(ad.price))}</p>
 
-                      <div className="mt-3 flex items-center text-sm text-gray-500">
-                        <div className="flex items-center mr-4">
-                          <Eye className="h-4 w-4 mr-1 text-gray-400" />
-                          <span>{ad.views || 0}</span>
-                        </div>
-                        <div className="flex items-center mr-4">
-                          <TrendingUp className="h-4 w-4 mr-1 text-gray-400" />
-                          <span>{ad.clicks || 0}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <Share2 className="h-4 w-4 mr-1 text-gray-400" />
-                          <span>{ad.shares || 0}</span>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 flex justify-between items-center">
-                        <div className="flex space-x-2">
+                      <div className="mt-4 flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
                           <Button
                             variant="outline"
-                            size="sm"
-                            className="flex items-center gap-1 text-xs"
-                            onClick={() => router.push(`/dashboard/edit-ad/${ad.id}`)}
+                            className="flex items-center h-8 px-2"
+                            onClick={() => handleView(ad.id)}
                           >
-                            <Edit className="h-3 w-3" />
-                            Edit
+                            <Eye className="h-4 w-4 mr-1" />
+                            {ad.views || 0}
                           </Button>
-
                           <Button
                             variant="outline"
-                            size="sm"
-                            className="flex items-center gap-1 text-xs"
-                            onClick={() => handleShare(ad.id)}
+                            className="flex items-center h-8 px-2"
+                            onClick={() => handleClick(ad.id)}
                           >
-                            <Share2 className="h-3 w-3" />
-                            Share
+                            <BarChart2 className="h-4 w-4 mr-1" />
+                            {ad.clicks || 0}
                           </Button>
                         </div>
 
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <Button variant="ghost" className="h-8 w-8 p-0">
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-
-                          <DropdownMenuContent align="end" className="w-48">
-                            <DisableableDropdownMenuItem
-                              onClick={() => updateStatus(ad.id, "Sold")}
-                              className="flex items-center gap-2 cursor-pointer"
-                              disabled={ad.status === "Sold"}
+                          <DropdownMenuContent
+                            align="right"
+                            sideOffset={8}
+                            avoidCollisions={true}
+                            collisionPadding={20}
+                            className="z-50 min-w-[160px] bg-white shadow-lg rounded-md border border-gray-200"
+                          >
+                            <DropdownMenuItem onClick={() => router.push(`/dashboard/edit-ad/${ad.id}`)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleShare(ad.id)}>
+                              <Share2 className="h-4 w-4 mr-2" />
+                              Share
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {ad.status === "Active" && (
+                              <DropdownMenuItem onClick={() => updateStatus(ad.id, "Inactive")}>
+                                <XCircle className="h-4 w-4 mr-2" />
+                                Mark as Inactive
+                              </DropdownMenuItem>
+                            )}
+                            {ad.status === "Inactive" && (
+                              <DropdownMenuItem onClick={() => updateStatus(ad.id, "Active")}>
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Set as Active
+                              </DropdownMenuItem>
+                            )}
+                            {ad.status === "Active" && (
+                              <DropdownMenuItem onClick={() => updateStatus(ad.id, "Sold")}>
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Mark as Sold
+                              </DropdownMenuItem>
+                            )}
+                            {ad.status === "Active" && !ad.featured && (
+                              <DropdownMenuItem onClick={() => handleFeature(ad)}>
+                                <TrendingUp className="h-4 w-4 mr-2" />
+                                Boost Ad
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem
+                              onClick={() => {
+                                if (window.confirm('Are you sure you want to delete this ad?')) {
+                                  updateStatus(ad.id, "Deleted");
+                                }
+                              }}
+                              className="text-red-600"
                             >
-                              <CheckCircle className={`h-4 w-4 ${ad.status === "Sold" ? "text-gray-400" : "text-green-500"}`} />
-                              <span>Mark as Sold</span>
-                            </DisableableDropdownMenuItem>
-
-                            <DisableableDropdownMenuItem
-                              onClick={() => updateStatus(ad.id, "Active")}
-                              className="flex items-center gap-2 cursor-pointer"
-                              disabled={ad.status === "Active"}
-                            >
-                              <Clock className={`h-4 w-4 ${ad.status === "Active" ? "text-gray-400" : "text-yellow-500"}`} />
-                              <span>Set as Active</span>
-                            </DisableableDropdownMenuItem>
-
-                            <DisableableDropdownMenuItem
-                              onClick={() => updateStatus(ad.id, "Inactive")}
-                              className="flex items-center gap-2 cursor-pointer"
-                              disabled={ad.status === "Inactive"}
-                            >
-                              <XCircle className={`h-4 w-4 ${ad.status === "Inactive" ? "text-gray-400" : "text-gray-500"}`} />
-                              <span>Mark as Inactive</span>
-                            </DisableableDropdownMenuItem>
-
-                            {/* Separator before featured option */}
-                            <div className="h-px bg-gray-200 my-1"></div>
-
-                            <DisableableDropdownMenuItem
-                              onClick={() => handleFeature(ad)}
-                              className={`flex items-center gap-2 cursor-pointer ${!ad.featured ? 'bg-purple-50 hover:bg-purple-100' : ''}`}
-                              disabled={ad.featured}
-                            >
-                              <Star className={`h-4 w-4 ${ad.featured ? "text-gray-400" : "text-purple-600"}`} />
-                              <span className={`${!ad.featured ? 'font-medium text-purple-700' : ''}`}>
-                                {ad.featured ? "Featured" : "Set as Featured Ad"}
-                              </span>
-                              {!ad.featured && (
-                                <span className="ml-1 text-xs bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded">
-                                  Premium
-                                </span>
-                              )}
-                            </DisableableDropdownMenuItem>
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -620,63 +516,22 @@ export default function MyAdsManagement() {
             </div>
           )}
         </div>
+      </div>
 
-        {!subscription && ads.length >= maxFreeAds && (
-          <div className="px-6 py-4 bg-yellow-50 border-t border-yellow-200">
-            <div className="flex items-start">
-              <AlertCircle className="h-5 w-5 text-yellow-500 mt-0.5 mr-3" />
-              <div>
-                <p className="text-sm font-medium text-yellow-800">
-                  You've reached your free ad limit ({maxFreeAds}).
-                </p>
-                <p className="text-sm text-yellow-700 mt-1">
-                  Subscribe to post more ads and unlock premium features!
-                </p>
-                <Button
-                  onClick={() => router.push('/dashboard/subscription')}
-                  className="mt-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm"
-                  size="sm"
-                >
-                  View Subscription Plans
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {filteredAds.length > 0 && (
-          <div className="flex justify-between items-center p-4 border-t border-gray-200">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePrevPage}
-                disabled={currentPage === 1}
-                className="h-8 w-8 p-0"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-
-              <span className="text-sm text-gray-600">
-                Page {currentPage} of {Math.ceil(filteredAds.length / itemsPerPage)}
-              </span>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleNextPage}
-                disabled={currentPage === Math.ceil(filteredAds.length / itemsPerPage)}
-                className="h-8 w-8 p-0"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <div className="text-sm text-gray-500">
-              Showing {Math.min(startIndex + 1, filteredAds.length)} - {Math.min(startIndex + itemsPerPage, filteredAds.length)} of {filteredAds.length} ads
-            </div>
-          </div>
-        )}
+      <div className="mt-6 flex justify-center">
+        <Button
+          onClick={handlePrevPage}
+          disabled={currentPage === 1}
+          className="mr-2"
+        >
+          Previous
+        </Button>
+        <Button
+          onClick={handleNextPage}
+          disabled={currentPage === Math.ceil(filteredAds.length / itemsPerPage)}
+        >
+          Next
+        </Button>
       </div>
 
       {selectedAd && (
@@ -686,8 +541,8 @@ export default function MyAdsManagement() {
             setIsBoostModalOpen(false);
             setSelectedAd(null);
           }}
-          ad={selectedAd}
           onBoost={handleBoostAd}
+          ad={selectedAd}
         />
       )}
     </motion.div>

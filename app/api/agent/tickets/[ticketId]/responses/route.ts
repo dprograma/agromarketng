@@ -31,7 +31,7 @@ async function validateAgent(req: NextRequest) {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { ticketId: string } }
+  { params }: { params: Promise<{ticketId: string  }> }
 ) {
   try {
     const session = await validateAgent(req);
@@ -49,7 +49,7 @@ export async function POST(
     // // Verify ticket exists and agent is assigned to it
     // const ticket = await prisma.supportTicket.findUnique({
     //   where: { 
-    //     id: params.ticketId,
+    //     id: (await params).ticketId,
     //     assignedTo: session.agentId
     //   }
     // });
@@ -61,7 +61,7 @@ export async function POST(
     // // Create response
     // const response = await prisma.ticketResponse.create({
     //   data: {
-    //     ticketId: params.ticketId,
+    //     ticketId: (await params).ticketId,
     //     content,
     //     createdBy: session.agentId,
     //     createdByType: 'agent'
@@ -70,7 +70,7 @@ export async function POST(
     //
     // // Update ticket timestamp
     // await prisma.supportTicket.update({
-    //   where: { id: params.ticketId },
+    //   where: { id: (await params).ticketId },
     //   data: { updatedAt: new Date() }
     // });
     
@@ -78,7 +78,7 @@ export async function POST(
     const response = {
       id: "resp" + Date.now(),
       content,
-      ticketId: params.ticketId,
+      ticketId: (await params).ticketId,
       createdAt: new Date().toISOString(),
       createdBy: session.agentId,
       createdByType: "agent"

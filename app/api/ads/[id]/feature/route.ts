@@ -1,64 +1,68 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
+import { apiErrorResponse } from '@/lib/errorHandling';
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const token = req.cookies.get('next-auth.session-token')?.value;
     if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
     }
 
     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
     const userId = decoded.id;
+    const { id } = await params;
 
-    // Check if user has an active subscription
+    // Check subscription
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: { subscriptionPlan: true },
+      include: { subscriptionPlan: true }
     });
 
     if (!user?.subscriptionPlan || user.subscriptionPlan.expiryDate < new Date()) {
-      return NextResponse.json(
-        { error: 'Active subscription required to feature ads. Please upgrade your plan.' },
-        { status: 403 }
+      return apiErrorResponse(
+        'Active subscription required to feature ads. Please upgrade your plan.',
+        403,
+        'SUBSCRIPTION_REQUIRED'
       );
     }
 
-     // Check if the ad belongs to the user
-     const ad = await prisma.ad.findUnique({
-      where: { id: params.id },
+    // Get ad
+    const ad = await prisma.ad.findUnique({
+      where: { id }
     });
 
     if (!ad || ad.userId !== userId) {
-      return NextResponse.json(
-        { error: 'Ad not found or unauthorized' },
-        { status: 404 }
+      return apiErrorResponse(
+        'Ad not found or unauthorized',
+        404,
+        'AD_NOT_FOUND_OR_UNAUTHORIZED'
       );
     }
 
+    // Update ad
     const updatedAd = await prisma.ad.update({
-      where: { id: params.id },
+      where: { id },
       data: {
-        status: 'Active',
-        featured: true,
-        subscriptionPlanId: user.subscriptionPlanId,
-        updatedAt: new Date(),
-      },
+        featured: true
+      }
     });
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       ad: updatedAd,
-      message: 'Ad featured successfully' 
+      message: 'Ad featured successfully'
     });
   } catch (error) {
-    console.error('Error featuring ad:', error);
-    return NextResponse.json(
-      { error: 'Failed to feature ad' },
-      { status: 500 }
+    console.error('Error featuring ad:', error); // Log the actual error for debugging
+    return apiErrorResponse(
+      'Failed to feature ad',
+      500,
+      'FEATURE_AD_FAILED',
+      error instanceof Error ? error.message : String(error)
     );
   }
 }

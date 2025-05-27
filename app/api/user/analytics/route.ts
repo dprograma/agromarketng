@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 import { subDays, format, eachDayOfInterval, startOfDay, endOfDay } from 'date-fns';
+import {
+  cacheUserAnalytics,
+  getCachedUserAnalytics,
+  invalidateUserAnalyticsCache
+} from '@/lib/redis/analyticsCache';
+import { apiErrorResponse } from '@/lib/errorHandling';
 
 // Helper function to validate user session
 async function validateUser(req: NextRequest) {
@@ -23,77 +29,105 @@ async function validateUser(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await validateUser(req);
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Get and validate token
+    const token = req.cookies.get('next-auth.session-token')?.value;
+    if (!token) {
+      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
     }
 
-    // Get time range from query params
-    const timeRange = req.nextUrl.searchParams.get('timeRange') || '30days';
-
-    // Calculate date range
-    const now = new Date();
-    let startDate = new Date();
-
-    switch (timeRange) {
-      case '7days':
-        startDate.setDate(now.getDate() - 7);
-        break;
-      case '30days':
-        startDate.setDate(now.getDate() - 30);
-        break;
-      case '90days':
-        startDate.setDate(now.getDate() - 90);
-        break;
-      default:
-        startDate.setDate(now.getDate() - 30);
+    // Verify token and get userId
+    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+    if (!decoded) {
+      return apiErrorResponse('Invalid token', 401, 'INVALID_TOKEN');
     }
 
-    // Get user's ads performance data
-    const adPerformance = await getAdPerformanceData(session.id, startDate);
+    // Get user's ads
+    const ads = await prisma.ad.findMany({
+      where: { userId: decoded.id },
+      select: {
+        id: true,
+        title: true,
+        views: true,
+        clicks: true,
+        shares: true,
+        createdAt: true,
+        status: true
+      }
+    });
 
-    // Get user's financial data
-    const financialData = await getFinancialData(session.id, startDate);
+    // Calculate total views, clicks, and shares
+    const totals = ads.reduce((acc, ad) => ({
+      views: acc.views + (ad.views || 0),
+      clicks: acc.clicks + (ad.clicks || 0),
+      shares: acc.shares + (ad.shares || 0)
+    }), { views: 0, clicks: 0, shares: 0 });
 
-    // Get user's demographics data (this would typically come from analytics services)
-    const demographics = await getDemographicsData(session.id);
+    // Calculate engagement rate
+    const engagementRate = totals.views > 0
+      ? ((totals.clicks + totals.shares) / totals.views) * 100
+      : 0;
+
+    // Get status distribution
+    const statusDistribution = ads.reduce((acc, ad) => {
+      acc[ad.status] = (acc[ad.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Get monthly trends
+    const monthlyTrends = ads.reduce((acc, ad) => {
+      const month = new Date(ad.createdAt).toISOString().slice(0, 7);
+      if (!acc[month]) {
+        acc[month] = {
+          views: 0,
+          clicks: 0,
+          shares: 0,
+          ads: 0
+        };
+      }
+      acc[month].views += ad.views || 0;
+      acc[month].clicks += ad.clicks || 0;
+      acc[month].shares += ad.shares || 0;
+      acc[month].ads += 1;
+      return acc;
+    }, {} as Record<string, { views: number; clicks: number; shares: number; ads: number }>);
 
     return NextResponse.json({
-      adPerformance,
-      financialData,
-      demographics
+      totals,
+      engagementRate,
+      statusDistribution,
+      monthlyTrends,
+      totalAds: ads.length
     });
   } catch (error) {
-    console.error("Error fetching user analytics:", error);
+    console.error('Error fetching user analytics:', error); // Log the actual error for debugging
 
     // Provide more specific error messages based on the error type
     if (error instanceof jwt.JsonWebTokenError) {
-      return NextResponse.json(
-        { error: "Invalid authentication token", code: "INVALID_TOKEN" },
-        { status: 401 }
+      return apiErrorResponse(
+        'Invalid authentication token',
+        401,
+        'INVALID_TOKEN'
       );
     } else if (error instanceof jwt.TokenExpiredError) {
-      return NextResponse.json(
-        { error: "Authentication token expired", code: "TOKEN_EXPIRED" },
-        { status: 401 }
+      return apiErrorResponse(
+        'Authentication token expired',
+        401,
+        'TOKEN_EXPIRED'
       );
     } else if (error instanceof Error) {
-      // Return a generic error message but with the specific error name for debugging
-      return NextResponse.json(
-        {
-          error: "Failed to fetch analytics data",
-          code: "SERVER_ERROR",
-          message: error.message,
-          name: error.name
-        },
-        { status: 500 }
+      return apiErrorResponse(
+        'Failed to fetch user analytics',
+        500,
+        'FETCH_ANALYTICS_FAILED',
+        error.message
       );
     }
 
     // Fallback for unknown errors
-    return NextResponse.json(
-      { error: "An unexpected error occurred", code: "UNKNOWN_ERROR" },
-      { status: 500 }
+    return apiErrorResponse(
+      'An unexpected error occurred',
+      500,
+      'UNKNOWN_ERROR'
     );
   }
 }
@@ -336,7 +370,6 @@ async function getPerformanceTrends(userId: string, startDate: Date) {
       change: sharesChange
     }
   };
-}
 }
 
 async function getFinancialData(userId: string, startDate: Date) {

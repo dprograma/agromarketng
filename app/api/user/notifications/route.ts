@@ -18,73 +18,64 @@ export async function GET(req: NextRequest) {
     }
 
     // Verify token and get userId
-    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
-    const userId = decoded.id;
-
-    // Query the database for user notifications
-    const notifications = await prisma.$queryRaw`
-      SELECT * FROM "Notification"
-      WHERE "userId" = ${userId}
-      ORDER BY "createdAt" DESC
-    `;
-
-    // Format the time for each notification
-    const formattedNotifications = (notifications as Notification[]).map((notification: Notification) => ({
-      ...notification,
-      time: notification.time || formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true }),
-    }));
-
-    return NextResponse.json({ notifications: formattedNotifications });
-  } catch (error) {
-    console.error('Error fetching notifications:', error);
-
-    // Check if it's a Prisma error related to missing table
-    if (error instanceof Error && error.message.includes('does not exist')) {
-      // If the table doesn't exist, try to create notifications for the user
-      try {
-        const token = req.cookies.get('next-auth.session-token')?.value;
-        if (!token) {
-          return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
-        const userId = decoded.id;
-
-        // Try to create the notifications in the database
-        const notifications = [];
-
-        for (const notification of initialNotifications) {
-          try {
-            const newNotification = await prisma.notification.create({
-              data: {
-                userId,
-                type: notification.type,
-                message: notification.message,
-                read: false,
-                time: notification.time
-              }
-            });
-            notifications.push(newNotification);
-          } catch (createError) {
-            console.error('Error creating notification:', createError);
-          }
-        }
-
-        if (notifications.length > 0) {
-          return NextResponse.json({ notifications });
-        }
-
-        // If we couldn't create notifications, return an empty array
-        return NextResponse.json({ notifications: [] });
-      } catch (innerError) {
-        console.error('Error creating notifications:', innerError);
-      }
+    let userId: string;
+    try {
+      const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+      userId = decoded.id;
+    } catch (error) {
+      console.error('Error verifying token:', error);
+      return NextResponse.json({ error: 'Invalid session token' }, { status: 401 });
     }
 
-    return NextResponse.json(
-      { error: 'Failed to fetch notifications' },
-      { status: 500 }
-    );
+    try {
+      // Query the database for user notifications
+      const notifications = await prisma.notification.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      // Format the time for each notification
+      const formattedNotifications = notifications.map((notification) => ({
+        ...notification,
+        time: notification.time || formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true }),
+      }));
+
+      return NextResponse.json({ notifications: formattedNotifications });
+    } catch (error) {
+      console.error('Database error:', error);
+
+      // If the table doesn't exist, try to create notifications for the user
+      if (error instanceof Error && error.message.includes('does not exist')) {
+        try {
+          // Create initial notifications
+          const notifications = await Promise.all(
+            initialNotifications.map(async (notification) => {
+              return prisma.notification.create({
+                data: {
+                  userId,
+                  type: notification.type,
+                  message: notification.message,
+                  read: false,
+                  time: notification.time
+                }
+              });
+            })
+          );
+
+          if (notifications.length > 0) {
+            return NextResponse.json({ notifications });
+          }
+        } catch (createError) {
+          console.error('Error creating initial notifications:', createError);
+        }
+      }
+
+      // Return empty array instead of error to prevent UI from breaking
+      return NextResponse.json({ notifications: [] });
+    }
+  } catch (error) {
+    console.error('Unexpected error:', error);
+    return NextResponse.json({ notifications: [] });
   }
 }
 

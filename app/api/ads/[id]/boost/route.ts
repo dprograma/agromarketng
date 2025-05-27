@@ -1,57 +1,83 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
+import { boostOptions } from '@/constants';
+import { apiErrorResponse } from '@/lib/errorHandling';
 
 export async function POST(
   request: NextRequest,
-  {params}: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Make sure id is valid
-    const { id } = params;
+    const { id } = await params;
     if (!id) {
-      return NextResponse.json(
-        { error: 'Invalid ad ID' },
-        { status: 400 }
+      return apiErrorResponse(
+        'Invalid ad ID',
+        400,
+        'INVALID_AD_ID'
       );
     }
+
     // Parse request body
-    let boostType, duration;
+    let boostType: number, duration: number;
     try {
       const body = await request.json();
       ({ boostType, duration } = body);
 
       if (!boostType || !duration) {
-        return NextResponse.json(
-          { error: 'Missing required fields: boostType and duration' },
-          { status: 400 }
+        return apiErrorResponse(
+          'Missing required fields: boostType and duration',
+          400,
+          'MISSING_FIELDS'
+        );
+      }
+
+      // Validate boost type
+      const validBoostType = boostOptions.some(opt => opt.id === boostType);
+      if (!validBoostType) {
+        return apiErrorResponse(
+          'Invalid boost type',
+          400,
+          'INVALID_BOOST_TYPE'
+        );
+      }
+
+      // Validate duration
+      const validDuration = boostOptions.find(opt => opt.id === boostType)?.duration.includes(duration);
+      if (!validDuration) {
+        return apiErrorResponse(
+          'Invalid duration for selected boost type',
+          400,
+          'INVALID_BOOST_DURATION'
         );
       }
     } catch (e) {
-      return NextResponse.json(
-        { error: 'Invalid request body' },
-        { status: 400 }
+      return apiErrorResponse(
+        'Invalid request body',
+        400,
+        'INVALID_REQUEST_BODY',
+        e instanceof Error ? e.message : String(e)
       );
     }
 
     // Get token from cookies
     const token = request.cookies.get('next-auth.session-token')?.value;
     if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
     }
 
     // Verify token and get userId
     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
     const userId = decoded.id;
 
-    // Check if user has active subscription
+    // Get user with subscription
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { subscriptionPlan: true }
     });
 
-
-    // If no subscription, return available plans and redirect info
+    // If no active subscription, return available plans and redirect info
     if (!user?.subscriptionPlan || user.subscriptionPlan.expiryDate < new Date()) {
       const availablePlans = await prisma.subscriptionPlan.findMany({
         select: {
@@ -59,61 +85,72 @@ export async function POST(
           name: true,
           price: true,
           duration: true,
-          benefits: true
+          benefits: true,
         }
       });
 
       return NextResponse.json({
-        error: 'Subscription required',
         status: 'SUBSCRIPTION_REQUIRED',
         message: 'Active subscription required to boost ads',
         adId: id,
         subscriptionPlans: availablePlans,
-        redirectUrl: '/dashboard/promotions'
+        redirectUrl: '/dashboard/promotions' // Suggest redirect to promotions page
       }, { status: 403 });
     }
 
-    // Verify ad ownership
+    // Get ad
     const ad = await prisma.ad.findUnique({
-      where: { id },
-      select: { userId: true }
+      where: { id }
     });
 
     if (!ad || ad.userId !== userId) {
-      return NextResponse.json(
-        { error: 'Ad not found or unauthorized' },
-        { status: 404 }
+      return apiErrorResponse(
+        'Ad not found or unauthorized',
+        404,
+        'AD_NOT_FOUND_OR_UNAUTHORIZED'
       );
     }
 
-    // Calculate boost dates
-    const boostStartDate = new Date();
+    // Check if ad is already boosted
+    if (ad.featured && ad.boostEndDate && new Date(ad.boostEndDate) > new Date()) {
+      return apiErrorResponse(
+        'Ad is already boosted',
+        400,
+        'AD_ALREADY_BOOSTED'
+      );
+    }
+
+    // Check if ad is active
+    if (ad.status !== 'Active') {
+      return NextResponse.json(
+        { error: 'Ad must be active before it can be boosted' },
+        { status: 400 }
+      );
+    }
+
+    // Calculate boost end date
     const boostEndDate = new Date();
     boostEndDate.setDate(boostEndDate.getDate() + duration);
 
-    // Update ad with boost information
+    // Update ad
     const updatedAd = await prisma.ad.update({
       where: { id },
       data: {
         featured: true,
-        status: 'Active',
-        subscriptionPlanId: user.subscriptionPlanId,
         boostType,
-        boostStartDate,
         boostEndDate,
-        boostStatus: 'active'
-      },
+        boostStartDate: new Date()
+      }
     });
 
-    return NextResponse.json({
-      ad: updatedAd,
-      message: 'Ad boosted successfully'
-    });
+    return NextResponse.json(updatedAd);
   } catch (error) {
-    console.error('Error boosting ad:', error instanceof Error ? error.message : error);
-    return NextResponse.json(
-      { error: 'Failed to boost ad' },
-      { status: 500 }
+    console.error('Error boosting ad:', error); // Log the actual error for debugging
+    return apiErrorResponse(
+      'Failed to boost ad',
+      500,
+      'BOOST_AD_FAILED',
+      error instanceof Error ? error.message : String(error)
     );
   }
 }

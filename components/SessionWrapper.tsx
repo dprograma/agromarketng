@@ -22,7 +22,7 @@ const getCookie = (name: string): string | null => {
     if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
     return null;
   } catch (error) {
-    console.error('Error getting cookie:', error);
+    console.error('Error getting cookie:', name, error);
     return null;
   }
 };
@@ -31,12 +31,15 @@ const SessionWrapper = ({ children, session: initialSession }: {
   children: React.ReactNode;
   session: Session | null;
 }) => {
+  console.log('SessionWrapper component rendering');
   const [sessionState, setSessionState] = useState<Session | null>(initialSession);
   const router = useRouter();
 
   // Update session state when initialSession changes
   useEffect(() => {
+    console.log('SessionWrapper useEffect running, initialSession:', initialSession);
     if (initialSession) {
+      console.log('Setting session state from initialSession:', initialSession);
       setSessionState(initialSession);
     }
   }, [initialSession]);
@@ -44,9 +47,11 @@ const SessionWrapper = ({ children, session: initialSession }: {
   const setSession = (newSession: Session | null) => {
     if (newSession?.token) {
       // Update session state
+      console.log('Setting session state to newSession:', newSession);
       setSessionState(newSession);
     } else {
       // Clear session
+      console.log('Clearing session state');
       setSessionState(null);
       document.cookie = 'next-auth.session-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
     }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 import { writeFile } from 'fs/promises';
+import { apiErrorResponse } from '@/lib/errorHandling';
 import { join } from 'path';
 
 /**
@@ -12,55 +13,58 @@ export async function POST(req: NextRequest) {
     // Get token from cookies
     const token = req.cookies.get('next-auth.session-token')?.value;
     if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
     }
 
     // Verify token and get userId
     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
     const userId = decoded.id;
 
-    // Get form data
+    // Get image file from form data
     const formData = await req.formData();
     const file = formData.get('image') as File;
 
     if (!file) {
-      return NextResponse.json(
-        { error: 'No image file provided' },
-        { status: 400 }
+      return apiErrorResponse(
+        'No image file provided',
+        400,
+        'NO_IMAGE_PROVIDED'
       );
     }
 
     // Validate file type
     const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     if (!validTypes.includes(file.type)) {
-      return NextResponse.json(
-        { error: 'Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed.' },
-        { status: 400 }
+      return apiErrorResponse(
+        'Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed.',
+        400,
+        'INVALID_FILE_TYPE'
       );
     }
 
     // Validate file size (max 5MB)
     const maxSize = 5 * 1024 * 1024; // 5MB
     if (file.size > maxSize) {
-      return NextResponse.json(
-        { error: 'File size exceeds the 5MB limit' },
-        { status: 400 }
+      return apiErrorResponse(
+        'File size exceeds the 5MB limit',
+        400,
+        'FILE_TOO_LARGE'
       );
     }
 
     // Generate unique filename
-    const ext = file.name.split('.').pop();
-    const filename = `profile-${userId}-${Date.now()}.${ext}`;
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'profiles');
-    const filepath = join(uploadDir, filename);
-    const imageUrl = `/uploads/profiles/${filename}`;
+    const timestamp = Date.now();
+    const extension = file.type.split('/')[1];
+    const filename = `${userId}-${timestamp}.${extension}`;
 
-    // Save file
+    // Save file to public directory
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filepath, buffer);
+    const path = join(process.cwd(), 'public', 'uploads', 'profiles', filename);
+    await writeFile(path, buffer);
 
     // Update user profile with new image URL
+    const imageUrl = `/uploads/profiles/${filename}`;
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: { image: imageUrl },
@@ -68,10 +72,7 @@ export async function POST(req: NextRequest) {
         id: true,
         name: true,
         email: true,
-        image: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true,
+        image: true
       }
     });
 
@@ -80,10 +81,12 @@ export async function POST(req: NextRequest) {
       user: updatedUser
     });
   } catch (error) {
-    console.error('Error uploading profile image:', error);
-    return NextResponse.json(
-      { error: 'Failed to upload profile image' },
-      { status: 500 }
+    console.error('Error uploading profile image:', error); // Log the actual error for debugging
+    return apiErrorResponse(
+      'Failed to upload profile image',
+      500,
+      'UPLOAD_PROFILE_IMAGE_FAILED',
+      error instanceof Error ? error.message : String(error)
     );
   }
 }

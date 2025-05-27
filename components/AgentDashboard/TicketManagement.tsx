@@ -504,7 +504,7 @@ export default function TicketManagement() {
                                 <MoreVertical size={16} />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
+                            <DropdownMenuContent align="right">
                               <DropdownMenuItem onClick={() => setSelectedTicket(ticket)}>
                                 View Details
                               </DropdownMenuItem>

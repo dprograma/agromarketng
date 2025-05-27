@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
+import { apiErrorResponse } from '@/lib/errorHandling';
 
 // Helper function to validate admin session
 async function validateAdmin(req: NextRequest) {
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
   try {
     const session = await validateAdmin(req);
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
     }
 
     // Get time range from query params
@@ -78,9 +79,11 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error("Error fetching analytics:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch analytics data" },
-      { status: 500 }
+    return apiErrorResponse(
+      "Failed to fetch analytics data",
+      500,
+      "ANALYTICS_FETCH_FAILED",
+      error instanceof Error ? error.message : String(error)
     );
   }
 }

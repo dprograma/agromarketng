@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { navigation } from '@/constants';
 
+export const revalidate = 300; // Revalidate every 5 minutes
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -15,7 +17,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '12');
     const minPrice = parseFloat(searchParams.get('minPrice') || '0');
-    const maxPrice = parseFloat(searchParams.get('maxPrice') || '1000000');
+    const maxPrice = parseFloat(searchParams.get('maxPrice') || '10000000000');
 
     // Get locations filter
     const locations = searchParams.getAll('locations');
@@ -290,6 +292,9 @@ export async function GET(request: NextRequest) {
     ];
 
     // Fetch products
+    console.time('prisma.ad.findMany');
+    console.log('Starting prisma.ad.findMany query with conditions:', JSON.stringify(whereConditions, null, 2));
+    console.time('prisma.ad.findMany');
     const products = await prisma.ad.findMany({
       where: whereConditions,
       orderBy,
@@ -318,16 +323,26 @@ export async function GET(request: NextRequest) {
         }
       }
     });
+    console.timeEnd('prisma.ad.findMany');
+    console.log('Finished prisma.ad.findMany query. Found products count:', products.length);
 
     // Get total count for pagination
+    console.time('prisma.ad.count');
+    console.log('Starting prisma.ad.count query with conditions:', JSON.stringify(whereConditions, null, 2));
+    console.time('prisma.ad.count');
     const totalCount = await prisma.ad.count({
       where: whereConditions
     });
+    console.timeEnd('prisma.ad.count');
+    console.log('Finished prisma.ad.count query. Total count:', totalCount);
 
     // Calculate total pages
     const totalPages = Math.ceil(totalCount / limit);
 
     // Get all available categories
+    console.time('prisma.ad.groupBy (categories)');
+    console.log('Starting prisma.ad.groupBy (categories) query.');
+    console.time('prisma.ad.groupBy (categories)');
     const categories = await prisma.ad.groupBy({
       by: ['category'],
       where: {
@@ -342,8 +357,13 @@ export async function GET(request: NextRequest) {
         }
       }
     });
+    console.timeEnd('prisma.ad.groupBy (categories)');
+    console.log('Finished prisma.ad.groupBy (categories) query. Found categories count:', categories.length);
 
     // Get all available locations
+    console.time('prisma.ad.groupBy (locations)');
+    console.log('Starting prisma.ad.groupBy (locations) query.');
+    console.time('prisma.ad.groupBy (locations)');
     const availableLocations = await prisma.ad.groupBy({
       by: ['location'],
       where: {
@@ -358,6 +378,8 @@ export async function GET(request: NextRequest) {
         }
       }
     });
+    console.timeEnd('prisma.ad.groupBy (locations)');
+    console.log('Finished prisma.ad.groupBy (locations) query. Found locations count:', availableLocations.length);
 
     // Calculate average rating (mock data for now, could be replaced with real ratings later)
     const productsWithRatings = products.map(product => {
@@ -415,7 +437,7 @@ export async function GET(request: NextRequest) {
       }));
     };
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       products: productsWithRatings,
       categories: categories.map(c => c.category),
       locations: availableLocations.map(l => l.location),
@@ -428,6 +450,11 @@ export async function GET(request: NextRequest) {
         hasPrevPage: page > 1
       }
     });
+
+    // Add caching headers
+    response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    
+    return response;
   } catch (error) {
     console.error('Error fetching products:', error);
     return NextResponse.json(

@@ -1,22 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
+import { apiErrorResponse } from '@/lib/errorHandling';
 
 export async function GET(req: NextRequest) {
   try {
     // Get and validate token
     const token = req.cookies.get('next-auth.session-token')?.value;
     if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+      return apiErrorResponse(
+        'Unauthorized',
+        401,
+        'UNAUTHORIZED'
       );
     }
 
     // Verify token and get userId
     const session = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
     }
 
     // Verify agent status
@@ -25,34 +27,41 @@ export async function GET(req: NextRequest) {
     });
 
     if (!agent) {
-      return NextResponse.json({ error: "Not an agent" }, { status: 403 });
+      return apiErrorResponse("Not an agent", 403, "NOT_AN_AGENT");
     }
 
-    const status = req.nextUrl.searchParams.get('status');
-    
     const chats = await prisma.supportChat.findMany({
       where: {
-        status: status || 'active',
-        ...(status === 'active' ? { agentId: agent.id } : {})
+        agentId: agent.id
       },
       include: {
         user: {
           select: {
+            id: true,
             name: true,
             email: true
           }
         },
         messages: {
           orderBy: {
-            createdAt: 'asc'
-          }
+            createdAt: 'desc'
+          },
+          take: 1
         }
+      },
+      orderBy: {
+        updatedAt: 'desc'
       }
     });
 
     return NextResponse.json(chats);
   } catch (error) {
-    console.error('Error fetching chats:', error);
-    return NextResponse.json({ error: "Failed to fetch chats" }, { status: 500 });
+    console.error('Error fetching chats:', error); // Log the actual error for debugging
+    return apiErrorResponse(
+      "Failed to fetch chats",
+      500,
+      "FETCH_CHATS_FAILED",
+      error instanceof Error ? error.message : String(error)
+    );
   }
 }

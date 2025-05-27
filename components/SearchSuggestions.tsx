@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { navigation } from '@/constants';
 import Link from 'next/link';
 import { Command } from 'cmdk';
-import { Suggestion, SearchSuggestionsProps } from '@/types'; 
+import { Suggestion, SearchSuggestionsProps } from '@/types';
 
 
 export function SearchSuggestions({ searchTerm, onSelect }: SearchSuggestionsProps) {
@@ -18,7 +18,7 @@ export function SearchSuggestions({ searchTerm, onSelect }: SearchSuggestionsPro
 
     // Generate suggestions based on categories and items
     const allSuggestions: Suggestion[] = [];
-    
+
     navigation.categories.forEach(category => {
       // Add category if it matches
       if (category.name.toLowerCase().includes(searchTerm.toLowerCase())) {
@@ -30,18 +30,15 @@ export function SearchSuggestions({ searchTerm, onSelect }: SearchSuggestionsPro
       }
 
       // Add matching items from each section
-      category.sections.forEach(section => {
-        section.items.forEach(item => {
-          if (item.name.toLowerCase().includes(searchTerm.toLowerCase())) {
-            allSuggestions.push({
-              type: 'item',
-              name: item.name,
-              href: item.href,
-              category: category.name,
-              section: section.name,
-            });
-          }
-        });
+      category.items.forEach(item => {
+        if (item.name.toLowerCase().includes(searchTerm.toLowerCase())) {
+          allSuggestions.push({
+            type: 'item',
+            name: item.name,
+            href: item.href,
+            category: category.name,
+          });
+        }
       });
     });
 
@@ -63,7 +60,7 @@ export function SearchSuggestions({ searchTerm, onSelect }: SearchSuggestionsPro
             <span className="font-medium text-gray-900">{suggestion.name}</span>
             {suggestion.type === 'item' && (
               <span className="text-sm text-gray-500">
-                in {suggestion.category} &gt; {suggestion.section}
+                in {suggestion.category}
               </span>
             )}
           </Link>

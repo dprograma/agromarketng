@@ -1,45 +1,86 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { RouteContext } from '@/types';
+import { apiErrorResponse } from '@/lib/errorHandling';
 
-export async function PATCH(
+// Simple in-memory cache
+const analyticsCache = new Map<string, { views: number; clicks: number; shares: number }>();
+
+export async function GET(
     request: NextRequest,
-    context: RouteContext
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id } = context.params;
-        const { type } = await request.json();
-        const validTypes = ['views', 'clicks', 'shares'];
+        const { id } = await params;
 
-        if (!validTypes.includes(type)) {
-            return NextResponse.json(
-                { error: 'Invalid analytics type' },
-                { status: 400 }
+        // Check cache first
+        const cached = analyticsCache.get(id);
+        if (cached) {
+            return NextResponse.json(cached);
+        }
+
+        // If not in cache, fetch from database
+        const ad = await prisma.ad.findUnique({
+            where: { id },
+            select: { views: true, clicks: true, shares: true }
+        });
+
+        if (!ad) {
+            return apiErrorResponse(
+                'Ad not found',
+                404,
+                'AD_NOT_FOUND'
             );
         }
 
-        const updatedAd = await prisma.ad.update({
+        // Update cache
+        analyticsCache.set(id, ad);
+
+        return NextResponse.json(ad);
+    } catch (error) {
+        console.error('Error fetching analytics:', error);
+        return apiErrorResponse(
+            'Failed to fetch analytics',
+            500,
+            'ANALYTICS_FETCH_FAILED',
+            error instanceof Error ? error.message : String(error)
+        );
+    }
+}
+
+export async function PATCH(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const { type } = await request.json();
+        const { id } = await params;
+
+        if (!['views', 'clicks', 'shares'].includes(type)) {
+            return apiErrorResponse(
+                'Invalid analytics type',
+                400,
+                'INVALID_ANALYTICS_TYPE'
+            );
+        }
+
+        // Update in database
+        const ad = await prisma.ad.update({
             where: { id },
-            data: {
-                ...(type === 'view' ? {  views: { increment: 1 } } : {}),
-                ...(type === 'click' ? {  clicks: { increment: 1 } } : {}),
-                ...(type === 'share' ? {  shares: { increment: 1 } } : {}),
-            },
+            data: { [type]: { increment: 1 } },
+            select: { views: true, clicks: true, shares: true }
         });
 
-        return NextResponse.json({
-            success: true,
-            data: {
-              views: updatedAd.views,
-              clicks: updatedAd.clicks
-            }
-          });
-          
+        // Update cache
+        analyticsCache.set(id, ad);
+
+        return NextResponse.json(ad);
     } catch (error) {
         console.error('Error updating analytics:', error);
-        return NextResponse.json(
-            { error: 'Failed to update analytics' },
-            { status: 500 }
+        return apiErrorResponse(
+            'Failed to update analytics',
+            500,
+            'ANALYTICS_UPDATE_FAILED',
+            error instanceof Error ? error.message : String(error)
         );
     }
 }
