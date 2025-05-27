@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { chatId: string } }
+  { params }: { params: Promise<{chatId: string  }> }
 ) {
   try {
     // Get and validate token
@@ -40,7 +40,7 @@ export async function POST(
     // Verify chat exists and agent is assigned to it
     const chat = await prisma.supportChat.findUnique({
       where: { 
-        id: params.chatId,
+        id: (await params).chatId,
         agentId: agent.id
       }
     });
@@ -52,7 +52,7 @@ export async function POST(
     // Create message
     const message = await prisma.supportMessage.create({
       data: {
-        chatId: params.chatId,
+        chatId: (await params).chatId,
         content,
         sender: agent.id,
         senderType: 'agent'
@@ -61,7 +61,7 @@ export async function POST(
 
     // Update chat timestamp
     await prisma.supportChat.update({
-      where: { id: params.chatId },
+      where: { id: (await params).chatId },
       data: { updatedAt: new Date() }
     });
 

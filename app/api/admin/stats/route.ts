@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
+import { apiErrorResponse } from '@/lib/errorHandling';
 
 // Helper function to validate admin session
 async function validateAdmin(req: NextRequest) {
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
   try {
     const session = await validateAdmin(req);
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
     }
 
     // Get total agents count
@@ -55,9 +56,9 @@ export async function GET(req: NextRequest) {
     const resolvedTickets = await prisma.supportTicket.count({
       where: { status: 'closed' }
     });
-    
-    const resolutionRate = totalTickets > 0 
-      ? Math.round((resolvedTickets / totalTickets) * 100) 
+
+    const resolutionRate = totalTickets > 0
+      ? Math.round((resolvedTickets / totalTickets) * 100)
       : 0;
 
     return NextResponse.json({
@@ -69,9 +70,11 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error("Error fetching admin stats:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch admin statistics" },
-      { status: 500 }
+    return apiErrorResponse(
+      "Failed to fetch admin statistics",
+      500,
+      "FETCH_ADMIN_STATS_FAILED",
+      error instanceof Error ? error.message : String(error)
     );
   }
 }

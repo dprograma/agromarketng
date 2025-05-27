@@ -47,10 +47,18 @@ const DropdownMenuTrigger: React.FC<DropdownMenuTriggerProps> = ({ className, ch
   );
 };
 
-const DropdownMenuContent: React.FC<DropdownMenuContentProps> = ({ className, children, isOpen }) => {
+const DropdownMenuContent: React.FC<DropdownMenuContentProps> = ({ className, children, isOpen, align = "right", sideOffset = 5, avoidCollisions = true, collisionPadding = 10 }) => {
+  const alignmentClass = align === "right" ? "right-0" : align === "left" ? "left-0" : "left-1/2 -translate-x-1/2";
+
   return (
     isOpen && (
-      <div className={`absolute right-0 -top-20 mt-2 w-48 bg-white shadow-md rounded-md p-2 z-50 ${className}`}>
+      <div
+        className={`absolute ${alignmentClass} bottom-full mb-1 min-w-[160px] bg-white border border-gray-200 shadow-lg rounded-md z-[60] py-1 ${className}`}
+        style={{
+          marginBottom: `${sideOffset}px`,
+          transform: align === "center" ? "translateX(-50%)" : undefined
+        }}
+      >
         {children}
       </div>
     )
@@ -60,7 +68,7 @@ const DropdownMenuContent: React.FC<DropdownMenuContentProps> = ({ className, ch
 const DropdownMenuItem: React.FC<DropdownMenuItemProps> = ({ className, children, onClick }) => {
   return (
     <button
-      className={`block w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 ${className}`}
+      className={`flex items-center w-full px-3 py-2 text-sm text-left text-gray-700 hover:bg-gray-100 rounded-sm transition-colors ${className}`}
       onClick={onClick}
     >
       {children}
@@ -68,27 +76,26 @@ const DropdownMenuItem: React.FC<DropdownMenuItemProps> = ({ className, children
   );
 };
 
-const DisableableDropdownMenuItem: React.FC<DisableableDropdownMenuItemProps> = ({ 
-  disabled = false, 
-  onClick, 
-  children, 
-  className 
+const DisableableDropdownMenuItem: React.FC<DisableableDropdownMenuItemProps> = ({
+  disabled = false,
+  onClick,
+  children,
+  className
 }) => {
   return (
     <button
       onClick={disabled ? undefined : onClick}
-      className={`block w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 ${className} ${
-        disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-      }`}
+      className={`flex items-center w-full px-3 py-2 text-sm text-left text-gray-700 hover:bg-gray-100 rounded-sm transition-colors ${className} ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+        }`}
     >
       {children}
     </button>
   );
 };
 
-const DropdownMenuLabel: React.FC<{ className?: string; children: React.ReactNode }> = ({ 
-  className, 
-  children 
+const DropdownMenuLabel: React.FC<{ className?: string; children: React.ReactNode }> = ({
+  className,
+  children
 }) => {
   return (
     <div className={`px-4 py-2 text-sm font-medium text-gray-700 ${className}`}>
@@ -99,7 +106,7 @@ const DropdownMenuLabel: React.FC<{ className?: string; children: React.ReactNod
 
 const DropdownMenuSeparator: React.FC<{ className?: string }> = ({ className }) => {
   return (
-    <div className={`h-px my-1 bg-gray-200 ${className}`} />
+    <div className={`h-px my-1 mx-1 bg-gray-200 ${className}`} />
   );
 };
 

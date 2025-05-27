@@ -1,11 +1,16 @@
 import toast from 'react-hot-toast';
 
-type AlertType = 'success' | 'error' | 'info' | 'warning';
+export type ToastType = 'success' | 'error' | 'warning' | 'info';
+
+interface ToastOptions {
+  message: string;
+  type: ToastType;
+}
 
 /**
  * Show a toast notification based on alert type and message
  */
-export const showToast = (message: string, type: AlertType = 'info') => {
+export const showToast = ({ message, type }: ToastOptions): void => {
   switch (type) {
     case 'success':
       toast.success(message);
@@ -23,7 +28,6 @@ export const showToast = (message: string, type: AlertType = 'info') => {
       });
       break;
     case 'info':
-    default:
       toast(message, {
         icon: 'ℹ️',
         style: {
@@ -41,7 +45,7 @@ export const showToast = (message: string, type: AlertType = 'info') => {
 export const showAlertToast = (alertCode: string) => {
   const alertInfo = getAlertInfo(alertCode);
   if (alertInfo) {
-    showToast(alertInfo.message, alertInfo.type as AlertType);
+    showToast(alertInfo);
     return true;
   }
   return false;
@@ -51,7 +55,7 @@ export const showAlertToast = (alertCode: string) => {
  * Get alert information based on alert code
  */
 export const getAlertInfo = (alertCode: string) => {
-  const alerts: Record<string, { message: string; type: string }> = {
+  const alerts: Record<string, { message: string; type: ToastType }> = {
     'success_token': {
       message: 'Email verified successfully! You can now sign in.',
       type: 'success'

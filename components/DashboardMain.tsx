@@ -388,7 +388,7 @@ export default function DashboardMain({ defaultTab = "dashboard" }: DashboardMai
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl font-semibold text-gray-700">Recent Activity</h2>
                   {dashboardData.recentActivity && dashboardData.recentActivity.length > 0 && (
-                    <Button variant="ghost" size="sm" onClick={() => router.push("/dashboard/notifications")}>
+                    <Button variant="ghost" className="mt-4 h-8 px-3" onClick={() => router.push("/dashboard/notifications")}>
                       View All
                     </Button>
                   )}
@@ -431,7 +431,7 @@ export default function DashboardMain({ defaultTab = "dashboard" }: DashboardMai
               <div className="space-y-4 mb-6">
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl font-semibold text-gray-700">Ad Performance</h2>
-                  <Button variant="ghost" size="sm" onClick={() => router.push("/dashboard/my-ads")}>
+                  <Button variant="ghost" className="mt-4 h-8 px-3"  onClick={() => router.push("/dashboard/my-ads")}>
                     View All Ads
                   </Button>
                 </div>

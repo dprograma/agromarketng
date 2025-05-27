@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 import { headers } from 'next/headers';
+import { apiErrorResponse } from '@/lib/errorHandling';
 
 // Define params interface
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export async function PATCH(
@@ -15,19 +16,20 @@ export async function PATCH(
   { params }: RouteParams
 ) {
   try {
-    const id = params?.id;
+    const { id } = await params;
 
     if (!id || typeof id !== 'string') {
-      return NextResponse.json(
-        { error: 'Invalid ad ID' },
-        { status: 400 }
+      return apiErrorResponse(
+        'Invalid ad ID',
+        400,
+        'INVALID_AD_ID'
       );
     }
 
     // Get token from cookies
     const token = req.cookies.get('next-auth.session-token')?.value;
     if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
     }
 
     // Rest of your code remains the same
@@ -38,9 +40,10 @@ export async function PATCH(
     const validStatuses = ['Active', 'Pending', 'Inactive', 'Sold'];
 
     if (!validStatuses.includes(status)) {
-      return NextResponse.json(
-        { error: 'Invalid status value' },
-        { status: 400 }
+      return apiErrorResponse(
+        'Invalid status value',
+        400,
+        'INVALID_STATUS_VALUE'
       );
     }
 
@@ -51,9 +54,10 @@ export async function PATCH(
     });
 
     if (!ad || ad.userId !== userId) {
-      return NextResponse.json(
-        { error: 'Ad not found or unauthorized' },
-        { status: 404 }
+      return apiErrorResponse(
+        'Ad not found or unauthorized',
+        404,
+        'AD_NOT_FOUND_OR_UNAUTHORIZED'
       );
     }
 
@@ -71,10 +75,12 @@ export async function PATCH(
       message: `Ad status updated to ${status}`
     });
   } catch (error) {
-    console.error('Error updating ad status:', error);
-    return NextResponse.json(
-      { error: 'Failed to update ad status' },
-      { status: 500 }
+    console.error('Error updating ad status:', error); // Log the actual error for debugging
+    return apiErrorResponse(
+      'Failed to update ad status',
+      500,
+      'UPDATE_AD_STATUS_FAILED',
+      error instanceof Error ? error.message : String(error)
     );
   }
 }

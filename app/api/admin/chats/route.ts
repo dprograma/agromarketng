@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
+import { apiErrorResponse } from '@/lib/errorHandling';
 
 // Helper function to validate admin session
 async function validateAdmin(req: NextRequest) {
@@ -30,11 +31,11 @@ export async function GET(req: NextRequest) {
   try {
     const session = await validateAdmin(req);
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
     }
 
     const status = req.nextUrl.searchParams.get('status');
-    
+
     // Fetch all support chats with optional status filter
     const chats = await prisma.supportChat.findMany({
       where: status ? { status } : undefined,
@@ -71,9 +72,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(chats);
   } catch (error) {
     console.error("Error fetching chats:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch chats" },
-      { status: 500 }
+    return apiErrorResponse(
+      "Failed to fetch chats",
+      500,
+      "FETCH_CHATS_FAILED",
+      error instanceof Error ? error.message : String(error)
     );
   }
 }

@@ -3,9 +3,8 @@ import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 
 interface RouteParams {
-  params: {
-    id: string;
-  };
+  params: Promise<{id: string;
+   }>;
 }
 
 // DELETE - Remove a payment method
@@ -14,7 +13,7 @@ export async function DELETE(
   { params }: RouteParams
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     
     // Get token from cookies
     const token = req.cookies.get('next-auth.session-token')?.value;
@@ -104,7 +103,7 @@ export async function PATCH(
   { params }: RouteParams
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     
     // Get token from cookies
     const token = req.cookies.get('next-auth.session-token')?.value;

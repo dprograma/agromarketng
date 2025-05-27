@@ -8,10 +8,19 @@ import { initCronJobs } from '@/services/cron';
 import { Toaster } from 'react-hot-toast';
 import ConditionalChatButton from "@/components/LiveChat/ConditionalChatButton";
 import CookieConsent from "@/components/CookieConsent";
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+import Providers from './providers'
+import { Inter } from 'next/font/google';
+import QueryProvider from '@/lib/providers/QueryProvider';
 
 if (process.env.NODE_ENV === 'development') {
   initCronJobs();
 }
+
+const queryClient = new QueryClient()
+
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: "AgroMarket Nigeria | Buy and Sell Agricultural Products",
@@ -57,12 +66,12 @@ export const viewport = {
   initialScale: 1,
 };
 
-
 export default async function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: {
+  children: React.ReactNode
+}) {
+  console.log('Rendering RootLayout');
   const sessionCookie = (await cookies()).get('next-auth.session-token')?.value;
   let initialSession = null;
 
@@ -83,13 +92,17 @@ export default async function RootLayout({
       <head>
         <script src="https://js.paystack.co/v2/inline.js"></script>
       </head>
-      <body className="relative">
-        <SessionWrapper session={initialSession}>
-          {children}
-          <Toaster position="top-right" />
-          <ConditionalChatButton />
-          <CookieConsent />
-        </SessionWrapper>
+      <body className={inter.className}>
+        <QueryProvider>
+          <Providers>
+            <SessionWrapper session={initialSession}>
+              {children}
+              <Toaster position="top-right" />
+              <ConditionalChatButton />
+              <CookieConsent />
+            </SessionWrapper>
+          </Providers>
+        </QueryProvider>
       </body>
     </html>
   );

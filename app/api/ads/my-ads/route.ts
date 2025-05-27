@@ -1,75 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
+import { apiErrorResponse } from '@/lib/errorHandling';
 
-export async function GET(request: NextRequest) {
+export const dynamic = 'force-dynamic';
+
+export async function GET(req: NextRequest) {
   try {
-    // Get token from cookies
-    const token = request.cookies.get('next-auth.session-token')?.value;
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    // Get token from different possible sources
+    const sessionToken = req.cookies.get('next-auth.session-token')?.value ||
+                        req.cookies.get('__Secure-next-auth.session-token')?.value;
+                        
+    if (!sessionToken) {
+      return apiErrorResponse('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    // Verify token and get userId
-    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+    let decoded;
+    try {
+      decoded = jwt.verify(sessionToken, process.env.NEXTAUTH_SECRET!) as { id: string };
+    } catch (jwtError) {
+      console.error('JWT verification failed:', jwtError);
+      return apiErrorResponse('Invalid authentication token', 401, 'INVALID_TOKEN');
+    }
+
     const userId = decoded.id;
 
-    try {
-      // Get user's subscription status
-      const user = await prisma.user.findUnique({
+    const [ads, user] = await Promise.all([
+      prisma.ad.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.user.findUnique({
         where: { id: userId },
         include: { subscriptionPlan: true }
-      });
+      })
+    ]);
 
-      if (!user) {
-        return NextResponse.json(
-          { error: 'User not found' },
-          { status: 404 }
-        );
-      }
+    const response = NextResponse.json({
+      ads,
+      subscription: user?.subscriptionPlan,
+      maxFreeAds: 5
+    });
 
-      // Fetch ads with proper order based on subscription
-      const ads = await prisma.ad.findMany({
-        where: { 
-          userId 
-        },
-        orderBy: [
-          { createdAt: 'desc' }
-        ],
-        include: {
-          subscriptionPlan: {
-            select: {
-              name: true,
-              features: true,
-              expiryDate: true
-            }
-          }
-        }
-      });
+    // Add headers to prevent caching issues
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
 
-      // Return ads with user's subscription info
-      return NextResponse.json({
-        ads: ads || [], // Ensure we always return an array
-        subscription: user.subscriptionPlan || null,
-        maxFreeAds: 5 // Default free tier limit
-      });
-
-    } catch (dbError) {
-      console.error('Database error:', dbError);
-      return NextResponse.json(
-        { error: 'Database error', details: dbError instanceof Error ? dbError.message : 'Unknown error' },
-        { status: 500 }
-      );
-    }
-
+    return response;
   } catch (error) {
-    console.error('Auth error:', error);
-    return NextResponse.json(
-      { error: 'Authentication failed' },
-      { status: 401 }
+    console.error('Error fetching user ads:', error);
+    return apiErrorResponse(
+      'Failed to fetch ads',
+      500,
+      'FETCH_ADS_FAILED',
+      error instanceof Error ? error.message : String(error)
     );
   }
 }

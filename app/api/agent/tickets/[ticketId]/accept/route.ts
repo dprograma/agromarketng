@@ -31,7 +31,7 @@ async function validateAgent(req: NextRequest) {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { ticketId: string } }
+  { params }: { params: Promise<{ticketId: string  }> }
 ) {
   try {
     const session = await validateAgent(req);
@@ -41,7 +41,7 @@ export async function POST(
 
     // In a real implementation, this would be:
     // const ticket = await prisma.supportTicket.update({
-    //   where: { id: params.ticketId },
+    //   where: { id: (await params).ticketId },
     //   data: {
     //     status: 'active',
     //     assignedTo: session.agentId
@@ -59,7 +59,7 @@ export async function POST(
     
     // Mock response
     const ticket = {
-      id: params.ticketId,
+      id: (await params).ticketId,
       subject: "Payment not processing",
       message: "I've been trying to make a payment for the last hour but it keeps failing. Can you help?",
       priority: "high",

@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
+import { apiErrorResponse } from '@/lib/errorHandling';
 
 export async function GET(req: NextRequest) {
   try {
     // Get token from cookies
     const token = req.cookies.get('next-auth.session-token')?.value;
     if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
     }
 
     // Verify token and get userId
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
         },
         messages: {
           orderBy: {
-            createdAt: 'asc'
+            createdAt: 'desc'
           },
           take: 1
         }
@@ -45,7 +46,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(supportChats);
   } catch (error) {
     console.error('Error fetching support chats:', error);
-    return NextResponse.json({ error: 'Failed to fetch support chats' }, { status: 500 });
+    return apiErrorResponse(
+      'Failed to fetch support chats',
+      500,
+      'FETCH_SUPPORT_CHATS_FAILED',
+      error instanceof Error ? error.message : String(error)
+    );
   }
 }
 
@@ -54,7 +60,7 @@ export async function POST(req: NextRequest) {
     // Get token from cookies
     const token = req.cookies.get('next-auth.session-token')?.value;
     if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
     }
 
     // Verify token and get userId
@@ -67,36 +73,31 @@ export async function POST(req: NextRequest) {
     const supportChat = await prisma.supportChat.create({
       data: {
         userId,
-        status: 'pending',
-        category: category || 'general',
-        priority: priority || 1,
+        status: 'open',
+        category,
+        priority,
         messages: {
           create: {
-            content: 'I need help with my account',
+            content: 'Support chat created',
             sender: userId,
-            senderType: 'user',
-            read: false
+            senderType: 'system',
+            read: true
           }
         }
       },
       include: {
-        messages: true,
-        agent: {
-          include: {
-            user: {
-              select: {
-                name: true,
-                email: true
-              }
-            }
-          }
-        }
+        messages: true
       }
     });
 
     return NextResponse.json(supportChat);
   } catch (error) {
     console.error('Error creating support chat:', error);
-    return NextResponse.json({ error: 'Failed to create support chat' }, { status: 500 });
+    return apiErrorResponse(
+      'Failed to create support chat',
+      500,
+      'CREATE_SUPPORT_CHAT_FAILED',
+      error instanceof Error ? error.message : String(error)
+    );
   }
 }

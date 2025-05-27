@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession } from "@/components/SessionWrapper";
 import Link from "next/link";
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { io, Socket } from "socket.io-client";
 import {
@@ -19,6 +18,8 @@ import {
     AlertCircle
 } from "lucide-react";
 import { NAV_ITEMS, SETTINGS } from "@/constants";
+import { useUnreadNotifications } from "@/lib/hooks/useUnreadNotifications";
+import { useNotifications } from "@/lib/hooks/useNotifications";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -30,117 +31,103 @@ import {
 } from "@/components/ui/dropdown-menu";
 import toast from "react-hot-toast";
 
+// Socket connection pool
+const socketPool = new Map<string, Socket>();
+
 export default function CustomerNavbar() {
     const pathname = usePathname();
     const { session, setSession } = useSession();
     const router = useRouter();
     const [isOpen, setIsOpen] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
-    const [unreadNotifications, setUnreadNotifications] = useState(0);
-    const [recentNotifications, setRecentNotifications] = useState<any[]>([]);
     const socketRef = useRef<Socket | null>(null);
+
+    // Use our custom hooks for notifications
+    const { unreadCount: unreadNotifications, refreshUnreadCount } = useUnreadNotifications();
+    const { notifications: allNotifications, refreshNotifications } = useNotifications();
+
+    // Memoize recent notifications
+    const recentNotifications = useMemo(() =>
+        allNotifications?.slice(0, 3) || [],
+        [allNotifications]
+    );
+
+    // Memoize current tab
+    const currentTab = useMemo(() => {
+        if (pathname === "/dashboard") return "dashboard";
+        if (pathname.includes("?tab=")) {
+            return pathname.split("?tab=")[1];
+        }
+        return pathname.split("/").pop();
+    }, [pathname]);
 
     // Initialize socket connection for real-time notifications
     useEffect(() => {
-        if (session?.token) {
-            // Initialize socket connection
-            const socket = io(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000', {
-                path: '/api/socketio',
-                auth: {
-                    token: session.token
-                },
-                transports: ['websocket', 'polling'] // Explicitly specify transports
-            });
+        if (!session?.token) return;
 
-            socket.on('connect', () => {
-                console.log('Connected to WebSocket for notifications');
-            });
+        const socketKey = session.token;
 
-            // Listen for real-time notifications
-            socket.on('notification_received', (notification) => {
-                console.log('New notification received:', notification);
-
-                // Update unread count
-                setUnreadNotifications(prev => prev + 1);
-
-                // Add to recent notifications
-                setRecentNotifications(prev => {
-                    const updated = [notification, ...prev];
-                    return updated.slice(0, 3); // Keep only the 3 most recent
-                });
-
-                // Show toast notification
-                toast.success(notification.message, {
-                    duration: 5000,
-                    icon: '🔔'
-                });
-            });
-
-            // Store socket reference
-            socketRef.current = socket;
-
-            return () => {
-                socket.disconnect();
-            };
+        // Check if socket already exists in pool
+        if (socketPool.has(socketKey)) {
+            socketRef.current = socketPool.get(socketKey)!;
+            return;
         }
-    }, [session]);
 
-    // Fetch notifications data
-    useEffect(() => {
-        const fetchNotifications = async () => {
-            if (session) {
-                try {
-                    // Fetch unread count
-                    const unreadResponse = await fetch("/api/user/notifications/unread", {
-                        credentials: "include",
-                    });
+        // Create new socket connection
+        const socket = io(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000', {
+            path: '/api/socketio',
+            auth: { token: session.token },
+            transports: ['websocket'],
+            reconnectionAttempts: 3,
+            reconnectionDelay: 1000,
+            timeout: 5000
+        });
 
-                    if (unreadResponse.ok) {
-                        const unreadData = await unreadResponse.json();
-                        setUnreadNotifications(unreadData.count || 0);
-                    }
+        socket.on('connect', () => {
+            console.log('Connected to WebSocket for notifications');
+        });
 
-                    // Fetch recent notifications for dropdown
-                    const recentResponse = await fetch("/api/user/notifications", {
-                        credentials: "include",
-                    });
+        socket.on('notification_received', (notification) => {
+            refreshUnreadCount();
+            refreshNotifications();
+            toast.success(notification.message, {
+                duration: 5000,
+                icon: '🔔'
+            });
+        });
 
-                    if (recentResponse.ok) {
-                        const recentData = await recentResponse.json();
-                        // Get the 3 most recent notifications
-                        setRecentNotifications(recentData.notifications.slice(0, 3));
-                    }
-                } catch (error) {
-                    console.error("Error fetching notifications:", error);
-                }
+        // Add to pool and store reference
+        socketPool.set(socketKey, socket);
+        socketRef.current = socket;
+
+        return () => {
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+                socketPool.delete(socketKey);
             }
         };
+    }, [session?.token, refreshUnreadCount, refreshNotifications]);
 
-        fetchNotifications();
-        // Set up interval to refresh data every minute
-        const interval = setInterval(fetchNotifications, 60000);
-        return () => clearInterval(interval);
-    }, [session]);
-
-    const handleLogout = async () => {
+    const handleLogout = useCallback(async () => {
         try {
             setIsLoggingOut(true);
-            // Clear session from context
             setSession(null);
 
-            // Clear all auth-related cookies
-            const cookies = document.cookie.split(";");
-
-            for (let cookie of cookies) {
+            // Clear cookies
+            document.cookie.split(";").forEach(cookie => {
                 const cookieName = cookie.split("=")[0].trim();
                 if (cookieName.includes("next-auth")) {
                     document.cookie = `${cookieName}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; domain=${window.location.hostname}`;
-                    // Also try without domain for local development
                     document.cookie = `${cookieName}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
                 }
+            });
+
+            // Disconnect socket
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+                socketPool.delete(session?.token || '');
             }
 
-            // Call the API to clear server-side session
             await fetch('/api/logout', {
                 method: 'POST',
                 credentials: 'include'
@@ -154,32 +141,24 @@ export default function CustomerNavbar() {
         } finally {
             setIsLoggingOut(false);
         }
-    };
+    }, [session?.token, setSession, router]);
 
-    // Get current tab from URL
-    const getCurrentTab = () => {
-        if (pathname === "/dashboard") return "dashboard";
-        if (pathname.includes("?tab=")) {
-            return pathname.split("?tab=")[1];
-        }
-        return pathname.split("/").pop();
-    };
-
-    // Get notification icon based on type
-    const getNotificationIcon = (type: string) => {
+    // Memoize notification icon getter
+    const getNotificationIcon = useCallback((type: string) => {
         switch (type) {
-            case "ad":
-                return <CheckCircle size={16} className="text-green-600" />;
-            case "promotion":
-                return <Clock size={16} className="text-yellow-600" />;
-            case "payment":
-                return <CheckCircle size={16} className="text-blue-600" />;
-            case "payment-failed":
-                return <XCircle size={16} className="text-red-600" />;
-            default:
-                return <AlertCircle size={16} className="text-gray-600" />;
+            case "ad": return <CheckCircle size={16} className="text-green-600" />;
+            case "promotion": return <Clock size={16} className="text-yellow-600" />;
+            case "payment": return <CheckCircle size={16} className="text-blue-600" />;
+            case "payment-failed": return <XCircle size={16} className="text-red-600" />;
+            default: return <AlertCircle size={16} className="text-gray-600" />;
         }
-    };
+    }, []);
+
+    // Memoize navigation items
+    const navItems = useMemo(() =>
+        NAV_ITEMS.filter(item => !item.adminOnly || session?.role === "admin"),
+        [session?.role]
+    );
 
     return (
         <div className="flex h-screen bg-green-700">
@@ -210,32 +189,26 @@ export default function CustomerNavbar() {
 
                     {/* Navigation */}
                     <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                        {NAV_ITEMS.filter(item => !item.adminOnly || session?.role === "admin").map((item) => {
-                            // Add badge for notifications
-                            let badge = null;
-                            if (item.name === "Notifications" && unreadNotifications > 0) {
-                                badge = (
-                                    <span className="ml-auto bg-red-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full">
-                                        {unreadNotifications}
-                                    </span>
-                                );
-                            }
-
-                            const isActive =
-                                pathname === item.route ||
+                        {navItems.map((item) => {
+                            const isActive = pathname === item.route ||
                                 (pathname === "/dashboard" && item.route === "/dashboard") ||
-                                (pathname === "/dashboard" &&
-                                    item.route.includes(`/dashboard/${getCurrentTab()}`));
+                                (pathname === "/dashboard" && item.route.includes(`/dashboard/${currentTab}`));
+
+                            const badge = item.name === "Notifications" && unreadNotifications > 0 ? (
+                                <span className="ml-auto bg-red-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full">
+                                    {unreadNotifications}
+                                </span>
+                            ) : null;
 
                             return (
                                 <Link
                                     key={item.route}
-                                    href={item.route}
+                                    href={item.route as string}
                                     className={cn(
                                         "flex items-center px-4 py-3 text-sm rounded-lg transition-colors",
                                         isActive
-                                            ? "bg-green-800 text-white"
-                                            : "text-white hover:bg-green-800"
+                                            ? "bg-green-600 text-white"
+                                            : "text-green-100 hover:bg-green-600 hover:text-white"
                                     )}
                                 >
                                     <item.icon className="w-5 h-5 mr-3" />
@@ -244,110 +217,34 @@ export default function CustomerNavbar() {
                                 </Link>
                             );
                         })}
+                    </nav>
 
-                        {/* Settings Links */}
-                        {SETTINGS.filter(item => item.action !== "logout").map((item) => {
-                            const isActive = pathname === item.route;
-
-                            return (
+                    {/* Settings */}
+                    <div className="p-4 border-t border-green-600">
+                        {SETTINGS.map((item) => (
+                            item.action ? (
+                                <button
+                                    key={item.name}
+                                    onClick={handleLogout}
+                                    className="flex items-center w-full px-4 py-3 text-sm text-green-100 hover:bg-green-600 hover:text-white rounded-lg transition-colors"
+                                >
+                                    <item.icon className="w-5 h-5 mr-3" />
+                                    {item.name}
+                                </button>
+                            ) : (
                                 <Link
-                                    key={item.route}
-                                    href={item.route || "#"}
-                                    className={cn(
-                                        "flex items-center px-4 py-3 text-sm rounded-lg transition-colors",
-                                        isActive
-                                            ? "bg-green-800 text-white"
-                                            : "text-white hover:bg-green-800"
-                                    )}
+                                    key={item.name}
+                                    href={item.route as string}
+                                    className="flex items-center px-4 py-3 text-sm text-green-100 hover:bg-green-600 hover:text-white rounded-lg transition-colors"
                                 >
                                     <item.icon className="w-5 h-5 mr-3" />
                                     {item.name}
                                 </Link>
-                            );
-                        })}
-                    </nav>
-
-                    {/* User profile and logout */}
-                    <div className="p-4 border-t border-green-600">
-                        <div className="flex flex-col space-y-4">
-                            <div className="flex items-center">
-                                {session?.image ? (
-                                    <div className="w-10 h-10 rounded-full overflow-hidden">
-                                        <img
-                                            src={session.image}
-                                            alt={session.name || "User"}
-                                            className="w-full h-full object-cover"
-                                        />
-                                    </div>
-                                ) : (
-                                    <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                                        <Users size={20} className="text-green-600" />
-                                    </div>
-                                )}
-                                <div className="ml-3">
-                                    <p className="text-sm font-medium text-white">{session?.name || "User"}</p>
-                                    <p className="text-xs text-green-300">{session?.email || ""}</p>
-                                </div>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" className="ml-auto text-white">
-                                            <Bell size={18} />
-                                            {unreadNotifications > 0 && (
-                                                <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full text-xs flex items-center justify-center">
-                                                    {unreadNotifications}
-                                                </span>
-                                            )}
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="right" className="w-72">
-                                        <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-                                        <DropdownMenuSeparator />
-
-                                        {recentNotifications.length > 0 ? (
-                                            <>
-                                                {recentNotifications.map((notification) => (
-                                                    <DropdownMenuItem key={notification.id} className="flex flex-col items-start py-2">
-                                                        <div className="flex items-center w-full">
-                                                            {getNotificationIcon(notification.type)}
-                                                            <span className="ml-2 text-sm font-medium truncate max-w-[200px]">
-                                                                {notification.message}
-                                                            </span>
-                                                        </div>
-                                                        <span className="text-xs text-gray-500 mt-1 ml-6">
-                                                            {notification.time}
-                                                        </span>
-                                                    </DropdownMenuItem>
-                                                ))}
-                                                <DropdownMenuSeparator />
-                                            </>
-                                        ) : (
-                                            <div className="px-2 py-2 text-sm text-gray-500 text-center">
-                                                No recent notifications
-                                            </div>
-                                        )}
-
-                                        <DropdownMenuItem onClick={() => router.push("/dashboard/notifications")}>
-                                            View all notifications
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </div>
-
-                            <Button
-                                variant="outline"
-                                className="flex items-center justify-center bg-transparent border-white text-white hover:bg-green-800 hover:text-white"
-                                onClick={handleLogout}
-                                disabled={isLoggingOut}
-                            >
-                                <LogOut className="w-4 h-4 mr-2" />
-                                {isLoggingOut ? "Logging out..." : "Logout"}
-                            </Button>
-                        </div>
+                            )
+                        ))}
                     </div>
                 </div>
             </div>
-
-            {/* Main content will be rendered by the layout */}
         </div>
     );
 }

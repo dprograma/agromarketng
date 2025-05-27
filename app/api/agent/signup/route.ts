@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
+import { apiErrorResponse } from '@/lib/errorHandling';
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (existingUser) {
-      return NextResponse.json({ error: 'Email already registered' }, { status: 400 });
+      return apiErrorResponse('Email already registered', 400, 'EMAIL_ALREADY_REGISTERED');
     }
 
     // Create user with agent role
@@ -67,6 +68,11 @@ export async function POST(req: NextRequest) {
     return response;
   } catch (error) {
     console.error('Error in agent signup:', error);
-    return NextResponse.json({ error: 'Failed to create agent account' }, { status: 500 });
+    return apiErrorResponse(
+      'Failed to create agent account',
+      500,
+      'AGENT_SIGNUP_FAILED',
+      error instanceof Error ? error.message : String(error)
+    );
   }
 }

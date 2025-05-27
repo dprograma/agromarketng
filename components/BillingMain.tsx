@@ -926,7 +926,7 @@ export default function BillingMain() {
                         {!method.isDefault && (
                           <Button
                             variant="outline"
-                            size="sm"
+                            className="mt-4 h-8 px-3"
                             onClick={() => handleSetDefaultPaymentMethod(method.id)}
                           >
                             Set Default
@@ -935,9 +935,8 @@ export default function BillingMain() {
 
                         <Button
                           variant="ghost"
-                          size="sm"
                           onClick={() => handleRemovePaymentMethod(method.id)}
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          className="mt-4 h-8 px-3 text-red-500 hover:text-red-700 hover:bg-red-50"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

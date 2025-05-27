@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { ChevronRightIcon, StarIcon } from "@heroicons/react/24/solid";
 import { Loader2, Wheat, Tractor, Beef, Sprout, Wrench } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
-
+import { useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { Ad } from "@/types";
 
@@ -31,65 +31,23 @@ interface FeaturedProduct extends Partial<Ad> {
 export default function FeaturedProducts() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [isVisible, setIsVisible] = useState(false);
-  const [products, setProducts] = useState<FeaturedProduct[]>([]);
-  const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-
-        // Map the category names from the UI to the appropriate query parameters
-        let queryParams = new URLSearchParams();
-
-        if (activeCategory !== "All") {
-          // Create a direct mapping between UI categories and database categories
-          // This is simplified now that we're using consistent category names
-          const categoryMapping: Record<string, { category: string }> = {
-            "Plants": { category: "Plants" },
-            "Farm Animals": { category: "Farm Animals" },
-            "Farm Machinery": { category: "Farm Machinery" },
-            "Tools": { category: "Tools" },
-            "Poultry": { category: "Poultry" },
-            "Farm Accessories": { category: "Farm Accessories" },
-            "Cereals & Grains": { category: "Cereals & Grains" }
-          };
-
-          // Get the mapping for the active category
-          const mapping = categoryMapping[activeCategory];
-
-          if (mapping) {
-            // Use the mapped category
-            queryParams.append('category', mapping.category);
-
-            // We don't need subcategory or section anymore with the simplified structure
-            // The API will handle finding the appropriate subcategories based on the category
-
-            // Log the mapping for debugging
-            console.log(`Mapped UI category "${activeCategory}" to database category "${mapping.category}"`);
-          } else {
-            // For categories without explicit mapping, use the category name directly
-            queryParams.append('category', activeCategory);
-            console.log(`Using category name directly: "${activeCategory}"`);
-          }
-        }
-
-        const response = await fetch(`/api/featured-products?${queryParams.toString()}`);
-        if (!response.ok) throw new Error('Failed to fetch products');
-        const data = await response.json();
-        setProducts(data.products);
-        console.log("products: ", data.products);
-      } catch (error) {
-        console.error('Error fetching products:', error);
-        toast.error('Failed to load featured products');
-      } finally {
-        setLoading(false);
+  const { data: products = [], isLoading } = useQuery<FeaturedProduct[]>({
+    queryKey: ['featuredProducts', activeCategory],
+    queryFn: async () => {
+      const queryParams = new URLSearchParams();
+      if (activeCategory !== "All") {
+        queryParams.append('category', activeCategory);
       }
-    };
-
-    fetchProducts();
-  }, [activeCategory]);
+      const response = await fetch(`/api/featured-products?${queryParams.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch products');
+      const data = await response.json();
+      return data.products;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
+  });
 
   useEffect(() => {
     const handleScroll = () => {
@@ -139,8 +97,8 @@ export default function FeaturedProducts() {
           <button
             onClick={() => setActiveCategory("All")}
             className={`px-4 py-2 rounded-full text-sm font-medium transition-colors duration-300 ${activeCategory === "All"
-                ? "bg-green-600 text-white"
-                : "bg-white text-gray-800 hover:bg-green-50"
+              ? "bg-green-600 text-white"
+              : "bg-white text-gray-800 hover:bg-green-50"
               }`}
           >
             All
@@ -150,11 +108,11 @@ export default function FeaturedProducts() {
             const Icon = category.icon;
             return (
               <button
-                key={category.slug}
+                key={category.name}
                 onClick={() => setActiveCategory(category.name)}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-colors duration-300 flex items-center gap-2 ${activeCategory === category.name
-                    ? "bg-green-600 text-white"
-                    : "bg-white text-gray-800 hover:bg-green-50"
+                  ? "bg-green-600 text-white"
+                  : "bg-white text-gray-800 hover:bg-green-50"
                   }`}
               >
                 <Icon className="h-4 w-4" />
@@ -165,7 +123,7 @@ export default function FeaturedProducts() {
         </motion.div>
 
         {/* Products Grid */}
-        {loading ? (
+        {isLoading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-green-600" />
           </div>
@@ -184,7 +142,10 @@ export default function FeaturedProducts() {
                     src={product.images && product.images.length > 0 ? product.images[0] : '/placeholder.png'}
                     alt={product.title || ''}
                     fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                     className="object-cover"
+                    loading={index < 4 ? "eager" : "lazy"}
+                    quality={75}
                   />
                   <div className="absolute top-2 left-2 bg-green-600 text-white text-xs px-2 py-1 rounded-full">
                     {product.category}

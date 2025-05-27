@@ -31,7 +31,7 @@ async function validateAgent(req: NextRequest) {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { ticketId: string } }
+  { params }: { params: Promise<{ticketId: string  }> }
 ) {
   try {
     const session = await validateAgent(req);
@@ -42,7 +42,7 @@ export async function POST(
     // In a real implementation, this would be:
     // const ticket = await prisma.supportTicket.update({
     //   where: { 
-    //     id: params.ticketId,
+    //     id: (await params).ticketId,
     //     assignedTo: session.agentId
     //   },
     //   data: {
@@ -61,7 +61,7 @@ export async function POST(
     
     // Mock response
     const ticket = {
-      id: params.ticketId,
+      id: (await params).ticketId,
       subject: "Payment not processing",
       message: "I've been trying to make a payment for the last hour but it keeps failing. Can you help?",
       priority: "high",
@@ -80,7 +80,7 @@ export async function POST(
         {
           id: "resp1",
           content: "I'll look into this right away. Can you tell me what error message you're seeing?",
-          ticketId: params.ticketId,
+          ticketId: (await params).ticketId,
           createdAt: new Date(Date.now() - 1800000).toISOString(),
           createdBy: session.agentId,
           createdByType: "agent"
@@ -88,7 +88,7 @@ export async function POST(
         {
           id: "resp2",
           content: "It says 'Payment method declined'. I've tried two different cards.",
-          ticketId: params.ticketId,
+          ticketId: (await params).ticketId,
           createdAt: new Date(Date.now() - 1700000).toISOString(),
           createdBy: "user1",
           createdByType: "user"
@@ -96,7 +96,7 @@ export async function POST(
         {
           id: "resp3",
           content: "I've fixed the issue with your payment processing. Please try again now.",
-          ticketId: params.ticketId,
+          ticketId: (await params).ticketId,
           createdAt: new Date().toISOString(),
           createdBy: session.agentId,
           createdByType: "agent"

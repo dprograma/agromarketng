@@ -115,7 +115,7 @@ export default function CategoriesSavedSearches() {
         <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
           {categories.map((category) => (
             <button
-              key={category.slug}
+              key={category.name}
               className="flex items-center justify-center border rounded-lg p-3 text-gray-700 bg-gray-50 hover:bg-green-100 transition"
             >
               {category.name}

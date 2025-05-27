@@ -1,4 +1,5 @@
 import toast from "react-hot-toast";
+import { NextResponse } from 'next/server';
 
 /**
  * Enhanced error handling for API calls
@@ -62,14 +63,14 @@ export const safeObjectAccess = <T>(
   try {
     const keys = path.split(".");
     let result = obj;
-    
+
     for (const key of keys) {
       if (result === undefined || result === null) {
         return defaultValue;
       }
       result = result[key];
     }
-    
+
     return result === undefined || result === null ? defaultValue : result;
   } catch (error) {
     console.error("Object Access Error:", error);
@@ -90,21 +91,21 @@ export const retryWithBackoff = async <T>(
   baseDelay = 300
 ): Promise<T> => {
   let lastError: any;
-  
+
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       return await fn();
     } catch (error) {
       lastError = error;
-      
+
       // Calculate delay with exponential backoff and jitter
       const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 100;
-      
+
       // Wait before next retry
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
-  
+
   throw lastError;
 };
 
@@ -115,7 +116,7 @@ export const retryWithBackoff = async <T>(
  */
 export const isValidToken = (token: string | undefined | null): boolean => {
   if (!token) return false;
-  
+
   // Simple validation - check if token has expected format
   // In a real app, you might want to decode and check expiration
   return token.length > 20 && token.includes('.');
@@ -131,17 +132,17 @@ export const setupSocketErrorHandling = (
   errorCallback?: (error: any) => void
 ): void => {
   if (!socket) return;
-  
+
   socket.on('connect_error', (error: any) => {
     console.error('Socket connection error:', error);
     if (errorCallback) errorCallback(error);
   });
-  
+
   socket.on('error', (error: any) => {
     console.error('Socket error:', error);
     if (errorCallback) errorCallback(error);
   });
-  
+
   socket.on('disconnect', (reason: string) => {
     console.log('Socket disconnected:', reason);
     if (reason === 'io server disconnect' || reason === 'io client disconnect') {
@@ -152,3 +153,27 @@ export const setupSocketErrorHandling = (
     }
   });
 };
+
+interface ErrorResponse {
+  error: string;
+  status: number;
+  code: string;
+  details?: string;
+}
+
+export function apiErrorResponse(
+  message: string,
+  status: number,
+  code: string,
+  details?: string
+): NextResponse<ErrorResponse> {
+  return NextResponse.json(
+    {
+      error: message,
+      status,
+      code,
+      ...(details && { details }),
+    },
+    { status }
+  );
+}

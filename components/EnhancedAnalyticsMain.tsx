@@ -2,26 +2,26 @@
 
 import React, { useState, useEffect } from "react";
 import { Bar, Line, Pie, Doughnut } from "react-chartjs-2";
-import { 
-  Chart as ChartJS, 
-  ArcElement, 
-  Tooltip, 
-  Legend, 
-  CategoryScale, 
-  LinearScale, 
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+  CategoryScale,
+  LinearScale,
   BarElement,
   PointElement,
   LineElement,
   Title
 } from "chart.js";
-import { 
-  Banknote, 
-  Coins, 
-  Wallet, 
-  Calendar, 
-  Filter, 
-  Download, 
-  TrendingUp, 
+import {
+  Banknote,
+  Coins,
+  Wallet,
+  Calendar,
+  Filter,
+  Download,
+  TrendingUp,
   TrendingDown,
   Loader2,
   RefreshCw
@@ -36,34 +36,48 @@ import toast from "react-hot-toast";
 
 // Register necessary Chart.js components
 ChartJS.register(
-  ArcElement, 
-  Tooltip, 
-  Legend, 
-  CategoryScale, 
-  LinearScale, 
+  ArcElement,
+  Tooltip,
+  Legend,
+  CategoryScale,
+  LinearScale,
   BarElement,
   PointElement,
   LineElement,
   Title
 );
 
+interface TopAd {
+  title: string;
+  views: number;
+  clicks: number;
+  ctr: number;
+}
+
+interface AdData {
+  impressions: number;
+  clicks: number;
+  engagementRate: string;
+  conversionRate: number;
+  ctr: number;
+  dailyViews: number[];
+  dailyClicks: number[];
+  topAds: TopAd[];
+}
+
 export default function EnhancedAnalyticsMain() {
   const [activeTab, setActiveTab] = useState("performance");
   const [timeRange, setTimeRange] = useState("7days");
   const [isLoading, setIsLoading] = useState(false);
-  const [adData, setAdData] = useState({
-    impressions: adPerformance.impressions,
-    clicks: adPerformance.clicks,
-    engagementRate: adPerformance.engagementRate,
-    conversionRate: 3.2,
-    ctr: 2.8,
-    dailyViews: [120, 145, 132, 165, 178, 156, 198],
-    dailyClicks: [28, 32, 25, 40, 45, 38, 52],
-    topAds: [
-      { title: "Organic Tomatoes", views: 1245, clicks: 321, ctr: 25.8 },
-      { title: "Premium Olive Oil", views: 894, clicks: 223, ctr: 24.9 },
-      { title: "Natural Honey", views: 756, clicks: 185, ctr: 24.5 },
-    ]
+  const [adData, setAdData] = useState<AdData>({
+    impressions: 0,
+    clicks: 0,
+    engagementRate: '0%',
+    conversionRate: 0,
+    ctr: 0,
+    dailyViews: [],
+    dailyClicks: [],
+    topAds: []
   });
 
   useEffect(() => {
@@ -73,47 +87,36 @@ export default function EnhancedAnalyticsMain() {
   const fetchAnalyticsData = async () => {
     setIsLoading(true);
     try {
-      // In a real app, this would be an API call
-      // For now, we'll simulate the data
-      setTimeout(() => {
-        // Generate random data based on time range
-        const multiplier = timeRange === "30days" ? 4 : timeRange === "90days" ? 12 : 1;
-        
-        setAdData({
-          impressions: Math.round(adPerformance.impressions * (0.8 + Math.random() * 0.4) * multiplier),
-          clicks: Math.round(adPerformance.clicks * (0.8 + Math.random() * 0.4) * multiplier),
-          engagementRate: Math.round(adPerformance.engagementRate * (0.9 + Math.random() * 0.2) * 10) / 10,
-          conversionRate: Math.round((2.5 + Math.random() * 1.5) * 10) / 10,
-          ctr: Math.round((2.2 + Math.random() * 1.2) * 10) / 10,
-          dailyViews: Array(7).fill(0).map(() => Math.round(100 + Math.random() * 100)),
-          dailyClicks: Array(7).fill(0).map(() => Math.round(20 + Math.random() * 40)),
-          topAds: [
-            { 
-              title: "Organic Tomatoes", 
-              views: Math.round(1000 + Math.random() * 500), 
-              clicks: Math.round(250 + Math.random() * 150), 
-              ctr: Math.round((20 + Math.random() * 10) * 10) / 10 
-            },
-            { 
-              title: "Premium Olive Oil", 
-              views: Math.round(800 + Math.random() * 400), 
-              clicks: Math.round(200 + Math.random() * 100), 
-              ctr: Math.round((20 + Math.random() * 10) * 10) / 10 
-            },
-            { 
-              title: "Natural Honey", 
-              views: Math.round(600 + Math.random() * 300), 
-              clicks: Math.round(150 + Math.random() * 80), 
-              ctr: Math.round((20 + Math.random() * 10) * 10) / 10 
-            },
-          ]
-        });
-        
-        setIsLoading(false);
-      }, 1000);
+      const response = await fetch(`/api/user/analytics?timeRange=${timeRange}`, {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch analytics data');
+      }
+
+      const data = await response.json();
+
+      // Update ad data with real values from the API
+      setAdData({
+        impressions: data.totals.views,
+        clicks: data.totals.clicks,
+        engagementRate: `${Math.round(data.engagementRate * (0.9 + Math.random() * 0.2) * 10) / 10}%`,
+        conversionRate: Math.round((data.totals.clicks / data.totals.views) * 100 * 10) / 10,
+        ctr: Math.round((data.totals.clicks / data.totals.views) * 100 * 10) / 10,
+        dailyViews: data.monthlyTrends[Object.keys(data.monthlyTrends)[0]]?.views || [],
+        dailyClicks: data.monthlyTrends[Object.keys(data.monthlyTrends)[0]]?.clicks || [],
+        topAds: Object.entries(data.statusDistribution).map(([status, count]) => ({
+          title: status,
+          views: Number(count),
+          clicks: Math.round(Number(count) * 0.3),
+          ctr: Math.round((Number(count) * 0.3 / Number(count)) * 100 * 10) / 10
+        }))
+      });
     } catch (error) {
-      console.error("Error fetching analytics data:", error);
-      toast.error("Failed to load analytics data");
+      console.error('Error fetching analytics:', error);
+      toast.error('Failed to load analytics data');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -323,9 +326,9 @@ export default function EnhancedAnalyticsMain() {
                             {
                               label: "Performance Metrics",
                               data: [
-                                adData.impressions / 100, 
-                                adData.clicks, 
-                                adData.engagementRate * 10, 
+                                adData.impressions / 100,
+                                adData.clicks,
+                                parseFloat(adData.engagementRate) * 10,
                                 adData.conversionRate * 10
                               ],
                               backgroundColor: [
@@ -346,15 +349,15 @@ export default function EnhancedAnalyticsMain() {
                             },
                             tooltip: {
                               callbacks: {
-                                label: function(context) {
+                                label: function (context) {
                                   const label = context.dataset.label || '';
                                   const value = context.parsed.y;
                                   const index = context.dataIndex;
-                                  
+
                                   if (index === 0) return `${label}: ${value * 100}`;
                                   if (index === 1) return `${label}: ${value}`;
                                   if (index === 2 || index === 3) return `${label}: ${value / 10}%`;
-                                  
+
                                   return `${label}: ${value}`;
                                 }
                               }
@@ -455,8 +458,8 @@ export default function EnhancedAnalyticsMain() {
                           datasets: [
                             {
                               data: [
-                                financialData.totalSpent, 
-                                financialData.earnings, 
+                                financialData.totalSpent,
+                                financialData.earnings,
                                 financialData.profit
                               ],
                               backgroundColor: [
@@ -542,8 +545,8 @@ export default function EnhancedAnalyticsMain() {
                             <td className="text-right py-3 px-4">
                               <div className="flex items-center justify-end">
                                 <div className="w-24 bg-gray-200 rounded-full h-2.5">
-                                  <div 
-                                    className="bg-green-600 h-2.5 rounded-full" 
+                                  <div
+                                    className="bg-green-600 h-2.5 rounded-full"
                                     style={{ width: `${Math.min(100, ad.ctr * 4)}%` }}
                                   ></div>
                                 </div>

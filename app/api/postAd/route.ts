@@ -1,34 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
+import { apiErrorResponse } from '@/lib/errorHandling';
 
 // Define the type for a user with their subscription plan
 type UserWithSubscriptionPlan = Prisma.UserGetPayload<{
-  include: { subscriptionPlan: true };
+  include: { subscriptionPlan: true }
 }>;
 
-// Define a type for the request body
-interface PostAdRequestBody {
-  title: string;
-  category: string;
-  subcategory?: string;
-  section?: string;
-  location: string;
-  price: number;
-  description: string;
-  contact: string;
-  subscriptionPlanId?: string;
-}
+// Constants for file validation
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
-export async function POST(req: NextRequest): Promise<NextResponse> {
+export async function POST(req: NextRequest) {
   try {
     // Verify authentication
     const token = req.cookies.get('next-auth.session-token')?.value;
     if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
     }
 
     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!);
@@ -38,23 +30,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // Check user and subscription
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: { subscriptionPlan: true },
+      include: { subscriptionPlan: true }
     });
 
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return apiErrorResponse('User not found', 404, 'USER_NOT_FOUND');
     }
 
     // Check upload limits
     const ads = await prisma.ad.findMany({ where: { userId } });
     if (ads.length >= 10 && (!user.subscriptionPlan || user.subscriptionPlan.expiryDate < new Date())) {
-      return NextResponse.json(
-        { error: 'Upload limit reached. Please upgrade your subscription.' },
-        { status: 402 }
-      );
+      return apiErrorResponse('Upload limit reached. Please upgrade your subscription.', 402, 'UPLOAD_LIMIT_REACHED');
     }
 
-    // Process form data
+    // Parse form data
     const formData = await req.formData();
     const title = formData.get('title')?.toString();
     const category = formData.get('category')?.toString();
@@ -67,75 +56,115 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const images = formData.getAll('images');
 
     // Validate required fields
-    if (!title || !category || !location || !priceStr || !description || !contact || images.length === 0) {
-      return NextResponse.json({ error: 'All fields are required' }, { status: 400 });
+    const validationErrors: { field: string; message: string }[] = [];
+    if (!title || title.length < 5 || title.length > 100) {
+      validationErrors.push({ field: 'title', message: 'Title must be between 5 and 100 characters.' });
+    }
+    if (!category) {
+      validationErrors.push({ field: 'category', message: 'Category is required.' });
+    }
+    if (!location || location.length < 3) {
+      validationErrors.push({ field: 'location', message: 'Location must be at least 3 characters.' });
+    }
+    if (!description || description.length < 20 || description.length > 5000) {
+      validationErrors.push({ field: 'description', message: 'Description must be between 20 and 5000 characters.' });
+    }
+    if (!contact || !/^\+?[0-9\s-()]{7,20}$/.test(contact)) {
+      validationErrors.push({ field: 'contact', message: 'Valid contact information is required.' });
+    }
+    if (images.length === 0) {
+      validationErrors.push({ field: 'images', message: 'At least one image is required.' });
+    }
+    if (images.length > 5) {
+      validationErrors.push({ field: 'images', message: 'Maximum of 5 images allowed.' });
     }
 
-    // Process price
-    try {
-      // First convert string to number
-      const numericPrice = parseFloat(priceStr || '0');
+    const numericPrice = parseFloat(priceStr || '');
+    if (!priceStr || isNaN(numericPrice) || numericPrice <= 0) {
+      validationErrors.push({ field: 'price', message: 'A valid positive price is required.' });
+    }
 
-      // Validate the numeric value
-      if (isNaN(numericPrice) || numericPrice <= 0) {
-        return NextResponse.json(
-          { error: 'Invalid price value' },
-          { status: 400 }
+    if (validationErrors.length > 0) {
+      return apiErrorResponse(
+        'Validation failed',
+        400,
+        'VALIDATION_ERROR',
+        JSON.stringify(validationErrors)
+      );
+    }
+
+    const price = new Prisma.Decimal(numericPrice.toFixed(2));
+
+    // Process images
+    const imageUrls: string[] = [];
+    for (const image of images) {
+      if (!(image instanceof File)) continue;
+
+      // Validate image type and size
+      if (!ALLOWED_IMAGE_TYPES.includes(image.type)) {
+        return apiErrorResponse(
+          `Invalid image type: ${image.name}. Allowed types: ${ALLOWED_IMAGE_TYPES.join(', ')}`,
+          400,
+          'INVALID_IMAGE_TYPE'
+        );
+      }
+      if (image.size > MAX_FILE_SIZE) {
+        return apiErrorResponse(
+          `Image too large: ${image.name}. Maximum size: ${MAX_FILE_SIZE / (1024 * 1024)}MB`,
+          400,
+          'IMAGE_TOO_LARGE'
         );
       }
 
-      // Convert to Prisma.Decimal with exact string representation
-      const price = new Prisma.Decimal(numericPrice.toFixed(2));
-
-      // Process images
-      const imageUrls: string[] = [];
-      for (const image of images) {
-        if (!(image instanceof File)) continue;
-
+      try {
         // Generate unique filename
         const ext = image.name.split('.').pop();
         const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
-        const path = join(process.cwd(), 'public', 'uploads', filename);
+        const uploadPath = join(process.cwd(), 'public', 'uploads', filename);
 
         // Save file
         const bytes = await image.arrayBuffer();
         const buffer = Buffer.from(bytes);
-        await writeFile(path, buffer);
+        await writeFile(uploadPath, buffer);
 
         // Store URL
         imageUrls.push(`/uploads/${filename}`);
+      } catch (fileError) {
+        console.error('Error processing file:', image.name, fileError);
+        return apiErrorResponse(
+          `Failed to process image: ${image.name}`,
+          500,
+          'FILE_PROCESSING_ERROR',
+          fileError instanceof Error ? fileError.message : String(fileError)
+        );
       }
-
-      // Create ad in database
-      const ad = await prisma.ad.create({
-        data: {
-          title,
-          category,
-          subcategory: subcategory || null,
-          section: section || null,
-          location,
-          price: price.toNumber(),
-          description,
-          contact,
-          images: imageUrls,
-          userId,
-          subscriptionPlanId: user.subscriptionPlanId || null,
-        },
-      });
-
-      return NextResponse.json({ message: 'Ad posted successfully!', ad }, { status: 201 });
-    } catch (error) {
-      console.error('Error creating ad:', error);
-      return NextResponse.json(
-        { error: error instanceof Error ? error.message : 'Failed to create ad' },
-        { status: 500 }
-      );
     }
+
+    // Create ad in database
+    const ad = await prisma.ad.create({
+      data: {
+        title: title!, // Already validated
+        category: category!, // Already validated
+        subcategory: subcategory || null,
+        section: section || null,
+        location: location!, // Already validated
+        price: price.toNumber(),
+        description: description!, // Already validated
+        contact: contact!, // Already validated
+        images: imageUrls,
+        userId,
+        subscriptionPlanId: user.subscriptionPlanId || null,
+      },
+    });
+
+    return NextResponse.json({ message: 'Ad posted successfully!', ad }, { status: 201 });
   } catch (error) {
     console.error('Error creating ad:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to create ad' },
-      { status: 500 }
+    return apiErrorResponse(
+      'Failed to create ad',
+      500,
+      'INTERNAL_SERVER_ERROR',
+      error instanceof Error ? error.message : String(error)
     );
   }
 }

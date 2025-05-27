@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
+import { apiErrorResponse } from '@/lib/errorHandling';
+import { cache } from '@/lib/cache';
 
 // Helper function to validate agent session
 async function validateAgent(req: NextRequest) {
@@ -12,18 +14,15 @@ async function validateAgent(req: NextRequest) {
   try {
     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as {
       id: string;
+      role: string;
     };
 
-    // Verify agent status
-    const agent = await prisma.agent.findUnique({
-      where: { userId: decoded.id }
-    });
-
-    if (!agent) {
+    // Check if user is agent
+    if (decoded.role !== 'agent') {
       return null;
     }
 
-    return { userId: decoded.id, agentId: agent.id };
+    return decoded;
   } catch (error) {
     return null;
   }
@@ -33,91 +32,52 @@ export async function GET(req: NextRequest) {
   try {
     const session = await validateAgent(req);
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
     }
 
-    // Get agent stats
-    const agent = await prisma.agent.findUnique({
-      where: { id: session.agentId },
-      include: {
-        SupportChat: true
+    return await cache.getOrSet(`agent-${session.id}-stats`, async () => {
+      const agent = await prisma.agent.findUnique({
+        where: { id: session.id },
+        include: {
+          SupportChat: true
+        }
+      });
+
+      if (!agent) {
+        return apiErrorResponse("Agent not found", 404, "AGENT_NOT_FOUND");
       }
-    });
 
-    if (!agent) {
-      return NextResponse.json({ error: "Agent not found" }, { status: 404 });
-    }
+      const activeChats = agent.SupportChat.filter(chat => chat.status === 'active').length;
+      const responseTimes = agent.SupportChat
+        .filter(chat => chat.status !== 'pending')
+        .map(chat => {
+          const responseTime = new Date(chat.updatedAt).getTime() - new Date(chat.createdAt).getTime();
+          return responseTime / (1000 * 60);
+        });
 
-    // Get active chats
-    const activeChats = await prisma.supportChat.count({
-      where: {
-        agentId: session.agentId,
-        status: 'active'
-      }
-    });
+      const avgResponseTime = responseTimes.length > 0
+        ? responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length
+        : 0;
 
-    // Get pending chats
-    const pendingChats = await prisma.supportChat.count({
-      where: {
-        status: 'pending'
-      }
-    });
+      const totalChats = agent.SupportChat.length;
+      const resolvedChats = agent.SupportChat.filter(chat => chat.status === 'resolved').length;
+      const resolutionRate = totalChats > 0
+        ? Math.round((resolvedChats / totalChats) * 100)
+        : 0;
 
-    // Get resolved chats
-    const resolvedChats = await prisma.supportChat.count({
-      where: {
-        agentId: session.agentId,
-        status: 'closed'
-      }
-    });
-
-    // Get active tickets
-    const activeTickets = await prisma.supportTicket.count({
-      where: {
-        assignedTo: session.agentId,
-        status: 'active'
-      }
-    });
-
-    // Get pending tickets
-    const pendingTickets = await prisma.supportTicket.count({
-      where: {
-        status: 'pending'
-      }
-    });
-
-    // Get resolved tickets
-    const resolvedTickets = await prisma.supportTicket.count({
-      where: {
-        assignedTo: session.agentId,
-        status: 'closed'
-      }
-    });
-
-    // Calculate resolution rate
-    const totalChats = activeChats + resolvedChats;
-    const resolutionRate = totalChats > 0 
-      ? Math.round((resolvedChats / totalChats) * 100) 
-      : 0;
-
-    // Calculate average response time
-    const avgResponseTime = 3.5; // This would be calculated from actual message timestamps
-
-    return NextResponse.json({
-      activeChats,
-      pendingChats,
-      resolvedChats,
-      activeTickets,
-      pendingTickets,
-      resolvedTickets,
-      avgResponseTime,
-      resolutionRate
+      return NextResponse.json({
+        activeChats,
+        avgResponseTime,
+        resolutionRate
+      });
     });
   } catch (error) {
     console.error("Error fetching agent stats:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch agent stats" },
-      { status: 500 }
+    return apiErrorResponse(
+      "Failed to fetch agent stats",
+      500,
+      "FETCH_AGENT_STATS_FAILED",
+      error instanceof Error ? error.message : String(error)
     );
   }
 }

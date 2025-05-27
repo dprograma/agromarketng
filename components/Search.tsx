@@ -134,7 +134,7 @@ export default function Search() {
                       </SelectTrigger>
                       <SelectContent>
                         {categories.map((category) => (
-                          <SelectItem key={category.slug} value={category.slug}>
+                          <SelectItem key={category.name} value={category.name}>
                             {category.name}
                           </SelectItem>
                         ))}

@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { chatId: string } }
+  { params }: { params: Promise<{chatId: string  }> }
 ) {
   try {
     // Get token from cookies
@@ -20,7 +20,7 @@ export async function GET(
     // Verify the chat belongs to this user
     const chat = await prisma.supportChat.findUnique({
       where: {
-        id: params.chatId,
+        id: (await params).chatId,
         userId
       }
     });
@@ -32,7 +32,7 @@ export async function GET(
     // Fetch messages
     const messages = await prisma.supportMessage.findMany({
       where: {
-        chatId: params.chatId
+        chatId: (await params).chatId
       },
       orderBy: {
         createdAt: 'asc'
@@ -42,7 +42,7 @@ export async function GET(
     // Mark all agent messages as read
     await prisma.supportMessage.updateMany({
       where: {
-        chatId: params.chatId,
+        chatId: (await params).chatId,
         senderType: 'agent',
         read: false
       },
@@ -60,7 +60,7 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { chatId: string } }
+  { params }: { params: Promise<{chatId: string  }> }
 ) {
   try {
     // Get token from cookies
@@ -76,7 +76,7 @@ export async function POST(
     // Verify the chat belongs to this user
     const chat = await prisma.supportChat.findUnique({
       where: {
-        id: params.chatId,
+        id: (await params).chatId,
         userId
       }
     });
@@ -99,7 +99,7 @@ export async function POST(
     // Create message
     const message = await prisma.supportMessage.create({
       data: {
-        chatId: params.chatId,
+        chatId: (await params).chatId,
         content,
         sender: userId,
         senderType: 'user',
@@ -109,7 +109,7 @@ export async function POST(
 
     // Update chat timestamp
     await prisma.supportChat.update({
-      where: { id: params.chatId },
+      where: { id: (await params).chatId },
       data: { updatedAt: new Date() }
     });
 

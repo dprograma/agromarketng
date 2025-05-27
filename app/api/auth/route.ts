@@ -3,17 +3,15 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
 import prisma from '@/lib/prisma';
-
-// Helper functions for JSON response
-const jsonResponse = (status: number, data: any) => new NextResponse(JSON.stringify(data), { status });
+import { apiErrorResponse } from '@/lib/errorHandling';
 
 // Configure Nodemailer transporter
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
+    pass: process.env.EMAIL_PASS
+  }
 });
 
 export async function POST(req: NextRequest) {
@@ -25,7 +23,7 @@ export async function POST(req: NextRequest) {
     case 'reset-password':
       return handleResetPassword(token, newPassword);
     default:
-      return jsonResponse(400, { error: 'Invalid request type' });
+      return apiErrorResponse('Invalid request type', 400, 'INVALID_REQUEST_TYPE');
   }
 }
 
@@ -35,55 +33,59 @@ async function handleForgotPassword(email: string) {
     // Check if user exists
     const user = await prisma.user.findUnique({ where: { email } });
     console.log("User found: ", user);
-    if (!user) return jsonResponse(404, { error: 'User not found' });
+    if (!user) return apiErrorResponse('User not found', 404, 'USER_NOT_FOUND');
 
     // Generate a reset token
     const resetToken = jwt.sign(
-      { id: user.id, email: user.email },
+      { userId: user.id },
       process.env.NEXTAUTH_SECRET!,
       { expiresIn: '1h' }
     );
 
     // Send reset email
-    const resetUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/resetPassword?token=${resetToken}`;
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
       subject: 'Password Reset Request',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #166534;">Password Reset Request</h2>
-          <p>Hi ${user.name || 'there'},</p>
-          <p>You requested a password reset. Click the button below to reset your password:</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${resetUrl}" style="background-color: #166534; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">Reset Password</a>
-          </div>
-          <p style="color: #666; font-size: 14px;">If you did not request this, please ignore this email.</p>
-          <p style="color: #666; font-size: 14px;">This link will expire in 1 hour.</p>
-        </div>
+        <h1>Password Reset</h1>
+        <p>Click the link below to reset your password:</p>
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${resetToken}">
+          Reset Password
+        </a>
       `,
     });
 
-    return jsonResponse(200, { message: 'Password reset link sent to your email' });
+    return NextResponse.json({ message: 'Password reset link sent to your email' }, { status: 200 });
   } catch (error) {
     console.error('Error in forgot password:', error);
-    return jsonResponse(500, { error: 'Failed to send reset email' });
+    return apiErrorResponse(
+      'Failed to send reset email',
+      500,
+      'EMAIL_SEND_FAILED',
+      error instanceof Error ? error.message : String(error)
+    );
   }
 }
 
 async function handleResetPassword(token: string, newPassword: string) {
   try {
-    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { userId: string };
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     await prisma.user.update({
-      where: { id: decoded.id },
+      where: { id: decoded.userId },
       data: { password: hashedPassword },
     });
 
-    return jsonResponse(200, { message: 'Password reset successfully' });
+    return NextResponse.json({ message: 'Password reset successfully' }, { status: 200 });
   } catch (error) {
     console.error('Error in reset password:', error);
-    return jsonResponse(400, { error: 'Invalid or expired token' });
+    return apiErrorResponse(
+      'Invalid or expired token',
+      400,
+      'INVALID_OR_EXPIRED_TOKEN',
+      error instanceof Error ? error.message : String(error)
+    );
   }
 }

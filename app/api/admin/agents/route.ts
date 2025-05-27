@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import nodemailer from 'nodemailer';
+import { apiErrorResponse } from '@/lib/errorHandling';
 
 interface UserWithAgent {
   id: string;
@@ -34,7 +35,7 @@ async function validateAdmin(req: NextRequest) {
       exp?: number;
     };
 
-    
+
 
     console.log("admin session token: ", decoded);
 
@@ -58,13 +59,14 @@ export async function GET(req: NextRequest) {
     const session = await validateAdmin(req);
     console.log("session from get request in agents api handler: ", session)
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
     }
 
     const agents = await prisma.agent.findMany({
       include: {
         user: {
           select: {
+            id: true,
             name: true,
             email: true,
           },
@@ -75,9 +77,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(agents);
   } catch (error) {
     console.error("Error fetching agents:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch agents" },
-      { status: 500 }
+    return apiErrorResponse(
+      "Failed to fetch agents",
+      500,
+      "FETCH_AGENTS_FAILED",
+      error instanceof Error ? error.message : String(error)
     );
   }
 }
@@ -86,23 +90,25 @@ export async function POST(req: NextRequest) {
   try {
     const session = await validateAdmin(req);
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
     }
 
     const { email, name, specialties } = await req.json();
 
     // Input validation
     if (!email || !specialties) {
-      return NextResponse.json(
-        { error: "Email and specialties are required" },
-        { status: 400 }
+      return apiErrorResponse(
+        "Email and specialties are required",
+        400,
+        "MISSING_FIELDS"
       );
     }
 
     if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-      return NextResponse.json(
-        { error: "Invalid email format" },
-        { status: 400 }
+      return apiErrorResponse(
+        "Invalid email format",
+        400,
+        "INVALID_EMAIL_FORMAT"
       );
     }
 
@@ -116,9 +122,10 @@ export async function POST(req: NextRequest) {
 
     // Check if user is already an agent
     if (user?.Agent) {
-      return NextResponse.json(
-        { error: "User is already an agent" },
-        { status: 400 }
+      return apiErrorResponse(
+        "User is already an agent",
+        400,
+        "USER_ALREADY_AGENT"
       );
     }
 
@@ -133,7 +140,7 @@ export async function POST(req: NextRequest) {
           name: name || email.split("@")[0],
           password: hashedPassword,
           role: "agent",
-          verified: false 
+          verified: false
         },
       });
 
@@ -168,11 +175,13 @@ export async function POST(req: NextRequest) {
         });
       } catch (emailError) {
         console.error("Error sending welcome email:", emailError);
-        // Delete created user if email fails
+        // Delete created user if email fails to prevent orphaned user accounts
         await prisma.user.delete({ where: { id: user?.id } });
-        return NextResponse.json(
-          { error: "Failed to send verification email" },
-          { status: 500 }
+        return apiErrorResponse(
+          "Failed to send verification email",
+          500,
+          "EMAIL_SEND_FAILED",
+          emailError instanceof Error ? emailError.message : String(emailError)
         );
       }
     }
@@ -182,10 +191,10 @@ export async function POST(req: NextRequest) {
       const agent = await prisma.agent.create({
         data: {
           userId: user.id,
-          specialties: Array.isArray(specialties) 
-            ? specialties 
-            : specialties.split(',').map((s:string) => s.trim()),
-          isAvailable: false 
+          specialties: Array.isArray(specialties)
+            ? specialties
+            : specialties.split(',').map((s: string) => s.trim()),
+          isAvailable: false
         },
         include: {
           user: {
@@ -208,9 +217,11 @@ export async function POST(req: NextRequest) {
     }
   } catch (error) {
     console.error("Error creating agent:", error);
-    return NextResponse.json(
-      { error: "Failed to create agent" },
-      { status: 500 }
+    return apiErrorResponse(
+      "Failed to create agent",
+      500,
+      "CREATE_AGENT_FAILED",
+      error instanceof Error ? error.message : String(error)
     );
   }
 }

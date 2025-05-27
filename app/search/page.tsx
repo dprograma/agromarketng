@@ -11,6 +11,16 @@ import ProductCard from '@/components/ProductCard';
 import { Loader2 } from 'lucide-react';
 import { categories } from '@/constants';
 
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  items: {
+    name: string;
+    href: string;
+  }[];
+}
+
 export default function SearchResults() {
   const searchParams = useSearchParams();
   const [results, setResults] = useState<Ad[]>([]);
@@ -41,8 +51,8 @@ export default function SearchResults() {
       <main className="flex-grow">
         <Search />
 
-         {/* Initial State - No Search Yet */}
-         {!searchParams.toString() && (
+        {/* Initial State - No Search Yet */}
+        {!searchParams.toString() && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="bg-white rounded-xl p-8 shadow-sm">
               <h2 className="text-xl font-semibold text-gray-900 mb-6">
@@ -85,9 +95,9 @@ export default function SearchResults() {
             ) : (
               <div className="text-center py-12 bg-white rounded-xl shadow-sm">
                 <div className="mb-4">
-                  <img 
-                    src="/assets/svg/no-results.svg" 
-                    alt="No results" 
+                  <img
+                    src="/assets/svg/no-results.svg"
+                    alt="No results"
                     className="w-40 h-40 mx-auto opacity-75"
                   />
                 </div>
@@ -105,8 +115,8 @@ export default function SearchResults() {
                   <div className="flex flex-wrap justify-center gap-2">
                     {categories.slice(0, 5).map((category) => (
                       <Link
-                        key={category.slug}
-                        href={`/search?category=${category.slug}`}
+                        key={category.name}
+                        href={`/search?category=${category.name}`}
                         className="px-4 py-2 bg-gray-50 text-gray-700 rounded-full text-sm hover:bg-gray-100"
                       >
                         {category.name}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Bar, Pie, Doughnut, Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -28,12 +28,16 @@ import {
   Smartphone,
   Laptop,
   Users,
-  Clock
+  Clock,
+  RefreshCw,
+  CheckCircle,
+  CreditCard
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import toast from "react-hot-toast";
+import { useAnalytics } from "@/lib/hooks/useAnalytics";
 
 // Register necessary Chart.js components
 ChartJS.register(
@@ -48,129 +52,21 @@ ChartJS.register(
   Title
 );
 
-interface AnalyticsData {
-  adPerformance: {
-    totalViews: number;
-    totalClicks: number;
-    totalShares: number;
-    engagementRate: string;
-    adDetails: Array<{
-      id: string;
-      title: string;
-      views: number;
-      clicks: number;
-      shares: number;
-      engagementRate: number;
-      status: string;
-      featured: boolean;
-      category: string;
-      createdAt: string;
-      image: string | null;
-      location: string;
-    }>;
-    dailyData: {
-      labels: string[];
-      viewsData: number[];
-      clicksData: number[];
-      sharesData: number[];
-    };
-    categoryPerformance: Array<{
-      category: string;
-      views: number;
-      clicks: number;
-      shares: number;
-      count: number;
-      engagementRate: number;
-    }>;
-    performanceTrends: {
-      views: { current: number; previous: number; change: number };
-      clicks: { current: number; previous: number; change: number };
-      shares: { current: number; previous: number; change: number };
-    };
-  };
-  financialData: {
-    subscriptionDetails: {
-      name: string;
-      cost: number;
-      features: any[];
-    };
-    boostCosts: number;
-    boostDetails: Array<{
-      adId: string;
-      adTitle: string;
-      boostType: number;
-      boostStartDate: string;
-      boostEndDate: string;
-      cost: number;
-    }>;
-    totalSpent: number;
-    earnings: number;
-    profit: number;
-    roi: number;
-    monthlySpending: {
-      months: string[];
-      spending: number[];
-    };
-  };
-  demographics: {
-    topLocations: Array<{
-      country: string;
-      views: number;
-      percentage: number;
-    }>;
-    devices: Array<{
-      device: string;
-      percentage: number;
-      count: number;
-    }>;
-    gender: Array<{
-      gender: string;
-      percentage: number;
-      count: number;
-    }>;
-    ageGroups: Array<{
-      group: string;
-      percentage: number;
-      count: number;
-    }>;
-    timeOfDay: Array<{
-      time: string;
-      percentage: number;
-      count: number;
-    }>;
-    totalAudience: number;
-  };
-}
+// Use the types from our hook
 
 export default function Analytics() {
   const [activeTab, setActiveTab] = useState("performance");
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState("30days");
+  const {
+    data: analyticsData,
+    isLoading,
+    error,
+    refreshData,
+    setTimeRange
+  } = useAnalytics();
 
-  useEffect(() => {
-    fetchAnalyticsData();
-  }, [timeRange]);
-
-  const fetchAnalyticsData = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/user/analytics?timeRange=${timeRange}`, {
-        credentials: "include"
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setAnalyticsData(data);
-      } else {
-        throw new Error("Failed to fetch analytics data");
-      }
-    } catch (error) {
-      console.error("Error fetching analytics:", error);
-      toast.error("Failed to load analytics data");
-    } finally {
-      setLoading(false);
-    }
+  // Handle time range change
+  const handleTimeRangeChange = (range: string) => {
+    setTimeRange(range as '7days' | '30days' | '90days');
   };
 
   return (
@@ -179,16 +75,25 @@ export default function Analytics() {
       <p className="text-gray-600 text-center mt-2">Track ad performance, audience insights, and financials.</p>
 
       {/* Time Range Selector */}
-      <div className="flex justify-center mt-4">
+      <div className="flex justify-center mt-4 gap-2">
         <select
           className="px-4 py-2 border rounded-md text-sm"
-          value={timeRange}
-          onChange={(e) => setTimeRange(e.target.value)}
+          onChange={(e) => handleTimeRangeChange(e.target.value)}
         >
           <option value="7days">Last 7 Days</option>
-          <option value="30days">Last 30 Days</option>
+          <option value="30days" selected>Last 30 Days</option>
           <option value="90days">Last 90 Days</option>
         </select>
+
+        <Button
+          variant="outline"
+          onClick={() => refreshData()}
+          disabled={isLoading}
+          className="flex items-center gap-1 h-8 px-3"
+        >
+          <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} />
+          Refresh
+        </Button>
       </div>
 
       {/* Tabs */}
@@ -209,9 +114,20 @@ export default function Analytics() {
         ))}
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="flex justify-center items-center h-64">
           <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+        </div>
+      ) : error ? (
+        <div className="text-center py-12 text-red-500">
+          <p>{error.message || "Failed to load analytics data"}</p>
+          <Button
+            variant="outline"
+            onClick={() => refreshData()}
+            className="mt-4 h-8 px-3"
+          >
+            Try Again
+          </Button>
         </div>
       ) : !analyticsData ? (
         <div className="text-center py-12 text-gray-500">
