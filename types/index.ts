@@ -16,7 +16,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  image: string;
+  image: string | null;
   password: string;
   createdAt: Date;
   updatedAt: Date;
@@ -349,9 +349,13 @@ export interface Message {
   sender: {
     id: string;
     name: string;
-    image: string;
+    image: string | null;
   };
   createdAt: string;
+  updatedAt: string;
+  chatId: string;
+  read: boolean;
+  pending: boolean;
 }
 
 export interface Chat {
@@ -364,12 +368,46 @@ export interface Chat {
     user: {
       id: string;
       name: string;
-      image: string;
+      image: string | null;
     };
     unreadCount: number;
   }[];
   messages: Message[];
   updatedAt: string;
+}
+
+export interface SupportMessage {
+  id: string;
+  content: string;
+  senderId: string;
+  sender: string;
+  createdAt: string;
+  updatedAt: string;
+  chatId: string;
+  read: boolean;
+  pending?: boolean;
+  senderType?: string;
+}
+
+export interface SupportChat {
+  id: string;
+  ticketId: string;
+  participants: {
+    user: {
+      id: string;
+      name: string;
+      image: string | null;
+    };
+    agent: {
+      id: string;
+      name: string;
+      image: string | null;
+    };
+    unreadCount: number;
+  }[];
+  messages: SupportMessage[];
+  updatedAt: string;
+  status: 'pending' | 'active' | 'resolved' | 'closed';
 }
 
 export interface DialogTitleProps {
