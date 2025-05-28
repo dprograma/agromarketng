@@ -40,12 +40,12 @@ export function getImagePlaceholder(src: string | StaticImageData): string | und
   if (typeof src !== 'string' && src.blurDataURL) {
     return src.blurDataURL;
   }
-  
+
   // For external URLs, return undefined (Next.js will handle it)
   if (typeof src === 'string' && (src.startsWith('http://') || src.startsWith('https://'))) {
     return undefined;
   }
-  
+
   // For local images without blur data, return a tiny placeholder
   return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjZjFmMWYxIi8+Cjwvc3ZnPg==';
 }
@@ -53,18 +53,24 @@ export function getImagePlaceholder(src: string | StaticImageData): string | und
 /**
  * Get image format based on browser support
  * @param formats Array of supported formats in order of preference
- * @returns The first supported format or fallback to 'jpg'
+ * @returns A promise that resolves with the first supported format or fallback to 'jpg'
  */
-export function getSupportedImageFormat(formats: string[] = ['avif', 'webp', 'jpg']): string {
+export async function getSupportedImageFormat(formats: string[] = ['avif', 'webp', 'jpg']): Promise<string> {
   // This function is client-side only
   if (typeof window === 'undefined') {
     return formats[formats.length - 1]; // Return fallback format on server
   }
 
-  // Check for AVIF support
-  if (formats.includes('avif') && self.createImageBitmap) {
+  // Check for AVIF support asynchronously
+  if (formats.includes('avif')) {
     const avifData = 'data:image/avif;base64,AAAAIGZ0eXBhdmlmAAAAAGF2aWZtaWYxbWlhZk1BMUIAAADybWV0YQAAAAAAAAAoaGRscgAAAAAAAAAAcGljdAAAAAAAAAAAAAAAAGxpYmF2aWYAAAAADnBpdG0AAAAAAAEAAAAeaWxvYwAAAABEAAABAAEAAAABAAABGgAAAB0AAAAoaWluZgAAAAAAAQAAABppbmZlAgAAAAABAABhdjAxQ29sb3IAAAAAamlwcnAAAABLaXBjbwAAABRpc3BlAAAAAAAAAAIAAAACAAAAEHBpeGkAAAAAAwgICAAAAAxhdjFDgQ0MAAAAABNjb2xybmNseAACAAIAAYAAAAAXaXBtYQAAAAAAAAABAAEEAQKDBAAAACVtZGF0EgAKCBgANogQEAwgMg8f8D///8WfhwB8+ErK42A=';
-    return fetch(avifData).then(() => 'avif').catch(() => getSupportedImageFormat(formats.filter(f => f !== 'avif')));
+    try {
+      await self.createImageBitmap(await fetch(avifData).then(res => res.blob()));
+      return 'avif';
+    } catch (e) {
+      // AVIF not supported, try next format
+      return getSupportedImageFormat(formats.filter(f => f !== 'avif'));
+    }
   }
 
   // Check for WebP support
@@ -91,7 +97,7 @@ export function getOptimizedImageUrl(src: string, width: number, format: string 
   if (src.startsWith('http://') || src.startsWith('https://')) {
     return src;
   }
-  
+
   // For local images, add query parameters for Next.js Image Optimization API
   const baseUrl = src.split('?')[0];
   return `${baseUrl}?w=${width}&q=75&fm=${format}`;
@@ -107,11 +113,11 @@ export function getProductImageUrl(images: string[] | undefined, index: number =
   if (!images || images.length === 0) {
     return '/assets/img/products/placeholder.jpg';
   }
-  
+
   const image = images[index];
   if (!image) {
     return '/assets/img/products/placeholder.jpg';
   }
-  
+
   return image;
 }

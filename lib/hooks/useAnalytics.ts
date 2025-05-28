@@ -236,7 +236,7 @@ interface Analytics {
   shares: number;
 }
 
-export function useAnalytics(adId: string) {
+export function useAdAnalytics(adId: string) {
   const queryClient = useQueryClient();
   const queryKey = ['analytics', adId];
 
