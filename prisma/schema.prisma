@@ -1,10 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -15,31 +8,158 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String   @db.VarChar(255)
-  email     String   @unique @db.VarChar(255)
-  emailVerified DateTime?
-  image         String?
-  accounts      Account[]
-  sessions      Session[]
-  password  String?   @db.VarChar(255)
-  verified  Boolean @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String            @id @default(cuid())
+  name               String            @db.VarChar(255)
+  email              String            @unique @db.VarChar(255)
+  password           String?           @db.VarChar(255)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  verified           Boolean           @default(false)
+  emailVerified      DateTime?
+  image              String?
+  subscriptionPlanId String?
+  role               String            @default("user")
+  accounts           Account[]
+  ads                Ad[]
+  Agent              Agent?
+  ChatParticipant    ChatParticipant[]
+  invoices           Invoice[]
+  Message            Message[]
+  notifications      Notification[]
+  paymentMethods     PaymentMethod[]
+  sessions           Session[]
+  SupportChat        SupportChat[]
+  supportTickets     SupportTicket[]
+  transactions       Transaction[]
+  subscriptionPlan   SubscriptionPlan? @relation("UserSubscription", fields: [subscriptionPlanId], references: [id])
+}
+
+model Ad {
+  id                 String            @id @default(cuid())
+  title              String
+  category           String
+  location           String
+  description        String
+  contact            String
+  userId             String
+  subscriptionPlanId String?
+  createdAt          DateTime          @default(now())
+  images             String[]
+  updatedAt          DateTime          @updatedAt
+  price              Decimal           @db.Decimal(10, 2)
+  boostEndDate       DateTime?
+  boostMultiplier    Float             @default(1.0)
+  boostStartDate     DateTime?
+  boostStatus        String?           @default("inactive")
+  boostType          Int?
+  clicks             Int               @default(0)
+  exclusivePlacement Boolean           @default(false)
+  featured           Boolean           @default(false)
+  featuredOnHome     Boolean           @default(false)
+  listingPriority    Int               @default(0)
+  shares             Int               @default(0)
+  status             String            @default("Pending")
+  topOfCategory      Boolean           @default(false)
+  views              Int               @default(0)
+  section            String?
+  subcategory        String?
+  subscriptionPlan   SubscriptionPlan? @relation("AdSubscription", fields: [subscriptionPlanId], references: [id])
+  user               User              @relation(fields: [userId], references: [id])
+  Chat               Chat[]
+
+  @@index([category])
+  @@index([location])
+  @@index([createdAt])
+  @@index([price])
+}
+
+model SubscriptionPlan {
+  id              String        @id @default(cuid())
+  name            String
+  expiryDate      DateTime
+  price           Decimal       @db.Decimal(10, 2)
+  benefits        String[]
+  duration        Int           @default(30)
+  features        Json
+  listingPriority Int           @default(0)
+  ads             Ad[]          @relation("AdSubscription")
+  invoices        Invoice[]
+  transactions    Transaction[]
+  users           User[]        @relation("UserSubscription")
+}
+
+model Transaction {
+  id                 String            @id @default(cuid())
+  userId             String
+  amount             Decimal           @db.Decimal(10, 2)
+  currency           String            @default("NGN")
+  status             String
+  type               String
+  reference          String            @unique
+  paymentMethod      String?
+  paymentGateway     String            @default("paystack")
+  subscriptionPlanId String?
+  metadata           Json?
+  invoiceId          String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  invoice            Invoice?          @relation(fields: [invoiceId], references: [id])
+  subscriptionPlan   SubscriptionPlan? @relation(fields: [subscriptionPlanId], references: [id])
+  user               User              @relation(fields: [userId], references: [id])
+}
+
+model Invoice {
+  id                 String            @id @default(cuid())
+  userId             String
+  invoiceNumber      String            @unique
+  amount             Decimal           @db.Decimal(10, 2)
+  currency           String            @default("NGN")
+  status             String
+  dueDate            DateTime
+  paidDate           DateTime?
+  items              Json
+  subscriptionPlanId String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  subscriptionPlan   SubscriptionPlan? @relation(fields: [subscriptionPlanId], references: [id])
+  user               User              @relation(fields: [userId], references: [id])
+  transactions       Transaction[]
+}
+
+model PaymentMethod {
+  id            String   @id @default(cuid())
+  userId        String
+  type          String
+  provider      String
+  last4         String?
+  expiryMonth   Int?
+  expiryYear    Int?
+  isDefault     Boolean  @default(false)
+  token         String?
+  email         String?
+  accountName   String?
+  accountNumber String?
+  bankName      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id])
 }
 
 model Account {
   id                String  @id @default(cuid())
   userId            String
+  type              String
   provider          String
   providerAccountId String
-  type              String
-  refresh_token     String?  // Optional
-  access_token      String?  // Optional
-  expires_at        Int?     // Optional
-  user              User     @relation(fields: [userId], references: [id])
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  scope             String?
+  token_type        String?
+  id_token          String?
+  user              User    @relation(fields: [userId], references: [id])
 
-  @@unique([provider, providerAccountId]) 
+  @@unique([provider, providerAccountId])
 }
 
 model Session {
@@ -54,5 +174,117 @@ model VerificationToken {
   identifier String
   token      String
   expires    DateTime
+
   @@unique([identifier, token])
+}
+
+model Chat {
+  id           String            @id @default(cuid())
+  adId         String
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  ad           Ad                @relation(fields: [adId], references: [id])
+  participants ChatParticipant[]
+  messages     Message[]
+}
+
+model ChatParticipant {
+  id          String   @id @default(cuid())
+  userId      String
+  chatId      String
+  unreadCount Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  chat        Chat     @relation(fields: [chatId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, chatId])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  chatId    String
+  senderId  String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  chat      Chat     @relation(fields: [chatId], references: [id])
+  sender    User     @relation(fields: [senderId], references: [id])
+}
+
+model SupportTicket {
+  id          String   @id @default(cuid())
+  subject     String
+  message     String
+  priority    String
+  category    String
+  status      String   @default("open")
+  attachments String[]
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model Agent {
+  id          String        @id @default(cuid())
+  userId      String        @unique
+  isOnline    Boolean       @default(false)
+  isAvailable Boolean       @default(true)
+  activeChats Int           @default(0)
+  lastActive  DateTime      @default(now())
+  specialties String[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  user        User          @relation(fields: [userId], references: [id])
+  SupportChat SupportChat[]
+}
+
+model SupportChat {
+  id        String           @id @default(cuid())
+  userId    String
+  agentId   String?
+  status    String           @default("pending")
+  category  String           @default("general")
+  priority  Int              @default(1)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  agent     Agent?           @relation(fields: [agentId], references: [id])
+  user      User             @relation(fields: [userId], references: [id])
+  messages  SupportMessage[]
+}
+
+model SupportMessage {
+  id         String      @id @default(cuid())
+  chatId     String
+  content    String
+  sender     String
+  senderType String
+  read       Boolean     @default(false)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  chat       SupportChat @relation(fields: [chatId], references: [id])
+}
+
+model Newsletter {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String?
+  isConfirmed Boolean  @default(false)
+  token       String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  message   String
+  read      Boolean  @default(false)
+  time      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
 }

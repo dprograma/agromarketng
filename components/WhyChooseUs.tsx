@@ -1,3 +1,4 @@
+import React from "react";
 import { ChartPieIcon, CurrencyDollarIcon, GlobeAltIcon, HeartIcon } from "@heroicons/react/24/outline";
 
 const WhyChooseUs = () => {
