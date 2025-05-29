@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import blogImg1 from "../public/assets/img/blog/blogImg1.jpg";
 import blogImg2 from "../public/assets/img/blog/blogImg2.jpg";
 import blogImg3 from "../public/assets/img/blog/blogImg3.jpg";
@@ -22,9 +23,9 @@ const LatestNews = () => {
               <p className="text-gray-600 mt-2 text-sm">
                 Learn how sustainable farming can positively impact our environment and food quality.
               </p>
-              <a href="#" className="text-yellow-500 text-sm font-semibold mt-4 inline-block">
+              <Link href="/news" className="text-yellow-500 text-sm font-semibold mt-4 inline-block">
                 Read More →
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -36,9 +37,9 @@ const LatestNews = () => {
               <p className="text-gray-600 mt-2 text-sm">
                 Discover the latest trends and demands shaping the agricultural market this year.
               </p>
-              <a href="#" className="text-yellow-500 text-sm font-semibold mt-4 inline-block">
+              <Link href="/news" className="text-yellow-500 text-sm font-semibold mt-4 inline-block">
                 Read More →
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -50,9 +51,9 @@ const LatestNews = () => {
               <p className="text-gray-600 mt-2 text-sm">
                 How supporting local farmers can strengthen communities and promote sustainable growth.
               </p>
-              <a href="#" className="text-yellow-500 text-sm font-semibold mt-4 inline-block">
+              <Link href="/news" className="text-yellow-500 text-sm font-semibold mt-4 inline-block">
                 Read More →
-              </a>
+              </Link>
             </div>
           </div>
         </div>

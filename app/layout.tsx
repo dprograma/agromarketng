@@ -1,6 +1,21 @@
 import type { Metadata } from "next";
+import SessionWrapper from '@/components/SessionWrapper';
+import { cookies } from 'next/headers';
+import jwt from 'jsonwebtoken';
+import { Session } from '@/types';
 import "./globals.css";
+import { initCronJobs } from '@/services/cron';
+import { Toaster } from 'react-hot-toast';
+import ConditionalChatButton from "@/components/LiveChat/ConditionalChatButton";
+import CookieConsent from "@/components/CookieConsent";
+import Providers from './providers'
+import { Inter } from 'next/font/google';
 
+if (process.env.NODE_ENV === 'development') {
+  initCronJobs();
+}
+
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: "AgroMarket Nigeria | Buy and Sell Agricultural Products",
@@ -39,24 +54,48 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-  },
 };
 
-export const viewport = "width=device-width, initial-scale=1.0"; 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: {
+  children: React.ReactNode
+}) {
+  console.log('Rendering RootLayout');
+  const sessionCookie = (await cookies()).get('next-auth.session-token')?.value;
+  let initialSession = null;
+
+  if (sessionCookie) {
+    try {
+      const decoded = jwt.verify(sessionCookie, process.env.NEXTAUTH_SECRET!) as Session;
+      initialSession = {
+        token: sessionCookie,
+        ...decoded
+      };
+    } catch (err) {
+      console.error('Invalid session token:', err);
+    }
+  }
+
   return (
     <html lang="en">
-      <body className="relative">
-        {children}
-        
+      <head>
+        <script src="https://js.paystack.co/v2/inline.js"></script>
+      </head>
+      <body className={inter.className}>
+        <Providers>
+          <SessionWrapper session={initialSession}>
+            {children}
+            <Toaster position="top-right" />
+            <ConditionalChatButton />
+            <CookieConsent />
+          </SessionWrapper>
+        </Providers>
       </body>
     </html>
   );

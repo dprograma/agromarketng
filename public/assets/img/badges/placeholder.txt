@@ -1,0 +1,4 @@
+This folder will contain certification badge images:
+- organic-badge.png
+- eco-badge.png
+- fair-trade-badge.png

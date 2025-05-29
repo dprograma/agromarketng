@@ -1,0 +1,4294 @@
+```diff
+diff --git a/app/api/admin/agents/[agentId]/route.ts b/app/api/admin/agents/[agentId]/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/admin/agents/[agentId]/route.ts
++++ b/app/api/admin/agents/[agentId]/route.ts
+@@ -1,6 +1,7 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ // Helper function to validate admin session
+ async function validateAdmin(req: NextRequest) {
+@@ -29,7 +30,7 @@
+   try {
+     const session = await validateAdmin(req);
+     if (!session) {
+-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
+     }
+ 
+     const agent = await prisma.agent.findUnique({
+@@ -45,15 +46,15 @@
+     });
+ 
+     if (!agent) {
+-      return NextResponse.json({ error: "Agent not found" }, { status: 404 });
++      return apiErrorResponse("Agent not found", 404, "AGENT_NOT_FOUND");
+     }
+ 
+     return NextResponse.json(agent);
+   } catch (error) {
+     console.error("Error fetching agent:", error);
+-    return NextResponse.json(
+-      { error: "Failed to fetch agent" },
+-      { status: 500 }
++    return apiErrorResponse(
++      "Failed to fetch agent",
++      500, "FETCH_AGENT_FAILED", error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+@@ -64,14 +65,14 @@
+   try {
+     const session = await validateAdmin(req);
+     if (!session) {
+-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
+     }
+ 
+     const data = await req.json();
+     
+     // Validate data
+     if (data.isAvailable !== undefined && typeof data.isAvailable !== 'boolean') {
+-      return NextResponse.json(
+-        { error: "Invalid isAvailable value" },
+-        { status: 400 }
++      return apiErrorResponse(
++        "Invalid isAvailable value",
++        400, "INVALID_INPUT"
+       );
+     }
+ 
+@@ -90,9 +91,9 @@
+     return NextResponse.json(updatedAgent);
+   } catch (error) {
+     console.error("Error updating agent:", error);
+-    return NextResponse.json(
+-      { error: "Failed to update agent" },
+-      { status: 500 }
++    return apiErrorResponse(
++      "Failed to update agent",
++      500, "UPDATE_AGENT_FAILED", error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+@@ -103,19 +104,19 @@
+   try {
+     const session = await validateAdmin(req);
+     if (!session) {
+-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
+     }
+ 
+     // Check if agent exists
+     const agent = await prisma.agent.findUnique({
+       where: { id: params.agentId },
+     });
+ 
+     if (!agent) {
+-      return NextResponse.json({ error: "Agent not found" }, { status: 404 });
++      return apiErrorResponse("Agent not found", 404, "AGENT_NOT_FOUND");
+     }
+ 
+     // Delete agent
+     await prisma.agent.delete({
+       where: { id: params.agentId },
+     });
+ 
+     return NextResponse.json({ message: "Agent deleted successfully" });
+   } catch (error) {
+     console.error("Error deleting agent:", error);
+-    return NextResponse.json(
+-      { error: "Failed to delete agent" },
+-      { status: 500 }
++    return apiErrorResponse(
++      "Failed to delete agent",
++      500, "DELETE_AGENT_FAILED", error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/admin/agents/route.ts b/app/api/admin/agents/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/admin/agents/route.ts
++++ b/app/api/admin/agents/route.ts
+@@ -3,6 +3,7 @@
+ import bcrypt from "bcryptjs";
+ import jwt from "jsonwebtoken";
+ import nodemailer from 'nodemailer';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ interface UserWithAgent {
+   id: string;
+@@ -43,7 +44,7 @@
+   try {
+     const session = await validateAdmin(req);
+     console.log("session from get request in agents api handler: ", session)
+-    if (!session) {
+-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++    if (!session) { // Ensure session is valid and user is admin
++      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
+     }
+ 
+     const agents = await prisma.agent.findMany({
+@@ -59,9 +60,9 @@
+     return NextResponse.json(agents);
+   } catch (error) {
+     console.error("Error fetching agents:", error);
+-    return NextResponse.json(
+-      { error: "Failed to fetch agents" },
+-      { status: 500 }
++    return apiErrorResponse(
++      "Failed to fetch agents",
++      500, "FETCH_AGENTS_FAILED", error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+@@ -69,22 +70,22 @@
+ export async function POST(req: NextRequest) {
+   try {
+     const session = await validateAdmin(req);
+-    if (!session) {
+-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++    if (!session) { // Ensure session is valid and user is admin
++      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
+     }
+ 
+     const { email, name, specialties } = await req.json();
+ 
+     // Input validation
+     if (!email || !specialties) {
+-      return NextResponse.json(
+-        { error: "Email and specialties are required" },
+-        { status: 400 }
++      return apiErrorResponse(
++        "Email and specialties are required",
++        400, "MISSING_FIELDS"
+       );
+     }
+ 
+     if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+-      return NextResponse.json(
+-        { error: "Invalid email format" },
+-        { status: 400 }
++      return apiErrorResponse(
++        "Invalid email format",
++        400, "INVALID_EMAIL_FORMAT"
+       );
+     }
+ 
+@@ -97,9 +98,9 @@
+ 
+     // Check if user is already an agent
+     if (user?.Agent) {
+-      return NextResponse.json(
+-        { error: "User is already an agent" },
+-        { status: 400 }
++      return apiErrorResponse(
++        "User is already an agent",
++        400, "USER_ALREADY_AGENT"
+       );
+     }
+ 
+@@ -131,9 +132,9 @@
+         });
+       } catch (emailError) {
+         console.error("Error sending welcome email:", emailError);
+-        // Delete created user if email fails
++        // Delete created user if email fails to prevent orphaned user accounts
+         await prisma.user.delete({ where: { id: user?.id } });
+-        return NextResponse.json(
+-          { error: "Failed to send verification email" },
+-          { status: 500 }
++        return apiErrorResponse(
++          "Failed to send verification email",
++          500, "EMAIL_SEND_FAILED", emailError instanceof Error ? emailError.message : String(emailError)
+         );
+       }
+     }
+@@ -156,9 +157,9 @@
+     }
+   } catch (error) {
+     console.error("Error creating agent:", error);
+-    return NextResponse.json(
+-      { error: "Failed to create agent" },
+-      { status: 500 }
++    return apiErrorResponse(
++      "Failed to create agent",
++      500, "CREATE_AGENT_FAILED", error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/admin/analytics/route.ts b/app/api/admin/analytics/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/admin/analytics/route.ts
++++ b/app/api/admin/analytics/route.ts
+@@ -1,6 +1,7 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ // Helper function to validate admin session
+ async function validateAdmin(req: NextRequest) {
+@@ -29,7 +30,7 @@
+   try {
+     const session = await validateAdmin(req);
+     if (!session) {
+-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
+     }
+ 
+     // Get time range from query params
+@@ -67,9 +68,9 @@
+       agentPerformance
+     });
+   } catch (error) {
+     console.error("Error fetching analytics:", error);
+-    return NextResponse.json(
+-      { error: "Failed to fetch analytics data" },
+-      { status: 500 }
++    return apiErrorResponse(
++      "Failed to fetch analytics data",
++      500, "ANALYTICS_FETCH_FAILED", error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/admin/chats/route.ts b/app/api/admin/chats/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/admin/chats/route.ts
++++ b/app/api/admin/chats/route.ts
+@@ -1,6 +1,7 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ // Helper function to validate admin session
+ async function validateAdmin(req: NextRequest) {
+@@ -29,7 +30,7 @@
+   try {
+     const session = await validateAdmin(req);
+     if (!session) {
+-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
+     }
+ 
+     const status = req.nextUrl.searchParams.get('status');
+@@ -59,9 +60,9 @@
+     return NextResponse.json(chats);
+   } catch (error) {
+     console.error("Error fetching chats:", error);
+-    return NextResponse.json(
+-      { error: "Failed to fetch chats" },
+-      { status: 500 }
++    return apiErrorResponse(
++      "Failed to fetch chats",
++      500, "FETCH_CHATS_FAILED", error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/admin/settings/route.ts b/app/api/admin/settings/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/admin/settings/route.ts
++++ b/app/api/admin/settings/route.ts
+@@ -1,6 +1,7 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ // Helper function to validate admin session
+ async function validateAdmin(req: NextRequest) {
+@@ -29,7 +30,7 @@
+   try {
+     const session = await validateAdmin(req);
+     if (!session) {
+-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
+     }
+ 
+     // Default settings
+@@ -44,9 +45,9 @@
+     // For now, we'll just return the default settings
+     return NextResponse.json(defaultSettings);
+   } catch (error) {
+-    console.error("Error fetching settings:", error);
+-    return NextResponse.json(
+-      { error: "Failed to fetch settings" },
+-      { status: 500 }
++    console.error("Error fetching settings:", error); // Log the actual error for debugging
++    return apiErrorResponse(
++      "Failed to fetch settings",
++      500, "FETCH_SETTINGS_FAILED", error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+@@ -55,15 +56,15 @@
+   try {
+     const session = await validateAdmin(req);
+     if (!session) {
+-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
+     }
+ 
+     const settings = await req.json();
+     
+     // Validate settings
+     if (typeof settings !== 'object') {
+-      return NextResponse.json(
+-        { error: "Invalid settings format" },
+-        { status: 400 }
++      return apiErrorResponse(
++        "Invalid settings format",
++        400, "INVALID_INPUT"
+       );
+     }
+ 
+@@ -74,9 +75,9 @@
+       settings
+     });
+   } catch (error) {
+-    console.error("Error updating settings:", error);
+-    return NextResponse.json(
+-      { error: "Failed to update settings" },
+-      { status: 500 }
++    console.error("Error updating settings:", error); // Log the actual error for debugging
++    return apiErrorResponse(
++      "Failed to update settings",
++      500, "UPDATE_SETTINGS_FAILED", error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/admin/stats/route.ts b/app/api/admin/stats/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/admin/stats/route.ts
++++ b/app/api/admin/stats/route.ts
+@@ -1,6 +1,7 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ // Helper function to validate admin session
+ async function validateAdmin(req: NextRequest) {
+@@ -29,7 +30,7 @@
+   try {
+     const session = await validateAdmin(req);
+     if (!session) {
+-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
+     }
+ 
+     // Get total agents count
+@@ -59,9 +60,9 @@
+       resolutionRate
+     });
+   } catch (error) {
+-    console.error("Error fetching admin stats:", error);
+-    return NextResponse.json(
+-      { error: "Failed to fetch admin statistics" },
+-      { status: 500 }
++    console.error("Error fetching admin stats:", error); // Log the actual error for debugging
++    return apiErrorResponse(
++      "Failed to fetch admin statistics",
++      500, "FETCH_ADMIN_STATS_FAILED", error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/ads/[id]/analytics/route.ts b/app/api/ads/[id]/analytics/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/ads/[id]/analytics/route.ts
++++ b/app/api/ads/[id]/analytics/route.ts
+@@ -1,5 +1,6 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ // Simple in-memory cache
+ const analyticsCache = new Map<string, { views: number; clicks: number; shares: number }>();
+@@ -18,15 +19,15 @@
+         });
+ 
+         if (!ad) {
+-            return NextResponse.json(
+-                { error: 'Ad not found' },
+-                { status: 404 }
++            return apiErrorResponse(
++                'Ad not found',
++                404, 'AD_NOT_FOUND'
+             );
+         }
+ 
+         // Update cache
+         analyticsCache.set(id, ad);
+-
+         return NextResponse.json(ad);
+     } catch (error) {
+         console.error('Error fetching analytics:', error);
+-        return NextResponse.json(
+-            { error: 'Failed to fetch analytics' },
+-            { status: 500 }
++        return apiErrorResponse(
++            'Failed to fetch analytics',
++            500, 'ANALYTICS_FETCH_FAILED', error instanceof Error ? error.message : String(error)
+         );
+     }
+ }
+@@ -38,9 +39,9 @@
+         const { type } = await request.json();
+ 
+         if (!['views', 'clicks', 'shares'].includes(type)) {
+-            return NextResponse.json(
+-                { error: 'Invalid analytics type' },
+-                { status: 400 }
++            return apiErrorResponse(
++                'Invalid analytics type',
++                400, 'INVALID_ANALYTICS_TYPE'
+             );
+         }
+ 
+@@ -52,9 +53,9 @@
+ 
+         return NextResponse.json(ad);
+     } catch (error) {
+-        console.error('Error updating analytics:', error);
+-        return NextResponse.json(
+-            { error: 'Failed to update analytics' },
+-            { status: 500 }
++        console.error('Error updating analytics:', error); // Log the actual error for debugging
++        return apiErrorResponse(
++            'Failed to update analytics',
++            500, 'ANALYTICS_UPDATE_FAILED', error instanceof Error ? error.message : String(error)
+         );
+     }
+ }
+diff --git a/app/api/ads/[id]/boost/route.ts b/app/api/ads/[id]/boost/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/ads/[id]/boost/route.ts
++++ b/app/api/ads/[id]/boost/route.ts
+@@ -2,6 +2,7 @@
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
+ import { boostOptions } from '@/constants';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function POST(
+   request: NextRequest,
+@@ -9,34 +10,34 @@
+ ) {
+   try {
+     // Make sure id is valid
+     const { id } = params;
+     if (!id) {
+-      return NextResponse.json(
+-        { error: 'Invalid ad ID' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'Invalid ad ID',
++        400, 'INVALID_AD_ID'
+       );
+     }
+ 
+     // Parse request body
+     let boostType: number, duration: number;
+     try {
+       const body = await request.json();
+       ({ boostType, duration } = body);
+ 
+       if (!boostType || !duration) {
+-        return NextResponse.json(
+-          { error: 'Missing required fields: boostType and duration' },
+-          { status: 400 }
++        return apiErrorResponse(
++          'Missing required fields: boostType and duration',
++          400, 'MISSING_FIELDS'
+         );
+       }
+ 
+       // Validate boost type
+       const validBoostType = boostOptions.some(opt => opt.id === boostType);
+       if (!validBoostType) {
+-        return NextResponse.json(
+-          { error: 'Invalid boost type' },
+-          { status: 400 }
++        return apiErrorResponse(
++          'Invalid boost type',
++          400, 'INVALID_BOOST_TYPE'
+         );
+       }
+ 
+       // Validate duration
+       const validDuration = boostOptions.find(opt => opt.id === boostType)?.duration.includes(duration);
+       if (!validDuration) {
+-        return NextResponse.json(
+-          { error: 'Invalid duration for selected boost type' },
+-          { status: 400 }
++        return apiErrorResponse(
++          'Invalid duration for selected boost type',
++          400, 'INVALID_BOOST_DURATION'
+         );
+       }
+     } catch (e) {
+-      return NextResponse.json(
+-        { error: 'Invalid request body' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'Invalid request body',
++        400, 'INVALID_REQUEST_BODY', e instanceof Error ? e.message : String(e)
+       );
+     }
+ 
+     // Get token from cookies
+     const token = request.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+     const userId = decoded.id;
+@@ -50,15 +51,15 @@
+       include: { subscriptionPlan: true }
+     });
+ 
+-    // If no subscription, return available plans and redirect info
++    // If no active subscription, return available plans and redirect info
+     if (!user?.subscriptionPlan || user.subscriptionPlan.expiryDate < new Date()) {
+       const availablePlans = await prisma.subscriptionPlan.findMany({
+         select: {
+           id: true,
+           name: true,
+           price: true,
+           duration: true,
+-          benefits: true
++          benefits: true,
+         }
+       });
+ 
+@@ -67,7 +68,7 @@
+         message: 'Active subscription required to boost ads',
+         adId: id,
+         subscriptionPlans: availablePlans,
+-        redirectUrl: '/dashboard/promotions'
++        redirectUrl: '/dashboard/promotions' // Suggest redirect to promotions page
+       }, { status: 403 });
+     }
+ 
+@@ -81,20 +82,20 @@
+     });
+ 
+     if (!ad || ad.userId !== userId) {
+-      return NextResponse.json(
+-        { error: 'Ad not found or unauthorized' },
+-        { status: 404 }
++      return apiErrorResponse(
++        'Ad not found or unauthorized',
++        404, 'AD_NOT_FOUND_OR_UNAUTHORIZED'
+       );
+     }
+ 
+     // Check if ad is already boosted
+     if (ad.featured && ad.boostEndDate && new Date(ad.boostEndDate) > new Date()) {
+-      return NextResponse.json(
+-        { error: 'Ad is already boosted' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'Ad is already boosted',
++        400, 'AD_ALREADY_BOOSTED'
+       );
+     }
+-
++    // Check if ad is active
+     if (ad.status !== 'Active') {
+       return NextResponse.json(
+         { error: 'Ad must be active before it can be boosted' },
+@@ -123,9 +124,9 @@
+       }
+     });
+   } catch (error) {
+-    console.error('Error boosting ad:', error instanceof Error ? error.message : error);
+-    return NextResponse.json(
+-      { error: 'Failed to boost ad' },
+-      { status: 500 }
++    console.error('Error boosting ad:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to boost ad',
++      500, 'BOOST_AD_FAILED', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/ads/[id]/feature/route.ts b/app/api/ads/[id]/feature/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/ads/[id]/feature/route.ts
++++ b/app/api/ads/[id]/feature/route.ts
+@@ -1,13 +1,14 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function PATCH(
+   req: NextRequest,
+   { params }: { params: { id: string } }
+ ) {
+   try {
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+@@ -19,8 +20,8 @@
+     });
+ 
+     if (!user?.subscriptionPlan || user.subscriptionPlan.expiryDate < new Date()) {
+-      return NextResponse.json(
+-        { error: 'Active subscription required to feature ads. Please upgrade your plan.' },
+-        { status: 403 }
++      return apiErrorResponse(
++        'Active subscription required to feature ads. Please upgrade your plan.',
++        403, 'SUBSCRIPTION_REQUIRED'
+       );
+     }
+ 
+@@ -29,8 +30,8 @@
+     });
+ 
+     if (!ad || ad.userId !== userId) {
+-      return NextResponse.json(
+-        { error: 'Ad not found or unauthorized' },
+-        { status: 404 }
++      return apiErrorResponse(
++        'Ad not found or unauthorized',
++        404, 'AD_NOT_FOUND_OR_UNAUTHORIZED'
+       );
+     }
+ 
+@@ -45,8 +46,9 @@
+       message: 'Ad featured successfully' 
+     });
+   } catch (error) {
+-    console.error('Error featuring ad:', error);
+-    return NextResponse.json(
+-      { error: 'Failed to feature ad' },
+-      { status: 500 }
++    console.error('Error featuring ad:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to feature ad',
++      500, 'FEATURE_AD_FAILED', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/ads/[id]/status/route.ts b/app/api/ads/[id]/status/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/ads/[id]/status/route.ts
++++ b/app/api/ads/[id]/status/route.ts
+@@ -2,6 +2,7 @@
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
+ import { headers } from 'next/headers';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ // Define params interface
+ interface RouteParams {
+@@ -17,15 +18,15 @@
+     const id = params?.id;
+ 
+     if (!id || typeof id !== 'string') {
+-      return NextResponse.json(
+-        { error: 'Invalid ad ID' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'Invalid ad ID',
++        400, 'INVALID_AD_ID'
+       );
+     }
+ 
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Rest of your code remains the same
+@@ -34,8 +35,8 @@
+     const { status } = await req.json();
+     const validStatuses = ['Active', 'Pending', 'Inactive', 'Sold'];
+ 
+     if (!validStatuses.includes(status)) {
+-      return NextResponse.json(
+-        { error: 'Invalid status value' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'Invalid status value',
++        400, 'INVALID_STATUS_VALUE'
+       );
+     }
+ 
+     if (!ad || ad.userId !== userId) {
+-      return NextResponse.json(
+-        { error: 'Ad not found or unauthorized' },
+-        { status: 404 }
++      return apiErrorResponse(
++        'Ad not found or unauthorized',
++        404, 'AD_NOT_FOUND_OR_UNAUTHORIZED'
+       );
+     }
+ 
+     return NextResponse.json({
+       ad: updatedAd,
+       message: `Ad status updated to ${status}`
+     });
+   } catch (error) {
+-    console.error('Error updating ad status:', error);
+-    return NextResponse.json(
+-      { error: 'Failed to update ad status' },
+-      { status: 500 }
++    console.error('Error updating ad status:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to update ad status',
++      500, 'UPDATE_AD_STATUS_FAILED', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/ads/boosted/route.ts b/app/api/ads/boosted/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/ads/boosted/route.ts
++++ b/app/api/ads/boosted/route.ts
+@@ -1,13 +1,14 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function GET(request: NextRequest) {
+   try {
+     // Get token from cookies
+     const token = request.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+@@ -27,8 +28,9 @@
+     });
+ 
+   } catch (error) {
+-    console.error('Error fetching boosted ads:', error);
+-    return NextResponse.json(
+-      { error: 'Failed to fetch boosted ads' },
+-      { status: 500 }
++    console.error('Error fetching boosted ads:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to fetch boosted ads',
++      500, 'FETCH_BOOSTED_ADS_FAILED', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/ads/my-ads/route.ts b/app/api/ads/my-ads/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/ads/my-ads/route.ts
++++ b/app/api/ads/my-ads/route.ts
+@@ -2,6 +2,7 @@
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
+ 
++import { apiErrorResponse } from '@/lib/errorHandling';
+ export const dynamic = 'force-dynamic';
+ export const revalidate = 30; // Revalidate every 30 seconds
+ 
+@@ -9,9 +10,9 @@
+   try {
+     // Get token from cookies
+     const token = request.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json(
+-        { error: 'Unauthorized' },
+-        { status: 401 }
++      return apiErrorResponse(
++        'Unauthorized',
++        401, 'UNAUTHORIZED'
+       );
+     }
+ 
+@@ -48,9 +49,9 @@
+     ]);
+ 
+     if (!user) {
+-      return NextResponse.json(
+-        { error: 'User not found' },
+-        { status: 404 }
++      return apiErrorResponse(
++        'User not found',
++        404, 'USER_NOT_FOUND'
+       );
+     }
+ 
+@@ -67,9 +68,9 @@
+     );
+ 
+   } catch (error) {
+-    console.error('Error in my-ads route:', error);
+-    return NextResponse.json(
+-      { error: 'Internal server error' },
+-      { status: 500 }
++    console.error('Error in my-ads route:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Internal server error',
++      500, 'FETCH_MY_ADS_FAILED', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/agent/analytics/route.ts b/app/api/agent/analytics/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/agent/analytics/route.ts
++++ b/app/api/agent/analytics/route.ts
+@@ -1,6 +1,7 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ // Helper function to validate agent session
+ async function validateAgent(req: NextRequest) {
+@@ -29,7 +30,7 @@
+   try {
+     const session = await validateAgent(req);
+     if (!session) {
+-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
+     }
+ 
+     // Get time range from query params
+@@ -67,9 +68,9 @@
+       responseTimeData
+     });
+   } catch (error) {
+-    console.error("Error fetching agent analytics:", error);
+-    return NextResponse.json(
+-      { error: "Failed to fetch analytics data" },
+-      { status: 500 }
++    console.error("Error fetching agent analytics:", error); // Log the actual error for debugging
++    return apiErrorResponse(
++      "Failed to fetch analytics data",
++      500, "FETCH_AGENT_ANALYTICS_FAILED", error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/agent/chats/[chatId]/accept/route.ts b/app/api/agent/chats/[chatId]/accept/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/agent/chats/[chatId]/accept/route.ts
++++ b/app/api/agent/chats/[chatId]/accept/route.ts
+@@ -1,6 +1,7 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function POST(
+   req: NextRequest,
+@@ -8,19 +9,19 @@
+ ) {
+   try {
+ // Get and validate token
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json(
+-        { error: 'Unauthorized' },
+-        { status: 401 }
++      return apiErrorResponse(
++        'Unauthorized',
++        401, 'UNAUTHORIZED'
+       );
+     }
+ 
+     // Verify token and get userId
+     const session = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+     if (!session) {
+-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
+     }
+ 
+     const agent = await prisma.agent.findUnique({
+@@ -28,7 +29,7 @@
+     });
+ 
+     if (!agent) {
+-      return NextResponse.json({ error: "Not an agent" }, { status: 403 });
++      return apiErrorResponse("Not an agent", 403, "NOT_AN_AGENT");
+     }
+ 
+     const chat = await prisma.supportChat.update({
+@@ -55,6 +56,9 @@
+ 
+     return NextResponse.json(chat);
+   } catch (error) {
+-    console.error('Error accepting chat:', error);
+-    return NextResponse.json({ error: "Failed to accept chat" }, { status: 500 });
++    console.error('Error accepting chat:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      "Failed to accept chat",
++      500, "ACCEPT_CHAT_FAILED", error instanceof Error ? error.message : String(error)
++    );
+   }
+ }
+diff --git a/app/api/agent/chats/[chatId]/messages/route.ts b/app/api/agent/chats/[chatId]/messages/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/agent/chats/[chatId]/messages/route.ts
++++ b/app/api/agent/chats/[chatId]/messages/route.ts
+@@ -1,6 +1,7 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function POST(
+   req: NextRequest,
+@@ -8,28 +9,28 @@
+   try {
+     // Get and validate token
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json(
+-        { error: 'Unauthorized' },
+-        { status: 401 }
++      return apiErrorResponse(
++        'Unauthorized',
++        401, 'UNAUTHORIZED'
+       );
+     }
+ 
+     // Verify token and get userId
+     const session = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+     if (!session) {
+-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
+     }
+ 
+     // Verify agent status
+     const agent = await prisma.agent.findUnique({
+       where: { userId: session.id }
+     });
+ 
+     if (!agent) {
+-      return NextResponse.json({ error: "Not an agent" }, { status: 403 });
++      return apiErrorResponse("Not an agent", 403, "NOT_AN_AGENT");
+     }
+ 
+     // Get message content from request
+     const { content } = await req.json();
+     if (!content) {
+-      return NextResponse.json({ error: "Message content is required" }, { status: 400 });
++      return apiErrorResponse("Message content is required", 400, "MESSAGE_CONTENT_REQUIRED");
+     }
+ 
+     // Verify chat exists and agent is assigned to it
+@@ -40,7 +41,7 @@
+     });
+ 
+     if (!chat) {
+-      return NextResponse.json({ error: "Chat not found or not assigned to you" }, { status: 404 });
++      return apiErrorResponse("Chat not found or not assigned to you", 404, "CHAT_NOT_FOUND_OR_UNASSIGNED");
+     }
+ 
+     // Create message
+@@ -58,6 +59,9 @@
+ 
+     return NextResponse.json(message);
+   } catch (error) {
+-    console.error('Error sending message:', error);
+-    return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
++    console.error('Error sending message:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      "Failed to send message",
++      500, "SEND_MESSAGE_FAILED", error instanceof Error ? error.message : String(error)
++    );
+   }
+ }
+diff --git a/app/api/agent/chats/route.ts b/app/api/agent/chats/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/agent/chats/route.ts
++++ b/app/api/agent/chats/route.ts
+@@ -1,6 +1,7 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function GET(req: NextRequest) {
+   try {
+     // Get and validate token
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json(
+-        { error: 'Unauthorized' },
+-        { status: 401 }
++      return apiErrorResponse(
++        'Unauthorized',
++        401, 'UNAUTHORIZED'
+       );
+     }
+ 
+     // Verify token and get userId
+     const session = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+     if (!session) {
+-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
+     }
+ 
+     // Verify agent status
+     const agent = await prisma.agent.findUnique({
+       where: { userId: session.id }
+     });
+ 
+     if (!agent) {
+-      return NextResponse.json({ error: "Not an agent" }, { status: 403 });
++      return apiErrorResponse("Not an agent", 403, "NOT_AN_AGENT");
+     }
+ 
+     const chats = await prisma.supportChat.findMany({
+@@ -40,6 +41,9 @@
+ 
+     return NextResponse.json(chats);
+   } catch (error) {
+-    console.error('Error fetching chats:', error);
+-    return NextResponse.json({ error: "Failed to fetch chats" }, { status: 500 });
++    console.error('Error fetching chats:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      "Failed to fetch chats",
++      500, "FETCH_CHATS_FAILED", error instanceof Error ? error.message : String(error)
++    );
+   }
+ }
+diff --git a/app/api/agent/signup/route.ts b/app/api/agent/signup/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/agent/signup/route.ts
++++ b/app/api/agent/signup/route.ts
+@@ -3,6 +3,7 @@
+ import bcrypt from 'bcryptjs';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function POST(req: NextRequest) {
+   try {
+@@ -13,7 +14,7 @@
+     });
+ 
+     if (existingUser) {
+-      return NextResponse.json({ error: 'Email already registered' }, { status: 400 });
++      return apiErrorResponse('Email already registered', 400, 'EMAIL_ALREADY_REGISTERED');
+     }
+ 
+     // Create user with agent role
+@@ -56,6 +57,9 @@
+ 
+     return response;
+   } catch (error) {
+-    console.error('Error in agent signup:', error);
+-    return NextResponse.json({ error: 'Failed to create agent account' }, { status: 500 });
++    console.error('Error in agent signup:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to create agent account',
++      500, 'AGENT_SIGNUP_FAILED', error instanceof Error ? error.message : String(error)
++    );
+   }
+ }
+diff --git a/app/api/agent/stats/route.ts b/app/api/agent/stats/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/agent/stats/route.ts
++++ b/app/api/agent/stats/route.ts
+@@ -1,6 +1,7 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ // Helper function to validate agent session
+ async function validateAgent(req: NextRequest) {
+@@ -29,7 +30,7 @@
+   try {
+     const session = await validateAgent(req);
+     if (!session) {
+-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
+     }
+ 
+     // Get agent stats
+     const agent = await prisma.agent.findUnique({
+       where: { id: session.agentId },
+       include: {
+         SupportChat: true
+       }
+     });
+ 
+     if (!agent) {
+-      return NextResponse.json({ error: "Agent not found" }, { status: 404 });
++      return apiErrorResponse("Agent not found", 404, "AGENT_NOT_FOUND");
+     }
+ 
+     // Get active chats
+@@ -95,8 +96,9 @@
+       resolutionRate
+     });
+   } catch (error) {
+-    console.error("Error fetching agent stats:", error);
+-    return NextResponse.json(
+-      { error: "Failed to fetch agent stats" },
+-      { status: 500 }
++    console.error("Error fetching agent stats:", error); // Log the actual error for debugging
++    return apiErrorResponse(
++      "Failed to fetch agent stats",
++      500, "FETCH_AGENT_STATS_FAILED", error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/agent/status/route.ts b/app/api/agent/status/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/agent/status/route.ts
++++ b/app/api/agent/status/route.ts
+@@ -1,6 +1,7 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function POST(req: NextRequest) {
+   try {
+     // Get and validate token
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json(
+-        { error: 'Unauthorized' },
+-        { status: 401 }
++      return apiErrorResponse(
++        'Unauthorized',
++        401, 'UNAUTHORIZED'
+       );
+     }
+ 
+     // Verify token and get userId
+     const session = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+     if (!session) {
+-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
+     }
+ 
+     // Verify agent status
+     const agent = await prisma.agent.findUnique({
+       where: { userId: session.id }
+     });
+ 
+     if (!agent) {
+-      return NextResponse.json({ error: "Not an agent" }, { status: 403 });
++      return apiErrorResponse("Not an agent", 403, "NOT_AN_AGENT");
+     }
+ 
+     // Get status from request
+     const { isAvailable } = await req.json();
+     if (typeof isAvailable !== 'boolean') {
+-      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
++      return apiErrorResponse("Invalid status", 400, "INVALID_STATUS");
+     }
+ 
+     // Update agent status
+     const updatedAgent = await prisma.agent.update({
+       where: { id: agent.id },
+       data: { 
+         isAvailable,
+         lastActive: new Date()
+       }
+     });
+ 
+     return NextResponse.json({
+       message: `Agent status updated to ${isAvailable ? 'available' : 'unavailable'}`,
+       agent: updatedAgent
+     });
+   } catch (error) {
+-    console.error('Error updating agent status:', error);
+-    return NextResponse.json({ error: "Failed to update agent status" }, { status: 500 });
++    console.error('Error updating agent status:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      "Failed to update agent status",
++      500, "UPDATE_AGENT_STATUS_FAILED", error instanceof Error ? error.message : String(error)
++    );
+   }
+ }
+diff --git a/app/api/agent/tickets/[ticketId]/accept/route.ts b/app/api/agent/tickets/[ticketId]/accept/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/agent/tickets/[ticketId]/accept/route.ts
++++ b/app/api/agent/tickets/[ticketId]/accept/route.ts
+@@ -1,6 +1,7 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ // Helper function to validate agent session
+ async function validateAgent(req: NextRequest) {
+@@ -29,7 +30,7 @@
+   try {
+     const session = await validateAgent(req);
+     if (!session) {
+-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
+     }
+ 
+     // In a real implementation, this would be:
+@@ -64,6 +65,9 @@
+     
+     return NextResponse.json(ticket);
+   } catch (error) {
+-    console.error('Error accepting ticket:', error);
+-    return NextResponse.json({ error: "Failed to accept ticket" }, { status: 500 });
++    console.error('Error accepting ticket:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      "Failed to accept ticket",
++      500, "ACCEPT_TICKET_FAILED", error instanceof Error ? error.message : String(error)
++    );
+   }
+ }
+diff --git a/app/api/agent/tickets/[ticketId]/close/route.ts b/app/api/agent/tickets/[ticketId]/close/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/agent/tickets/[ticketId]/close/route.ts
++++ b/app/api/agent/tickets/[ticketId]/close/route.ts
+@@ -1,6 +1,7 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ // Helper function to validate agent session
+ async function validateAgent(req: NextRequest) {
+@@ -29,7 +30,7 @@
+   try {
+     const session = await validateAgent(req);
+     if (!session) {
+-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
+     }
+ 
+     // In a real implementation, this would be:
+@@ -87,6 +88,9 @@
+     
+     return NextResponse.json(ticket);
+   } catch (error) {
+-    console.error('Error closing ticket:', error);
+-    return NextResponse.json({ error: "Failed to close ticket" }, { status: 500 });
++    console.error('Error closing ticket:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      "Failed to close ticket",
++      500, "CLOSE_TICKET_FAILED", error instanceof Error ? error.message : String(error)
++    );
+   }
+ }
+diff --git a/app/api/agent/tickets/[ticketId]/responses/route.ts b/app/api/agent/tickets/[ticketId]/responses/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/agent/tickets/[ticketId]/responses/route.ts
++++ b/app/api/agent/tickets/[ticketId]/responses/route.ts
+@@ -1,6 +1,7 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ // Helper function to validate agent session
+ async function validateAgent(req: NextRequest) {
+@@ -29,14 +30,14 @@
+   try {
+     const session = await validateAgent(req);
+     if (!session) {
+-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
+     }
+ 
+     // Get response content from request
+     const { content } = await req.json();
+     if (!content) {
+-      return NextResponse.json({ error: "Response content is required" }, { status: 400 });
++      return apiErrorResponse("Response content is required", 400, "RESPONSE_CONTENT_REQUIRED");
+     }
+ 
+     // In a real implementation, this would be:
+@@ -69,6 +70,9 @@
+     
+     return NextResponse.json(response);
+   } catch (error) {
+-    console.error('Error creating response:', error);
+-    return NextResponse.json({ error: "Failed to create response" }, { status: 500 });
++    console.error('Error creating response:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      "Failed to create response",
++      500, "CREATE_RESPONSE_FAILED", error instanceof Error ? error.message : String(error)
++    );
+   }
+ }
+diff --git a/app/api/agent/tickets/route.ts b/app/api/agent/tickets/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/agent/tickets/route.ts
++++ b/app/api/agent/tickets/route.ts
+@@ -1,6 +1,7 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ // Helper function to validate agent session
+ async function validateAgent(req: NextRequest) {
+@@ -29,7 +30,7 @@
+   try {
+     const session = await validateAgent(req);
+     if (!session) {
+-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
+     }
+ 
+     const status = req.nextUrl.searchParams.get('status');
+@@ -130,14 +131,17 @@
+     
+     return NextResponse.json(tickets);
+   } catch (error) {
+-    console.error('Error fetching tickets:', error);
+-    return NextResponse.json({ error: "Failed to fetch tickets" }, { status: 500 });
++    console.error('Error fetching tickets:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      "Failed to fetch tickets",
++      500, "FETCH_TICKETS_FAILED", error instanceof Error ? error.message : String(error)
++    );
+   }
+ }
+ 
+ export async function POST(req: NextRequest) {
+   try {
+     const session = await validateAgent(req);
+     if (!session) {
+-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
+     }
+ 
+     const { userId, subject, message, priority, category } = await req.json();
+     
+     if (!userId || !subject || !message) {
+-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
++      return apiErrorResponse("Missing required fields", 400, "MISSING_FIELDS");
+     }
+     
+     // In a real implementation, this would be:
+@@ -170,6 +174,9 @@
+     
+     return NextResponse.json(ticket);
+   } catch (error) {
+-    console.error('Error creating ticket:', error);
+-    return NextResponse.json({ error: "Failed to create ticket" }, { status: 500 });
++    console.error('Error creating ticket:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      "Failed to create ticket",
++      500, "CREATE_TICKET_FAILED", error instanceof Error ? error.message : String(error)
++    );
+   }
+ }
+diff --git a/app/api/auth/route.ts b/app/api/auth/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/auth/route.ts
++++ b/app/api/auth/route.ts
+@@ -4,10 +4,10 @@
+ import jwt from 'jsonwebtoken';
+ import nodemailer from 'nodemailer';
+ import prisma from '@/lib/prisma';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ // Helper functions for JSON response
+-const jsonResponse = (status: number, data: any) => new NextResponse(JSON.stringify(data), { status });
+-
++// const jsonResponse = (status: number, data: any) => new NextResponse(JSON.stringify(data), { status }); // Replaced by apiErrorResponse
+ // Configure Nodemailer transporter
+ const transporter = nodemailer.createTransport({
+   service: 'gmail',
+@@ -24,7 +24,7 @@
+     case 'forgot-password':
+       return handleForgotPassword(email);
+     case 'reset-password':
+       return handleResetPassword(token, newPassword);
+     default:
+-      return jsonResponse(400, { error: 'Invalid request type' });
++      return apiErrorResponse('Invalid request type', 400, 'INVALID_REQUEST_TYPE');
+   }
+ }
+ 
+@@ -32,7 +32,7 @@
+   console.log("User email: ", email);
+   try {
+     // Check if user exists
+     const user = await prisma.user.findUnique({ where: { email } });
+     console.log("User found: ", user);
+-    if (!user) return jsonResponse(404, { error: 'User not found' });
++    if (!user) return apiErrorResponse('User not found', 404, 'USER_NOT_FOUND');
+ 
+     // Generate a reset token
+     const resetToken = jwt.sign(
+@@ -56,9 +56,9 @@
+       `,
+     });
+ 
+-    return jsonResponse(200, { message: 'Password reset link sent to your email' });
++    return NextResponse.json({ message: 'Password reset link sent to your email' }, { status: 200 });
+   } catch (error) {
+     console.error('Error in forgot password:', error);
+-    return jsonResponse(500, { error: 'Failed to send reset email' });
++    return apiErrorResponse('Failed to send reset email', 500, 'EMAIL_SEND_FAILED', error instanceof Error ? error.message : String(error));
+   }
+ }
+ 
+@@ -71,9 +71,9 @@
+       data: { password: hashedPassword },
+     });
+ 
+-    return jsonResponse(200, { message: 'Password reset successfully' });
++    return NextResponse.json({ message: 'Password reset successfully' }, { status: 200 });
+   } catch (error) {
+     console.error('Error in reset password:', error);
+-    return jsonResponse(400, { error: 'Invalid or expired token' });
++    return apiErrorResponse('Invalid or expired token', 400, 'INVALID_OR_EXPIRED_TOKEN', error instanceof Error ? error.message : String(error));
+   }
+ }
+diff --git a/app/api/chats/[chatid]/messages/route.ts b/app/api/chats/[chatid]/messages/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/chats/[chatid]/messages/route.ts
++++ b/app/api/chats/[chatid]/messages/route.ts
+@@ -1,6 +1,7 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function GET(
+   req: NextRequest,
+@@ -8,7 +9,7 @@
+ ) {
+   try {
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+@@ -29,6 +30,9 @@
+ 
+     return NextResponse.json(messages);
+   } catch (error) {
+-    console.error('Error fetching messages:', error);
+-    return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 });
++    console.error('Error fetching messages:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to fetch messages',
++      500, 'FETCH_MESSAGES_FAILED', error instanceof Error ? error.message : String(error)
++    );
+   }
+ }
+diff --git a/app/api/chats/route.ts b/app/api/chats/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/chats/route.ts
++++ b/app/api/chats/route.ts
+@@ -1,13 +1,14 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function GET(req: NextRequest) {
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+@@ -39,15 +40,15 @@
+ 
+     return NextResponse.json(chats);
+   } catch (error) {
+-    console.error('Error fetching chats:', error);
+-    return NextResponse.json({ error: 'Failed to fetch chats' }, { status: 500 });
++    console.error('Error fetching chats:', error); // Log the actual error for debugging
++    return apiErrorResponse('Failed to fetch chats', 500, 'FETCH_CHATS_FAILED', error instanceof Error ? error.message : String(error));
+   }
+ }
+ 
+ 
+ export async function POST(req: NextRequest) {
+   try {
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+@@ -55,10 +56,10 @@
+ 
+     const { adId, recipientId, message } = await req.json();
+ 
+     // Add validation
+     if (!adId || !recipientId || !message) {
+-      return NextResponse.json({ 
+-        error: 'Missing required fields',
+-        details: { adId, recipientId, message }
+-      }, { status: 400 });
++      return apiErrorResponse('Missing required fields', 400, 'MISSING_FIELDS', { adId, recipientId, message });
+     }
+ 
+     // Check if chat already exists
+@@ -118,10 +119,9 @@
+ 
+     return NextResponse.json({ chat });
+   } catch (error) {
+-    console.error('Error creating chat:', error);
+-    return NextResponse.json({
+-      error: 'Failed to create chat',
+-      details: error instanceof Error ? error.message : 'Unknown error'
+-    }, { status: 500 });
++    console.error('Error creating chat:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to create chat',
++      500, 'CREATE_CHAT_FAILED', error instanceof Error ? error.message : String(error)
++    );
+   }
+ }
+diff --git a/app/api/cron/check-subscriptions/route.ts b/app/api/cron/check-subscriptions/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/cron/check-subscriptions/route.ts
++++ b/app/api/cron/check-subscriptions/route.ts
+@@ -1,6 +1,7 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ 
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function GET() {
+     try {
+@@ -35,7 +36,10 @@
+       return NextResponse.json({ success: true });
+     } catch (error) {
+       console.error('Subscription check error:', error);
+-      return NextResponse.json({ error: 'Failed to check subscriptions' }, { status: 500 });
++      return apiErrorResponse(
++        'Failed to check subscriptions',
++        500, 'SUBSCRIPTION_CRON_FAILED', error instanceof Error ? error.message : String(error)
++      );
+     }
+   }
+```
+```diff
+diff --git a/app/api/debug/route.ts b/app/api/debug/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/debug/route.ts
++++ b/app/api/debug/route.ts
+@@ -1,5 +1,6 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function GET(request: NextRequest) {
+   try {
+@@ -21,11 +22,10 @@
+       count: products.length
+     });
+   } catch (error) {
+-    console.error('Error fetching products:', error);
+-    return NextResponse.json(
+-      {
+-        error: 'Failed to fetch products',
+-        details: error instanceof Error ? error.message : 'Unknown error'
+-      },
+-      { status: 500 }
++    console.error('Error fetching products:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to fetch products',
++      500, 'DEBUG_FETCH_PRODUCTS_FAILED',
++      error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/featured-products/route.ts b/app/api/featured-products/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/featured-products/route.ts
++++ b/app/api/featured-products/route.ts
+@@ -2,6 +2,7 @@
+ import prisma from '@/lib/prisma';
+ import { navigation } from '@/constants';
+ 
++import { apiErrorResponse } from '@/lib/errorHandling';
+ export const revalidate = 300; // Revalidate every 5 minutes
+ 
+ export async function GET(request: NextRequest) {
+@@ -343,11 +344,10 @@
+     
+     return response;
+   } catch (error) {
+-    console.error('Error fetching products:', error);
+-    return NextResponse.json(
+-      {
+-        error: 'Failed to fetch products',
+-        details: error instanceof Error ? error.message : 'Unknown error'
+-      },
+-      { status: 500 }
++    console.error('Error fetching products:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to fetch products',
++      500, 'FEATURED_PRODUCTS_FETCH_FAILED',
++      error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/landing-analytics/route.ts b/app/api/landing-analytics/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/landing-analytics/route.ts
++++ b/app/api/landing-analytics/route.ts
+@@ -1,5 +1,6 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function GET(request: NextRequest) {
+   try {
+@@ -69,9 +70,9 @@
+       }))
+     });
+   } catch (error) {
+-    console.error('Error fetching landing analytics:', error);
+-    return NextResponse.json(
+-      { error: 'Failed to fetch analytics data' },
+-      { status: 500 }
++    console.error('Error fetching landing analytics:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to fetch analytics data',
++      500, 'LANDING_ANALYTICS_FETCH_FAILED', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/logout/route.ts b/app/api/logout/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/logout/route.ts
++++ b/app/api/logout/route.ts
+@@ -1,6 +1,7 @@
+ import { NextRequest, NextResponse } from "next/server";
+ import { cookies } from "next/headers";
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function POST(req: NextRequest) {
+     try {
+         // Clear all auth-related cookies on the server side
+         const cookieStore = await cookies();
+@@ -13,9 +14,9 @@
+ 
+         return NextResponse.json({ success: true, message: "Logged out successfully" });
+     } catch (error) {
+-        console.error("Logout error:", error);
+-        return NextResponse.json(
+-            { success: false, message: "Failed to log out" },
+-            { status: 500 }
++        console.error("Logout error:", error); // Log the actual error for debugging
++        return apiErrorResponse(
++            "Failed to log out",
++            500, 'LOGOUT_FAILED', error instanceof Error ? error.message : String(error)
+         );
+     }
+ }
+diff --git a/app/api/newsletter/confirm/route.ts b/app/api/newsletter/confirm/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/newsletter/confirm/route.ts
++++ b/app/api/newsletter/confirm/route.ts
+@@ -1,5 +1,6 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function GET(req: NextRequest) {
+   try {
+@@ -15,15 +16,15 @@
+     });
+ 
+     if (!subscription) {
+-      return NextResponse.redirect(
+-        new URL('/newsletter-error?message=invalid_token', req.nextUrl.origin)
++      return apiErrorResponse(
++        'Invalid token',
++        400, 'INVALID_TOKEN'
+       );
+     }
+ 
+     // If already confirmed, redirect to success page
+     if (subscription.isConfirmed) {
+-      return NextResponse.redirect(
+-        new URL('/newsletter-success?status=already_confirmed', req.nextUrl.origin)
++      return apiErrorResponse('Already confirmed', 400, 'ALREADY_CONFIRMED');
+       );
+     }
+ 
+@@ -38,9 +39,9 @@
+       new URL('/newsletter-success', req.nextUrl.origin)
+     );
+   } catch (error) {
+-    console.error('Newsletter confirmation error:', error);
+-    return NextResponse.redirect(
+-      new URL('/newsletter-error?message=server_error', req.nextUrl.origin)
++    console.error('Newsletter confirmation error:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Server error during confirmation',
++      500, 'CONFIRMATION_SERVER_ERROR', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/newsletter/route.ts b/app/api/newsletter/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/newsletter/route.ts
++++ b/app/api/newsletter/route.ts
+@@ -3,6 +3,7 @@
+ import prisma from '@/lib/prisma';
+ import nodemailer from 'nodemailer';
+ import crypto from 'crypto';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ // Configure Nodemailer transporter
+ const transporter = nodemailer.createTransport({
+@@ -18,9 +19,9 @@
+   try {
+     const { email, name } = await req.json();
+ 
+     if (!email) {
+-      return NextResponse.json(
+-        { error: 'Email is required' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'Email is required',
++        400, 'EMAIL_REQUIRED'
+       );
+     }
+ 
+@@ -59,9 +60,9 @@
+       message: 'Thank you for subscribing! Please check your email to confirm your subscription'
+     });
+   } catch (error) {
+-    console.error('Newsletter subscription error:', error);
+-    return NextResponse.json(
+-      { error: 'Failed to process subscription' },
+-      { status: 500 }
++    console.error('Newsletter subscription error:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to process subscription',
++      500, 'SUBSCRIPTION_FAILED', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/payments/verify/route.ts b/app/api/payments/verify/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/payments/verify/route.ts
++++ b/app/api/payments/verify/route.ts
+@@ -2,6 +2,7 @@
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
+ import { subscriptionPlans } from '@/constants';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function POST(req: NextRequest) {
+   try {
+     // Get and validate request data
+     const { reference } = await req.json();
+     if (!reference) {
+-      return NextResponse.json(
+-        { error: 'Reference is required' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'Reference is required',
++        400, 'REFERENCE_REQUIRED'
+       );
+     }
+ 
+     // Get and validate token
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json(
+-        { error: 'Unauthorized' },
+-        { status: 401 }
++      return apiErrorResponse(
++        'Unauthorized',
++        401, 'UNAUTHORIZED'
+       );
+     }
+ 
+@@ -26,9 +27,9 @@
+       const paymentData = await verifyResponse.json();
+ 
+       if (!paymentData.status || paymentData.data.status !== 'success') {
+-        return NextResponse.json(
+-          { error: 'Payment verification failed' },
+-          { status: 400 }
++        return apiErrorResponse(
++          'Payment verification failed',
++          400, 'PAYMENT_VERIFICATION_FAILED'
+         );
+       }
+ 
+@@ -62,7 +63,7 @@
+       } else if (type === 'subscription') {
+         // Handle subscription plan
+         const planDetails = subscriptionPlans.find(p => p.id === planId);
+         if (!planDetails) {
+-          return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
++          return apiErrorResponse('Invalid plan', 400, 'INVALID_PLAN');
+         }
+ 
+         // Check for existing subscription
+@@ -131,23 +132,20 @@
+         }
+       }
+ 
+-      return NextResponse.json(
+-        { error: 'Invalid payment type' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'Invalid payment type',
++        400, 'INVALID_PAYMENT_TYPE'
+       );
+ 
+     } catch (paymentError) {
+       console.error('Payment verification failed:', paymentError);
+-      return NextResponse.json(
+-        {
+-          error: 'Payment verification failed',
+-          details: paymentError instanceof Error ? paymentError.message : 'Unknown error'
+-        },
+-        { status: 400 }
++      return apiErrorResponse(
++        'Payment verification failed',
++        400, 'PAYMENT_GATEWAY_ERROR', paymentError instanceof Error ? paymentError.message : String(paymentError)
+       );
+     }
+ 
+   } catch (error) {
+     console.error('Server error:', error);
+-    return NextResponse.json(
+-      {
+-        error: 'Internal server error',
+-        details: error instanceof Error ? error.message : 'Unknown error'
+-      },
+-      { status: 500 }
++    return apiErrorResponse(
++      'Internal server error',
++      500, 'INTERNAL_SERVER_ERROR', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/postAd/route.ts b/app/api/postAd/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/postAd/route.ts
++++ b/app/api/postAd/route.ts
+@@ -5,6 +5,7 @@
+ import jwt from 'jsonwebtoken';
+ import { writeFile } from 'fs/promises';
+ import { join } from 'path';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ // Define the type for a user with their subscription plan
+ type UserWithSubscriptionPlan = Prisma.UserGetPayload<{
+@@ -25,14 +26,17 @@
+   try {
+     // Verify authentication
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse(
++        'Unauthorized',
++        401, 'UNAUTHORIZED'
++      );
+     }
+ 
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!);
+     const session: any = decoded;
+     const userId = session.id;
+-
+     // Check user and subscription
+     const user = await prisma.user.findUnique({
+       where: { id: userId },
+@@ -40,14 +44,17 @@
+     });
+ 
+     if (!user) {
+-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
++      return apiErrorResponse(
++        'User not found',
++        404, 'USER_NOT_FOUND'
++      );
+     }
+ 
+     // Check upload limits
+     const ads = await prisma.ad.findMany({ where: { userId } });
+     if (ads.length >= 10 && (!user.subscriptionPlan || user.subscriptionPlan.expiryDate < new Date())) {
+-      return NextResponse.json(
+-        { error: 'Upload limit reached. Please upgrade your subscription.' },
+-        { status: 402 }
++      return apiErrorResponse(
++        'Upload limit reached. Please upgrade your subscription.',
++        402, 'UPLOAD_LIMIT_REACHED'
+       );
+     }
+ 
+@@ -62,49 +69,49 @@
+     const description = formData.get('description')?.toString();
+     const contact = formData.get('contact')?.toString();
+     const images = formData.getAll('images');
+-
+     // Validate required fields
+-    if (!title || !category || !location || !priceStr || !description || !contact || images.length === 0) {
+-      return NextResponse.json({ error: 'All fields are required' }, { status: 400 });
+-    }
+-
+-    // Process price
+-    try {
+-      // First convert string to number
+-      const numericPrice = parseFloat(priceStr || '0');
+-
+-      // Validate the numeric value
+-      if (isNaN(numericPrice) || numericPrice <= 0) {
+-        return NextResponse.json(
+-          { error: 'Invalid price value' },
+-          { status: 400 }
+-        );
+-      }
+-
+-      // Convert to Prisma.Decimal with exact string representation
+-      const price = new Prisma.Decimal(numericPrice.toFixed(2));
+-
+-      // Process images
+-      const imageUrls: string[] = [];
+-      for (const image of images) {
+-        if (!(image instanceof File)) continue;
+-
+-        // Generate unique filename
+-        const ext = image.name.split('.').pop();
+-        const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
+-        const path = join(process.cwd(), 'public', 'uploads', filename);
+-
+-        // Save file
+-        const bytes = await image.arrayBuffer();
+-        const buffer = Buffer.from(bytes);
+-        await writeFile(path, buffer);
+-
+-        // Store URL
+-        imageUrls.push(`/uploads/${filename}`);
+-      }
+-
+-      // Create ad in database
+-      const ad = await prisma.ad.create({
++    const validationErrors: { field: string; message: string }[] = [];
++    if (!title || title.length < 5 || title.length > 100) {
++      validationErrors.push({ field: 'title', message: 'Title must be between 5 and 100 characters.' });
++    }
++    if (!category) {
++      validationErrors.push({ field: 'category', message: 'Category is required.' });
++    }
++    if (!location || location.length < 3) {
++      validationErrors.push({ field: 'location', message: 'Location must be at least 3 characters.' });
++    }
++    if (!description || description.length < 20 || description.length > 5000) {
++      validationErrors.push({ field: 'description', message: 'Description must be between 20 and 5000 characters.' });
++    }
++    if (!contact || !/^\+?[0-9\s-()]{7,20}$/.test(contact)) {
++      validationErrors.push({ field: 'contact', message: 'Valid contact information is required.' });
++    }
++    if (images.length === 0) {
++      validationErrors.push({ field: 'images', message: 'At least one image is required.' });
++    }
++    if (images.length > 5) {
++      validationErrors.push({ field: 'images', message: 'Maximum of 5 images allowed.' });
++    }
++
++    const numericPrice = parseFloat(priceStr || '');
++    if (!priceStr || isNaN(numericPrice) || numericPrice <= 0) {
++      validationErrors.push({ field: 'price', message: 'A valid positive price is required.' });
++    }
++
++    if (validationErrors.length > 0) {
++      return apiErrorResponse(
++        'Validation failed',
++        400, 'VALIDATION_ERROR', validationErrors
++      );
++    }
++    // --- End Input Validation ---
++
++    const price = new Prisma.Decimal(numericPrice.toFixed(2));
++
++    // Process images
++    const imageUrls: string[] = [];
++    for (const image of images) {
++      if (!(image instanceof File)) continue;
++
++      // Validate image type and size
++      if (!ALLOWED_IMAGE_TYPES.includes(image.type)) {
++        return apiErrorResponse(
++          `Invalid image type: ${image.name}. Allowed types: ${ALLOWED_IMAGE_TYPES.join(', ')}`,
++          400, 'INVALID_IMAGE_TYPE'
++        );
++      }
++      if (image.size > MAX_FILE_SIZE) {
++        return apiErrorResponse(
++          `Image too large: ${image.name}. Maximum size: ${MAX_FILE_SIZE / (1024 * 1024)}MB`,
++          400, 'IMAGE_TOO_LARGE'
++        );
++      }
++
++      try {
++        // Generate unique filename
++        const ext = image.name.split('.').pop();
++        const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
++        const uploadPath = join(process.cwd(), 'public', 'uploads', filename);
++
++        // Save file
++        const bytes = await image.arrayBuffer();
++        const buffer = Buffer.from(bytes);
++        await writeFile(uploadPath, buffer);
++
++        // Store URL
++        imageUrls.push(`/uploads/${filename}`);
++      } catch (fileError) {
++        console.error('Error processing file:', image.name, fileError);
++        return apiErrorResponse(
++          `Failed to process image: ${image.name}`,
++          500, 'FILE_PROCESSING_ERROR', fileError instanceof Error ? fileError.message : String(fileError)
++        );
++      }
++    }
++
++    // Create ad in database
++    const ad = await prisma.ad.create({
+         data: {
+-          title,
+-          category,
++          title: title!, // Already validated
++          category: category!, // Already validated
+           subcategory: subcategory || null,
+           section: section || null,
+-          location,
++          location: location!, // Already validated
+           price: price.toNumber(),
+-          description,
+-          contact,
++          description: description!, // Already validated
++          contact: contact!, // Already validated
+           images: imageUrls,
+           userId,
+           subscriptionPlanId: user.subscriptionPlanId || null,
+         },
+       });
+ 
+       return NextResponse.json({ message: 'Ad posted successfully!', ad }, { status: 201 });
+-    } catch (error) {
+-      console.error('Error creating ad:', error);
+-      return NextResponse.json(
+-        { error: error instanceof Error ? error.message : 'Failed to create ad' },
+-        { status: 500 }
+-      );
+-    }
+   } catch (error) {
+     console.error('Error creating ad:', error);
+-    return NextResponse.json(
+-      { error: error instanceof Error ? error.message : 'Failed to create ad' },
+-      { status: 500 }
++    return apiErrorResponse(
++      'Failed to create ad',
++      500, 'INTERNAL_SERVER_ERROR', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/promotions/active/route.ts b/app/api/promotions/active/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/promotions/active/route.ts
++++ b/app/api/promotions/active/route.ts
+@@ -2,6 +2,7 @@
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
+ 
++import { apiErrorResponse } from '@/lib/errorHandling';
+ export async function GET(request: NextRequest) {
+   try {
+     // Add console.log to debug
+@@ -10,7 +11,7 @@
+     // Get token from cookies
+     const token = request.cookies.get('next-auth.session-token')?.value;
+     console.log('Token exists:', !!token);
+-
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+@@ -66,15 +67,15 @@
+       });
+ 
+     } catch (dbError) {
+-      console.error('Database error:', dbError);
+-      return NextResponse.json(
+-        { error: 'Database error', details: dbError instanceof Error ? dbError.message : 'Unknown error' },
+-        { status: 500 }
++      console.error('Database error:', dbError); // Log the actual error for debugging
++      return apiErrorResponse(
++        'Database error',
++        500, 'DATABASE_ERROR', dbError instanceof Error ? dbError.message : String(dbError)
+       );
+     }
+ 
+   } catch (error) {
+-    console.error('Auth error:', error);
+-    return NextResponse.json(
+-      { error: 'Authentication failed' },
+-      { status: 401 }
++    console.error('Auth error:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Authentication failed',
++      401, 'AUTHENTICATION_FAILED', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/search/route.ts b/app/api/search/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/search/route.ts
++++ b/app/api/search/route.ts
+@@ -1,5 +1,6 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function GET(request: NextRequest) {
+   try {
+@@ -53,7 +54,10 @@
+ 
+     return NextResponse.json(results);
+   } catch (error) {
+-    console.error('Search error:', error);
+-    return NextResponse.json({ error: 'Search failed' }, { status: 500 });
++    console.error('Search error:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Search failed',
++      500, 'SEARCH_FAILED', error instanceof Error ? error.message : String(error)
++    );
+   }
+ }
+diff --git a/app/api/signin/route.ts b/app/api/signin/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/signin/route.ts
++++ b/app/api/signin/route.ts
+@@ -3,29 +3,30 @@
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ /**
+  * @route POST /api/signin
+  * @description Authenticates a user and returns a session token.
+  * @param {NextRequest} req - The incoming Next.js request object.
+  * @returns {Promise<NextResponse>} A Next.js response object.
+  */
+-export async function POST(req: NextRequest): Promise<NextResponse> {
++export async function POST(req: NextRequest): Promise<NextResponse> { // Explicitly define return type
+   try {
+     const { email, password } = await req.json();
+ 
+     if (!email || !password) {
+-      return NextResponse.json(
+-        { error: 'Email and password are required', code: 'MISSING_CREDENTIALS' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'Email and password are required',
++        400, 'MISSING_CREDENTIALS'
+       );
+     }
+ 
+     const user = await prisma.user.findUnique({
+       where: { email },
+       include: {
+-        Agent: true // Include Agent details if the user is an agent
++        Agent: true // Include Agent details if the user is an agent for role check
+       }
+     });
+ 
+     if (!user) {
+       console.warn(`Login attempt failed for email (not found): ${email}`);
+-      return NextResponse.json(
+-        { error: 'Invalid email or password', code: 'INVALID_CREDENTIALS' },
+-        { status: 401 }
++      return apiErrorResponse(
++        'Invalid email or password',
++        401, 'INVALID_CREDENTIALS'
+       );
+     }
+ 
+     if (!user.verified) {
+       console.warn(`Login attempt failed for email (not verified): ${email}`);
+-      return NextResponse.json(
+-        { error: 'Account not verified. Please check your email.', code: 'ACCOUNT_NOT_VERIFIED' },
+-        { status: 401 }
++      return apiErrorResponse(
++        'Account not verified. Please check your email.',
++        401, 'ACCOUNT_NOT_VERIFIED'
+       );
+     }
+ 
+     const isValidPassword = await bcrypt.compare(password, user.password || '');
+     if (!isValidPassword) {
+       console.warn(`Login attempt failed for email (wrong password): ${email}`);
+-      return NextResponse.json(
+-        { error: 'Invalid email or password', code: 'INVALID_CREDENTIALS' },
+-        { status: 401 }
++      return apiErrorResponse(
++        'Invalid email or password',
++        401, 'INVALID_CREDENTIALS'
+       );
+     }
+ 
+@@ -39,7 +40,7 @@
+       agentId: user.Agent?.id
+     };
+ 
+-    console.log("User successfully signed in: ", { email: userData.email, role: userData.role, isAgent: userData.isAgent });
++    console.log("User successfully signed in: ", { email: userData.email, role: userData.role, isAgent: userData.isAgent }); // Log successful login
+ 
+     // Generate JWT token
+     const token = jwt.sign(
+@@ -67,9 +68,9 @@
+     return response;
+   } catch (error) {
+     console.error('Error in sign-in handler:', error);
+-    return NextResponse.json(
+-      { error: 'Internal server error', code: 'INTERNAL_SERVER_ERROR' },
+-      { status: 500 }
++    return apiErrorResponse(
++      'Internal server error',
++      500, 'INTERNAL_SERVER_ERROR', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/signup/route.ts b/app/api/signup/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/signup/route.ts
++++ b/app/api/signup/route.ts
+@@ -5,10 +5,10 @@
+ import nodemailer from 'nodemailer';
+ import prisma from '@/lib/prisma';
+ import { SignUpRequest } from '@/types';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ // Helper functions for JSON response
+-const jsonResponse = (status: number, data: any) => new NextResponse(JSON.stringify(data), { status });
+-
++// const jsonResponse = (status: number, data: any) => new NextResponse(JSON.stringify(data), { status }); // Replaced by apiErrorResponse
+ // Configure Nodemailer transporter
+ const transporter = nodemailer.createTransport({
+   service: 'gmail',
+@@ -23,7 +23,7 @@
+   const { name, email, password }: SignUpRequest = await req.json();
+ 
+   // Check if the user already exists
+-  const existingUser = await prisma.user.findUnique({ where: { email } });
+-  if (existingUser) return jsonResponse(400, { error: 'User already exists' });
++  const existingUser = await prisma.user.findUnique({ where: { email } }); // Check for existing user
++  if (existingUser) return apiErrorResponse('User already exists', 400, 'USER_ALREADY_EXISTS');
+ 
+   // Hash password
+   const hashedPassword = await bcrypt.hash(password, 10);
+@@ -42,7 +42,10 @@
+       text: `Hi ${name},\n\nThanks for signing up. Please verify your email by clicking the link below:\n\n${verificationUrl}`,
+     });
+   } catch (error: any) {
+-    return;
++    console.error('Error sending verification email:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to send verification email',
++      500, 'EMAIL_SEND_FAILED', error instanceof Error ? error.message : String(error)
++    );
+   }
+ 
+-  return jsonResponse(201, { message: 'User created successfully', user });
++  return NextResponse.json({ message: 'User created successfully', user }, { status: 201 });
+ }
+diff --git a/app/api/socketio/route.ts b/app/api/socketio/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/socketio/route.ts
++++ b/app/api/socketio/route.ts
+@@ -4,6 +4,7 @@
+ import { Server as SocketIOServer } from 'socket.io';
+ import { WebSocketServer } from 'ws';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ import { initSocket } from '@/lib/socket';
+ 
+ interface SocketServer extends NetServer {
+@@ -27,7 +28,10 @@
+       return res;
+     } catch (error) {
+       console.error('WebSocket initialization error:', error);
+-      return new Response('WebSocket initialization failed', { status: 500 });
++      return apiErrorResponse(
++        'WebSocket initialization failed',
++        500, 'WEBSOCKET_INIT_FAILED', error instanceof Error ? error.message : String(error)
++      );
+     }
+   }
+ 
+diff --git a/app/api/subscriptions/create/route.ts b/app/api/subscriptions/create/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/subscriptions/create/route.ts
++++ b/app/api/subscriptions/create/route.ts
+@@ -3,6 +3,7 @@
+ import prisma from '@/lib/prisma';
+ import { subscriptionPlans } from '@/constants';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function POST(req: NextRequest) {
+   try {
+     const { planId, reference } = await req.json();
+     const token = req.cookies.get('next-auth.session-token')?.value;
+ 
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+@@ -21,12 +22,12 @@
+ 
+     const paymentData = await verifyResponse.json();
+ 
+     if (!paymentData.status || paymentData.data.status !== 'success') {
+-      return NextResponse.json({ error: 'Payment verification failed' }, { status: 400 });
++      return apiErrorResponse('Payment verification failed', 400, 'PAYMENT_VERIFICATION_FAILED');
+     }
+ 
+     // Get plan details
+     const planDetails = subscriptionPlans.find(p => p.id === planId);
+     if (!planDetails) {
+-      return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
++      return apiErrorResponse('Invalid plan', 400, 'INVALID_PLAN');
+     }
+ 
+     // Create subscription
+@@ -56,6 +57,9 @@
+ 
+     return NextResponse.json({ success: true, subscription });
+   } catch (error) {
+-    console.error('Subscription error:', error);
+-    return NextResponse.json({ error: 'Subscription failed' }, { status: 500 });
++    console.error('Subscription error:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Subscription failed',
++      500, 'SUBSCRIPTION_CREATION_FAILED', error instanceof Error ? error.message : String(error)
++    );
+   }
+ }
+diff --git a/app/api/support/tickets/route.ts b/app/api/support/tickets/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/support/tickets/route.ts
++++ b/app/api/support/tickets/route.ts
+@@ -4,6 +4,7 @@
+ import jwt from "jsonwebtoken";
+ import * as fs from "fs";
+ import path from "path";
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ 
+ export async function POST(req: Request) {
+@@ -11,7 +12,7 @@
+     // Verify authentication
+     const token = (await cookies()).get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!);
+@@ -30,8 +31,9 @@
+           const fileUrl = await saveLocalFile(file);
+           return fileUrl;
+         } catch (error: any) {
+-          console.error(`Error uploading ${file.name}:`, error);
+-          throw new Error(error.message);
++          console.error(`Error uploading ${file.name}:`, error); // Log the actual error for debugging
++          // Re-throw to be caught by the outer try-catch for a standardized response
++          throw apiErrorResponse(`Error uploading file: ${file.name}`, 400, 'FILE_UPLOAD_ERROR', error.message);
+         }
+       })
+     );
+@@ -49,9 +51,9 @@
+ 
+     return NextResponse.json({ success: true, ticket });
+   } catch (error) {
+-    console.error("Error creating support ticket:", error);
+-    return NextResponse.json(
+-      { error: "Failed to create support ticket" },
+-      { status: 500 }
++    console.error("Error creating support ticket:", error); // Log the actual error for debugging
++    return apiErrorResponse(
++      "Failed to create support ticket",
++      500, 'CREATE_TICKET_FAILED', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+@@ -60,13 +62,13 @@
+   try {
+     // Verify authentication
+     const token = (await cookies()).get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!);
+     const session: any = decoded;
+     if (!session?.user) {
+-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
+     }
+ 
+     const tickets = await prisma.supportTicket.findMany({
+@@ -79,9 +81,9 @@
+ 
+     return NextResponse.json({ tickets });
+   } catch (error) {
+-    console.error("Error fetching support tickets:", error);
+-    return NextResponse.json(
+-      { error: "Failed to fetch support tickets" },
+-      { status: 500 }
++    console.error("Error fetching support tickets:", error); // Log the actual error for debugging
++    return apiErrorResponse(
++      "Failed to fetch support tickets",
++      500, 'FETCH_TICKETS_FAILED', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/user/analytics/route.ts b/app/api/user/analytics/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/user/analytics/route.ts
++++ b/app/api/user/analytics/route.ts
+@@ -5,6 +5,7 @@
+   cacheUserAnalytics,
+   getCachedUserAnalytics,
+   invalidateUserAnalyticsCache
++} from '@/lib/redis/analyticsCache'; // Assuming these are correctly implemented
++import { apiErrorResponse } from '@/lib/errorHandling';
+ } from '@/lib/redis/analyticsCache';
+ 
+ // Helper function to validate user session
+@@ -29,7 +30,7 @@
+   try {
+     const session = await validateUser(req);
+     if (!session) {
+-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++      return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
+     }
+ 
+     // Get time range from query params
+@@ -76,27 +77,20 @@
+     return NextResponse.json(responseData);
+   } catch (error) {
+     console.error("Error fetching user analytics:", error);
+-
+     // Provide more specific error messages based on the error type
+     if (error instanceof jwt.JsonWebTokenError) {
+-      return NextResponse.json(
+-        { error: "Invalid authentication token", code: "INVALID_TOKEN" },
+-        { status: 401 }
++      return apiErrorResponse(
++        "Invalid authentication token",
++        401, "INVALID_TOKEN"
+       );
+     } else if (error instanceof jwt.TokenExpiredError) {
+-      return NextResponse.json(
+-        { error: "Authentication token expired", code: "TOKEN_EXPIRED" },
+-        { status: 401 }
++      return apiErrorResponse(
++        "Authentication token expired",
++        401, "TOKEN_EXPIRED"
+       );
+     } else if (error instanceof Error) {
+-      // Return a generic error message but with the specific error name for debugging
+-      return NextResponse.json(
+-        {
+-          error: "Failed to fetch analytics data",
+-          code: "SERVER_ERROR",
+-          message: error.message,
+-          name: error.name
+-        },
+-        { status: 500 }
++      return apiErrorResponse(
++        "Failed to fetch analytics data",
++        500, "ANALYTICS_FETCH_FAILED", error.message
+       );
+     }
+ 
+     // Fallback for unknown errors
+     return NextResponse.json(
+       { error: "An unexpected error occurred", code: "UNKNOWN_ERROR" },
+       { status: 500 }
+     );
+   }
+ }
+diff --git a/app/api/user/billing/disputes/route.ts b/app/api/user/billing/disputes/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/user/billing/disputes/route.ts
++++ b/app/api/user/billing/disputes/route.ts
+@@ -1,13 +1,14 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function POST(req: NextRequest) {
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+@@ -18,9 +19,9 @@
+     
+     // Validate required fields
+     if (!data.transactionId || !data.description) {
+-      return NextResponse.json(
+-        { error: 'Missing required fields', code: 'INVALID_REQUEST' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'Missing required fields',
++        400, 'MISSING_FIELDS'
+       );
+     }
+ 
+@@ -31,9 +32,9 @@
+ 
+     // Check if transaction exists and belongs to the user
+     if (!transaction || transaction.userId !== userId) {
+-      return NextResponse.json(
+-        { error: 'Transaction not found', code: 'NOT_FOUND' },
+-        { status: 404 }
++      return apiErrorResponse(
++        'Transaction not found',
++        404, 'TRANSACTION_NOT_FOUND'
+       );
+     }
+ 
+@@ -55,27 +56,20 @@
+     });
+   } catch (error) {
+     console.error("Error filing dispute:", error);
+-    
+     // Provide more specific error messages based on the error type
+     if (error instanceof jwt.JsonWebTokenError) {
+-      return NextResponse.json(
+-        { error: "Invalid authentication token", code: "INVALID_TOKEN" },
+-        { status: 401 }
++      return apiErrorResponse(
++        "Invalid authentication token",
++        401, "INVALID_TOKEN"
+       );
+     } else if (error instanceof jwt.TokenExpiredError) {
+-      return NextResponse.json(
+-        { error: "Authentication token expired", code: "TOKEN_EXPIRED" },
+-        { status: 401 }
++      return apiErrorResponse(
++        "Authentication token expired",
++        401, "TOKEN_EXPIRED"
+       );
+     } else if (error instanceof Error) {
+-      // Return a generic error message but with the specific error name for debugging
+-      return NextResponse.json(
+-        { 
+-          error: "Failed to file dispute", 
+-          code: "SERVER_ERROR",
+-          message: error.message,
+-          name: error.name
+-        },
+-        { status: 500 }
++      return apiErrorResponse(
++        "Failed to file dispute",
++        500, "FILE_DISPUTE_FAILED", error.message
+       );
+     }
+     
+diff --git a/app/api/user/billing/invoices/[id]/download/route.ts b/app/api/user/billing/invoices/[id]/download/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/user/billing/invoices/[id]/download/route.ts
++++ b/app/api/user/billing/invoices/[id]/download/route.ts
+@@ -2,6 +2,7 @@
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
+ import { format } from 'date-fns';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ interface RouteParams {
+   params: {
+@@ -17,7 +18,7 @@
+     
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+@@ -40,9 +41,9 @@
+ 
+     // Check if invoice exists and belongs to the user
+     if (!invoice || invoice.userId !== userId) {
+-      return NextResponse.json(
+-        { error: 'Invoice not found', code: 'NOT_FOUND' },
+-        { status: 404 }
++      return apiErrorResponse(
++        'Invoice not found',
++        404, 'INVOICE_NOT_FOUND'
+       );
+     }
+ 
+@@ -56,27 +57,20 @@
+       }
+     });
+   } catch (error) {
+-    console.error("Error downloading invoice:", error);
+-    
+     // Provide more specific error messages based on the error type
+     if (error instanceof jwt.JsonWebTokenError) {
+-      return NextResponse.json(
+-        { error: "Invalid authentication token", code: "INVALID_TOKEN" },
+-        { status: 401 }
++      return apiErrorResponse(
++        "Invalid authentication token",
++        401, "INVALID_TOKEN"
+       );
+     } else if (error instanceof jwt.TokenExpiredError) {
+-      return NextResponse.json(
+-        { error: "Authentication token expired", code: "TOKEN_EXPIRED" },
+-        { status: 401 }
++      return apiErrorResponse(
++        "Authentication token expired",
++        401, "TOKEN_EXPIRED"
+       );
+     } else if (error instanceof Error) {
+-      // Return a generic error message but with the specific error name for debugging
+-      return NextResponse.json(
+-        { 
+-          error: "Failed to download invoice", 
+-          code: "SERVER_ERROR",
+-          message: error.message,
+-          name: error.name
+-        },
+-        { status: 500 }
++      return apiErrorResponse(
++        "Failed to download invoice",
++        500, "DOWNLOAD_INVOICE_FAILED", error.message
+       );
+     }
+     
+diff --git a/app/api/user/billing/invoices/route.ts b/app/api/user/billing/invoices/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/user/billing/invoices/route.ts
++++ b/app/api/user/billing/invoices/route.ts
+@@ -2,6 +2,7 @@
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
+ import { format } from 'date-fns';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function GET(req: NextRequest) {
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+@@ -69,27 +70,20 @@
+       status
+     });
+   } catch (error) {
+-    console.error("Error fetching invoices:", error);
+-    
+     // Provide more specific error messages based on the error type
+     if (error instanceof jwt.JsonWebTokenError) {
+-      return NextResponse.json(
+-        { error: "Invalid authentication token", code: "INVALID_TOKEN" },
+-        { status: 401 }
++      return apiErrorResponse(
++        "Invalid authentication token",
++        401, "INVALID_TOKEN"
+       );
+     } else if (error instanceof jwt.TokenExpiredError) {
+-      return NextResponse.json(
+-        { error: "Authentication token expired", code: "TOKEN_EXPIRED" },
+-        { status: 401 }
++      return apiErrorResponse(
++        "Authentication token expired",
++        401, "TOKEN_EXPIRED"
+       );
+     } else if (error instanceof Error) {
+-      // Return a generic error message but with the specific error name for debugging
+-      return NextResponse.json(
+-        { 
+-          error: "Failed to fetch invoices", 
+-          code: "SERVER_ERROR",
+-          message: error.message,
+-          name: error.name
+-        },
+-        { status: 500 }
++      return apiErrorResponse(
++        "Failed to fetch invoices",
++        500, "FETCH_INVOICES_FAILED", error.message
+       );
+     }
+     
+diff --git a/app/api/user/billing/payment-methods/[id]/route.ts b/app/api/user/billing/payment-methods/[id]/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/user/billing/payment-methods/[id]/route.ts
++++ b/app/api/user/billing/payment-methods/[id]/route.ts
+@@ -1,6 +1,7 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ interface RouteParams {
+   params: {
+@@ -16,7 +17,7 @@
+     
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+@@ -29,9 +30,9 @@
+ 
+     // Check if payment method exists and belongs to the user
+     if (!paymentMethod || paymentMethod.userId !== userId) {
+-      return NextResponse.json(
+-        { error: 'Payment method not found', code: 'NOT_FOUND' },
+-        { status: 404 }
++      return apiErrorResponse(
++        'Payment method not found',
++        404, 'PAYMENT_METHOD_NOT_FOUND'
+       );
+     }
+ 
+@@ -54,27 +55,20 @@
+       message: 'Payment method deleted successfully'
+     });
+   } catch (error) {
+-    console.error("Error deleting payment method:", error);
+-    
+     // Provide more specific error messages based on the error type
+     if (error instanceof jwt.JsonWebTokenError) {
+-      return NextResponse.json(
+-        { error: "Invalid authentication token", code: "INVALID_TOKEN" },
+-        { status: 401 }
++      return apiErrorResponse(
++        "Invalid authentication token",
++        401, "INVALID_TOKEN"
+       );
+     } else if (error instanceof jwt.TokenExpiredError) {
+-      return NextResponse.json(
+-        { error: "Authentication token expired", code: "TOKEN_EXPIRED" },
+-        { status: 401 }
++      return apiErrorResponse(
++        "Authentication token expired",
++        401, "TOKEN_EXPIRED"
+       );
+     } else if (error instanceof Error) {
+-      // Return a generic error message but with the specific error name for debugging
+-      return NextResponse.json(
+-        { 
+-          error: "Failed to delete payment method", 
+-          code: "SERVER_ERROR",
+-          message: error.message,
+-          name: error.name
+-        },
+-        { status: 500 }
++      return apiErrorResponse(
++        "Failed to delete payment method",
++        500, "DELETE_PAYMENT_METHOD_FAILED", error.message
+       );
+     }
+     
+@@ -94,7 +88,7 @@
+   }
+ }
+ 
+-// PATCH - Update a payment method (e.g., set as default)
++// PATCH - Update a payment method (e.g., set as default, update details)
+ export async function PATCH(
+   req: NextRequest,
+   { params }: RouteParams
+@@ -103,7 +97,7 @@
+     
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+@@ -118,9 +112,9 @@
+ 
+     // Check if payment method exists and belongs to the user
+     if (!paymentMethod || paymentMethod.userId !== userId) {
+-      return NextResponse.json(
+-        { error: 'Payment method not found', code: 'NOT_FOUND' },
+-        { status: 404 }
++      return apiErrorResponse(
++        'Payment method not found',
++        404, 'PAYMENT_METHOD_NOT_FOUND'
+       );
+     }
+ 
+@@ -146,20 +140,15 @@
+       }
+     });
+   } catch (error) {
+-    console.error("Error updating payment method:", error);
+-    
+     // Provide more specific error messages based on the error type
+     if (error instanceof jwt.JsonWebTokenError) {
+-      return NextResponse.json(
+-        { error: "Invalid authentication token", code: "INVALID_TOKEN" },
+-        { status: 401 }
++      return apiErrorResponse(
++        "Invalid authentication token",
++        401, "INVALID_TOKEN"
+       );
+     } else if (error instanceof jwt.TokenExpiredError) {
+-      return NextResponse.json(
+-        { error: "Authentication token expired", code: "TOKEN_EXPIRED" },
+-        { status: 401 }
++      return apiErrorResponse(
++        "Authentication token expired",
++        401, "TOKEN_EXPIRED"
+       );
+     } else if (error instanceof Error) {
+-      // Return a generic error message but with the specific error name for debugging
+-      return NextResponse.json(
+-        { 
+-          error: "Failed to update payment method", 
+-          code: "SERVER_ERROR",
+-          message: error.message,
+-          name: error.name
+-        },
+-        { status: 500 }
++      return apiErrorResponse(
++        "Failed to update payment method",
++        500, "UPDATE_PAYMENT_METHOD_FAILED", error.message
+       );
+     }
+     
+diff --git a/app/api/user/billing/payment-methods/route.ts b/app/api/user/billing/payment-methods/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/user/billing/payment-methods/route.ts
++++ b/app/api/user/billing/payment-methods/route.ts
+@@ -1,13 +1,14 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function GET(req: NextRequest) {
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+@@ -55,27 +56,20 @@
+       defaultMethod: formattedPaymentMethods.find(m => m.isDefault) || null
+     });
+   } catch (error) {
+-    console.error("Error fetching payment methods:", error);
+-    
+     // Provide more specific error messages based on the error type
+     if (error instanceof jwt.JsonWebTokenError) {
+-      return NextResponse.json(
+-        { error: "Invalid authentication token", code: "INVALID_TOKEN" },
+-        { status: 401 }
++      return apiErrorResponse(
++        "Invalid authentication token",
++        401, "INVALID_TOKEN"
+       );
+     } else if (error instanceof jwt.TokenExpiredError) {
+-      return NextResponse.json(
+-        { error: "Authentication token expired", code: "TOKEN_EXPIRED" },
+-        { status: 401 }
++      return apiErrorResponse(
++        "Authentication token expired",
++        401, "TOKEN_EXPIRED"
+       );
+     } else if (error instanceof Error) {
+-      // Return a generic error message but with the specific error name for debugging
+-      return NextResponse.json(
+-        { 
+-          error: "Failed to fetch payment methods", 
+-          code: "SERVER_ERROR",
+-          message: error.message,
+-          name: error.name
+-        },
+-        { status: 500 }
++      return apiErrorResponse(
++        "Failed to fetch payment methods",
++        500, "FETCH_PAYMENT_METHODS_FAILED", error.message
+       );
+     }
+     
+@@ -88,7 +82,7 @@
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+@@ -99,25 +93,25 @@
+     
+     // Validate required fields
+     if (!data.type || !data.provider) {
+-      return NextResponse.json(
+-        { error: 'Missing required fields', code: 'INVALID_REQUEST' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'Missing required fields',
++        400, 'MISSING_FIELDS'
+       );
+     }
+ 
+     // Validate type-specific fields
+     if (data.type === 'card' && (!data.last4 || !data.expiryMonth || !data.expiryYear)) {
+-      return NextResponse.json(
+-        { error: 'Missing required card fields', code: 'INVALID_REQUEST' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'Missing required card fields',
++        400, 'MISSING_CARD_FIELDS'
+       );
+     } else if (data.type === 'paypal' && !data.email) {
+-      return NextResponse.json(
+-        { error: 'Missing required PayPal fields', code: 'INVALID_REQUEST' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'Missing required PayPal fields',
++        400, 'MISSING_PAYPAL_FIELDS'
+       );
+     } else if (data.type === 'bank_account' && (!data.accountName || !data.accountNumber || !data.bankName)) {
+-      return NextResponse.json(
+-        { error: 'Missing required bank account fields', code: 'INVALID_REQUEST' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'Missing required bank account fields',
++        400, 'MISSING_BANK_ACCOUNT_FIELDS'
+       );
+     }
+ 
+@@ -155,20 +149,15 @@
+       }
+     });
+   } catch (error) {
+-    console.error("Error creating payment method:", error);
+-    
+     // Provide more specific error messages based on the error type
+     if (error instanceof jwt.JsonWebTokenError) {
+-      return NextResponse.json(
+-        { error: "Invalid authentication token", code: "INVALID_TOKEN" },
+-        { status: 401 }
++      return apiErrorResponse(
++        "Invalid authentication token",
++        401, "INVALID_TOKEN"
+       );
+     } else if (error instanceof jwt.TokenExpiredError) {
+-      return NextResponse.json(
+-        { error: "Authentication token expired", code: "TOKEN_EXPIRED" },
+-        { status: 401 }
++      return apiErrorResponse(
++        "Authentication token expired",
++        401, "TOKEN_EXPIRED"
+       );
+     } else if (error instanceof Error) {
+-      // Return a generic error message but with the specific error name for debugging
+-      return NextResponse.json(
+-        { 
+-          error: "Failed to create payment method", 
+-          code: "SERVER_ERROR",
+-          message: error.message,
+-          name: error.name
+-        },
+-        { status: 500 }
++      return apiErrorResponse(
++        "Failed to create payment method",
++        500, "CREATE_PAYMENT_METHOD_FAILED", error.message
+       );
+     }
+     
+diff --git a/app/api/user/billing/summary/route.ts b/app/api/user/billing/summary/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/user/billing/summary/route.ts
++++ b/app/api/user/billing/summary/route.ts
+@@ -1,13 +1,14 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function GET(req: NextRequest) {
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+@@ -23,9 +24,9 @@
+     });
+ 
+     if (!user) {
+-      return NextResponse.json(
+-        { error: 'User not found', code: 'NOT_FOUND' },
+-        { status: 404 }
++      return apiErrorResponse(
++        'User not found',
++        404, 'USER_NOT_FOUND'
+       );
+     }
+ 
+@@ -108,27 +109,20 @@
+       }))
+     });
+   } catch (error) {
+-    console.error("Error fetching billing summary:", error);
+-    
+     // Provide more specific error messages based on the error type
+     if (error instanceof jwt.JsonWebTokenError) {
+-      return NextResponse.json(
+-        { error: "Invalid authentication token", code: "INVALID_TOKEN" },
+-        { status: 401 }
++      return apiErrorResponse(
++        "Invalid authentication token",
++        401, "INVALID_TOKEN"
+       );
+     } else if (error instanceof jwt.TokenExpiredError) {
+-      return NextResponse.json(
+-        { error: "Authentication token expired", code: "TOKEN_EXPIRED" },
+-        { status: 401 }
++      return apiErrorResponse(
++        "Authentication token expired",
++        401, "TOKEN_EXPIRED"
+       );
+     } else if (error instanceof Error) {
+-      // Return a generic error message but with the specific error name for debugging
+-      return NextResponse.json(
+-        { 
+-          error: "Failed to fetch billing summary", 
+-          code: "SERVER_ERROR",
+-          message: error.message,
+-          name: error.name
+-        },
+-        { status: 500 }
++      return apiErrorResponse(
++        "Failed to fetch billing summary",
++        500, "FETCH_BILLING_SUMMARY_FAILED", error.message
+       );
+     }
+     
+diff --git a/app/api/user/billing/transactions/route.ts b/app/api/user/billing/transactions/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/user/billing/transactions/route.ts
++++ b/app/api/user/billing/transactions/route.ts
+@@ -2,6 +2,7 @@
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
+ import { formatDistanceToNow } from 'date-fns';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function GET(req: NextRequest) {
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+@@ -69,27 +70,20 @@
+       timeRange
+     });
+   } catch (error) {
+-    console.error("Error fetching transactions:", error);
+-    
+     // Provide more specific error messages based on the error type
+     if (error instanceof jwt.JsonWebTokenError) {
+-      return NextResponse.json(
+-        { error: "Invalid authentication token", code: "INVALID_TOKEN" },
+-        { status: 401 }
++      return apiErrorResponse(
++        "Invalid authentication token",
++        401, "INVALID_TOKEN"
+       );
+     } else if (error instanceof jwt.TokenExpiredError) {
+-      return NextResponse.json(
+-        { error: "Authentication token expired", code: "TOKEN_EXPIRED" },
+-        { status: 401 }
++      return apiErrorResponse(
++        "Authentication token expired",
++        401, "TOKEN_EXPIRED"
+       );
+     } else if (error instanceof Error) {
+-      // Return a generic error message but with the specific error name for debugging
+-      return NextResponse.json(
+-        { 
+-          error: "Failed to fetch transactions", 
+-          code: "SERVER_ERROR",
+-          message: error.message,
+-          name: error.name
+-        },
+-        { status: 500 }
++      return apiErrorResponse(
++        "Failed to fetch transactions",
++        500, "FETCH_TRANSACTIONS_FAILED", error.message
+       );
+     }
+     
+diff --git a/app/api/user/dashboard/route.ts b/app/api/user/dashboard/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/user/dashboard/route.ts
++++ b/app/api/user/dashboard/route.ts
+@@ -2,6 +2,7 @@
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
+ import { formatDistanceToNow } from 'date-fns';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function GET(req: NextRequest) {
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+@@ -140,27 +141,20 @@
+       timeRange
+     });
+   } catch (error) {
+-    console.error("Error fetching dashboard data:", error);
+-
+     // Provide more specific error messages based on the error type
+     if (error instanceof jwt.JsonWebTokenError) {
+-      return NextResponse.json(
+-        { error: "Invalid authentication token", code: "INVALID_TOKEN" },
+-        { status: 401 }
++      return apiErrorResponse(
++        "Invalid authentication token",
++        401, "INVALID_TOKEN"
+       );
+     } else if (error instanceof jwt.TokenExpiredError) {
+-      return NextResponse.json(
+-        { error: "Authentication token expired", code: "TOKEN_EXPIRED" },
+-        { status: 401 }
++      return apiErrorResponse(
++        "Authentication token expired",
++        401, "TOKEN_EXPIRED"
+       );
+     } else if (error instanceof Error) {
+-      // Return a generic error message but with the specific error name for debugging
+-      return NextResponse.json(
+-        {
+-          error: "Failed to fetch dashboard data",
+-          code: "SERVER_ERROR",
+-          message: error.message,
+-          name: error.name
+-        },
+-        { status: 500 }
++      return apiErrorResponse(
++        "Failed to fetch dashboard data",
++        500, "FETCH_DASHBOARD_FAILED", error.message
+       );
+     }
+ 
+     // Fallback for unknown errors
+     return NextResponse.json(
+       { error: "An unexpected error occurred", code: "UNKNOWN_ERROR" },
+       { status: 500 }
+     );
+   }
+ }
+diff --git a/app/api/user/notifications/seed/route.ts b/app/api/user/notifications/seed/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/user/notifications/seed/route.ts
++++ b/app/api/user/notifications/seed/route.ts
+@@ -2,6 +2,7 @@
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
+ import { initialNotifications } from '@/constants';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function POST(req: NextRequest) {
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+@@ -29,8 +30,9 @@
+       count: createdNotifications.count
+     });
+   } catch (error) {
+-    console.error('Error seeding notifications:', error);
+-    return NextResponse.json(
+-      { error: 'Failed to seed notifications' },
+-      { status: 500 }
++    console.error('Error seeding notifications:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to seed notifications',
++      500, 'SEED_NOTIFICATIONS_FAILED', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/user/notifications/test/route.ts b/app/api/user/notifications/test/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/user/notifications/test/route.ts
++++ b/app/api/user/notifications/test/route.ts
+@@ -1,13 +1,14 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import jwt from 'jsonwebtoken';
+ import { initialNotifications } from '@/constants';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function GET(req: NextRequest) {
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+@@ -25,8 +26,9 @@
+       message: 'This is a test endpoint. In production, notifications would be fetched from the database.'
+     });
+   } catch (error) {
+-    console.error('Error in test endpoint:', error);
+-    return NextResponse.json(
+-      { error: 'Failed to process request' },
+-      { status: 500 }
++    console.error('Error in test endpoint:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to process request',
++      500, 'TEST_ENDPOINT_FAILED', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/user/notifications/unread/route.ts b/app/api/user/notifications/unread/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/user/notifications/unread/route.ts
++++ b/app/api/user/notifications/unread/route.ts
+@@ -1,13 +1,14 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function GET(req: NextRequest) {
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+@@ -29,8 +30,9 @@
+ 
+     return NextResponse.json({ count });
+   } catch (error) {
+-    console.error('Error fetching unread notifications:', error);
+-    return NextResponse.json(
+-      { error: 'Failed to fetch notifications' },
+-      { status: 500 }
++    console.error('Error fetching unread notifications:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to fetch notifications',
++      500, 'FETCH_UNREAD_NOTIFICATIONS_FAILED', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/user/notifications/route.ts b/app/api/user/notifications/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/user/notifications/route.ts
++++ b/app/api/user/notifications/route.ts
+@@ -4,6 +4,7 @@
+ import { formatDistanceToNow } from 'date-fns';
+ import { initialNotifications } from '@/constants';
+ import { markNotificationsAsRead } from '@/lib/notifications';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ import { Notification } from '@/types';
+ 
+ /**
+@@ -13,14 +14,14 @@
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+     let userId: string;
+     try {
+       const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+       userId = decoded.id;
+     } catch (error) {
+-      console.error('Error verifying token:', error);
+-      return NextResponse.json({ error: 'Invalid session token' }, { status: 401 });
++      console.error('Error verifying token:', error); // Log the actual error for debugging
++      return apiErrorResponse('Invalid session token', 401, 'INVALID_SESSION_TOKEN', error instanceof Error ? error.message : String(error));
+     }
+ 
+     try {
+@@ -54,8 +55,9 @@
+       }
+ 
+       // Return empty array instead of error to prevent UI from breaking
+-      return NextResponse.json({ notifications: [] });
++      return apiErrorResponse('Failed to fetch notifications due to database error', 500, 'DB_FETCH_FAILED', error instanceof Error ? error.message : String(error));
+     }
+   } catch (error) {
+-    console.error('Unexpected error:', error);
+-    return NextResponse.json({ notifications: [] });
++    console.error('Unexpected error:', error); // Log the actual error for debugging
++    return apiErrorResponse('An unexpected error occurred', 500, 'UNEXPECTED_ERROR', error instanceof Error ? error.message : String(error));
+   }
+ }
+ 
+@@ -66,15 +68,15 @@
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+     const userId = decoded.id;
+-
+     // Get notification IDs to mark as read
+     const { ids } = await req.json();
+ 
+     if (!ids || !Array.isArray(ids)) {
+-      return NextResponse.json(
+-        { error: 'Invalid request format' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'Invalid request format',
++        400, 'INVALID_REQUEST_FORMAT'
+       );
+     }
+ 
+     // Update the database to mark notifications as read
+     const updateResult = await markNotificationsAsRead(userId, ids);
+-
+     return NextResponse.json({
+       success: true,
+       message: `Marked ${updateResult.count} notifications as read`
+     });
+   } catch (error) {
+-    console.error('Error updating notifications:', error);
+-
++    console.error('Error updating notifications:', error); // Log the actual error for debugging
+     // Check if it's a Prisma error related to missing table
+     if (error instanceof Error && error.message.includes('does not exist')) {
+-      return NextResponse.json({
++      return apiErrorResponse('Notification table does not exist yet. Please run migrations.', 500, 'DB_TABLE_MISSING');
++    }
++
++    return apiErrorResponse(
++      'Failed to update notifications',
++      500, 'UPDATE_NOTIFICATIONS_FAILED', error instanceof Error ? error.message : String(error)
++    );
++  }
++}
++
++/**
++ * DELETE - Delete notifications
++ */
++export async function DELETE(req: NextRequest) {
++  try {
++    // Get token from cookies
++    const token = req.cookies.get('next-auth.session-token')?.value;
++    if (!token) {
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
++    }
++
++    // Verify token and get userId
++    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
++    const userId = decoded.id;
++
++    // Get notification IDs to delete
++    const { ids } = await req.json();
++
++    if (!ids || !Array.isArray(ids)) {
++      return apiErrorResponse(
++        'Invalid request format',
++        400, 'INVALID_REQUEST_FORMAT'
++      );
++    }
++
++    // Delete the notifications
++    const deleteResult = await prisma.$executeRaw`
++      DELETE FROM "Notification"
++      WHERE "id" IN (${ids.join(',')})
++      AND "userId" = ${userId}
++    `;
++
++    // Count how many were deleted (deleteResult is the number of rows affected)
++    const deletedCount = deleteResult as number;
++
++    return NextResponse.json({
++      success: true,
++      message: `Deleted ${deletedCount} notifications`
++    });
++  } catch (error) {
++    console.error('Error deleting notifications:', error); // Log the actual error for debugging
++
++    // Check if it's a Prisma error related to missing table
++    if (error instanceof Error && error.message.includes('does not exist')) {
++      return apiErrorResponse('Notification table does not exist yet. Please run migrations.', 500, 'DB_TABLE_MISSING');
++    }
++
++    return apiErrorResponse(
++      'Failed to delete notifications',
++      500, 'DELETE_NOTIFICATIONS_FAILED', error instanceof Error ? error.message : String(error)
++    );
++  }
++}
++```
+```diff
+diff --git a/app/api/user/profile/image/route.ts b/app/api/user/profile/image/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/user/profile/image/route.ts
++++ b/app/api/user/profile/image/route.ts
+@@ -3,6 +3,7 @@
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
+ import { writeFile } from 'fs/promises';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ import { join } from 'path';
+ 
+ /**
+@@ -12,7 +13,7 @@
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+@@ -22,25 +23,25 @@
+     const file = formData.get('image') as File;
+ 
+     if (!file) {
+-      return NextResponse.json(
+-        { error: 'No image file provided' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'No image file provided',
++        400, 'NO_IMAGE_PROVIDED'
+       );
+     }
+ 
+     // Validate file type
+     const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+     if (!validTypes.includes(file.type)) {
+-      return NextResponse.json(
+-        { error: 'Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed.' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed.',
++        400, 'INVALID_FILE_TYPE'
+       );
+     }
+ 
+     // Validate file size (max 5MB)
+     const maxSize = 5 * 1024 * 1024; // 5MB
+     if (file.size > maxSize) {
+-      return NextResponse.json(
+-        { error: 'File size exceeds the 5MB limit' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'File size exceeds the 5MB limit',
++        400, 'FILE_TOO_LARGE'
+       );
+     }
+ 
+@@ -65,9 +66,9 @@
+       user: updatedUser
+     });
+   } catch (error) {
+-    console.error('Error uploading profile image:', error);
+-    return NextResponse.json(
+-      { error: 'Failed to upload profile image' },
+-      { status: 500 }
++    console.error('Error uploading profile image:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to upload profile image',
++      500, 'UPLOAD_PROFILE_IMAGE_FAILED', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/user/profile/password/route.ts b/app/api/user/profile/password/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/user/profile/password/route.ts
++++ b/app/api/user/profile/password/route.ts
+@@ -2,6 +2,7 @@
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
+ import bcrypt from 'bcryptjs';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ /**
+  * POST - Update user password
+@@ -11,8 +12,8 @@
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+@@ -22,25 +23,25 @@
+     const { currentPassword, newPassword } = await req.json();
+     
+     // Validate data
+     if (!currentPassword || !newPassword) {
+-      return NextResponse.json(
+-        { error: 'Current password and new password are required' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'Current password and new password are required',
++        400, 'MISSING_PASSWORDS'
+       );
+     }
+ 
+     if (typeof newPassword !== 'string' || newPassword.length < 8) {
+-      return NextResponse.json(
+-        { error: 'New password must be at least 8 characters long' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'New password must be at least 8 characters long',
++        400, 'PASSWORD_TOO_SHORT'
+       );
+     }
+ 
+     // Get user with password
+     const user = await prisma.user.findUnique({
+       where: { id: userId },
+       select: {
+-        id: true,
+-        password: true,
++        id: true, // Only need ID and password hash
++        password: true, // Select password hash for comparison
+       }
+     });
+ 
+     if (!user) {
+-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
++      return apiErrorResponse('User not found', 404, 'USER_NOT_FOUND');
+     }
+ 
+     // Verify current password
+     const isPasswordValid = await bcrypt.compare(currentPassword, user.password || '');
+     if (!isPasswordValid) {
+-      return NextResponse.json(
+-        { error: 'Current password is incorrect' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'Current password is incorrect',
++        400, 'INCORRECT_CURRENT_PASSWORD'
+       );
+     }
+ 
+     // Update user password
+     await prisma.user.update({
+       where: { id: userId },
+       data: { password: hashedPassword },
+     });
+ 
+     return NextResponse.json({
+       message: 'Password updated successfully'
+     });
+   } catch (error) {
+-    console.error('Error updating password:', error);
+-    return NextResponse.json(
+-      { error: 'Failed to update password' },
+-      { status: 500 }
++    console.error('Error updating password:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to update password',
++      500, 'UPDATE_PASSWORD_FAILED', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/user/profile/route.ts b/app/api/user/profile/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/user/profile/route.ts
++++ b/app/api/user/profile/route.ts
+@@ -2,6 +2,7 @@
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
+ import bcrypt from 'bcryptjs';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ /**
+  * GET - Fetch user profile information
+@@ -11,7 +12,7 @@
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+@@ -29,9 +30,9 @@
+     });
+ 
+     if (!user) {
+-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
++      return apiErrorResponse('User not found', 404, 'USER_NOT_FOUND');
+     }
+ 
+     return NextResponse.json({ user });
+   } catch (error) {
+-    console.error('Error fetching user profile:', error);
+-    return NextResponse.json(
+-      { error: 'Failed to fetch user profile' },
+-      { status: 500 }
++    console.error('Error fetching user profile:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to fetch user profile',
++      500, 'FETCH_PROFILE_FAILED', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+@@ -44,15 +45,15 @@
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+     const userId = decoded.id;
+-
+     // Get update data from request
+     const data = await req.json();
+ 
+     // Validate data
+     if (!data || typeof data !== 'object') {
+-      return NextResponse.json(
+-        { error: 'Invalid request data' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'Invalid request data',
++        400, 'INVALID_REQUEST_DATA'
+       );
+     }
+ 
+     if (name !== undefined) {
+       if (typeof name !== 'string' || name.trim().length < 2) {
+-        return NextResponse.json(
+-          { error: 'Name must be at least 2 characters long' },
+-          { status: 400 }
++        return apiErrorResponse(
++          'Name must be at least 2 characters long',
++          400, 'INVALID_NAME'
+         );
+       }
+       updateData.name = name.trim();
+     }
+ 
+     // Add phone field if provided (optional)
+     if (phone !== undefined) {
+       if (phone !== null && typeof phone !== 'string') {
+-        return NextResponse.json(
+-          { error: 'Phone must be a string or null' },
+-          { status: 400 }
++        return apiErrorResponse(
++          'Phone must be a string or null',
++          400, 'INVALID_PHONE_FORMAT'
+         );
+       }
+       updateData.phone = phone;
+     }
+ 
+     // If no valid fields to update
+     if (Object.keys(updateData).length === 0) {
+-      return NextResponse.json(
+-        { error: 'No valid fields to update' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'No valid fields to update',
++        400, 'NO_FIELDS_TO_UPDATE'
+       );
+     }
+ 
+     return NextResponse.json({
+       message: 'Profile updated successfully',
+       user: updatedUser
+     });
+   } catch (error) {
+-    console.error('Error updating user profile:', error);
+-    return NextResponse.json(
+-      { error: 'Failed to update profile' },
+-      { status: 500 }
++    console.error('Error updating user profile:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to update profile',
++      500, 'UPDATE_PROFILE_FAILED', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/user/saved-searches/route.ts b/app/api/user/saved-searches/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/user/saved-searches/route.ts
++++ b/app/api/user/saved-searches/route.ts
+@@ -1,13 +1,14 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function GET(req: NextRequest) {
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+@@ -22,9 +23,9 @@
+ 
+     return NextResponse.json({ savedSearches });
+   } catch (error) {
+-    console.error('Error fetching saved searches:', error);
+-    return NextResponse.json(
+-      { error: 'Failed to fetch saved searches' },
+-      { status: 500 }
++    console.error('Error fetching saved searches:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to fetch saved searches',
++      500, 'FETCH_SAVED_SEARCHES_FAILED', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+@@ -33,15 +34,15 @@
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+     const userId = decoded.id;
+-
+     // Get query from request body
+     const { query } = await req.json();
+     
+     if (!query) {
+-      return NextResponse.json(
+-        { error: 'Query is required' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'Query is required',
++        400, 'QUERY_REQUIRED'
+       );
+     }
+ 
+     // In a real app, this would save to the database
+     // For now, we'll just return success
+     return NextResponse.json({ 
+       success: true,
+       savedSearch: {
+         id: Math.floor(Math.random() * 1000),
+         query,
+         createdAt: new Date().toISOString()
+       }
+     });
+   } catch (error) {
+-    console.error('Error saving search:', error);
+-    return NextResponse.json(
+-      { error: 'Failed to save search' },
+-      { status: 500 }
++    console.error('Error saving search:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to save search',
++      500, 'SAVE_SEARCH_FAILED', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+@@ -50,15 +51,15 @@
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+     const userId = decoded.id;
+-
+     // Get search ID from URL
+     const { searchParams } = new URL(req.url);
+     const id = searchParams.get('id');
+     
+     if (!id) {
+-      return NextResponse.json(
+-        { error: 'Search ID is required' },
+-        { status: 400 }
++      return apiErrorResponse(
++        'Search ID is required',
++        400, 'SEARCH_ID_REQUIRED'
+       );
+     }
+ 
+     // In a real app, this would delete from the database
+     // For now, we'll just return success
+     return NextResponse.json({ 
+       success: true,
+       message: 'Search deleted successfully'
+     });
+   } catch (error) {
+-    console.error('Error deleting search:', error);
+-    return NextResponse.json(
+-      { error: 'Failed to delete search' },
+-      { status: 500 }
++    console.error('Error deleting search:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to delete search',
++      500, 'DELETE_SEARCH_FAILED', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/api/user/support-chats/[chatId]/messages/route.ts b/app/api/user/support-chats/[chatId]/messages/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/user/support-chats/[chatId]/messages/route.ts
++++ b/app/api/user/support-chats/[chatId]/messages/route.ts
+@@ -1,6 +1,7 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function GET(
+   req: NextRequest,
+@@ -8,7 +9,7 @@
+ ) {
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+     const userId = decoded.id;
+-
+     // Verify the chat belongs to this user
+     const chat = await prisma.supportChat.findUnique({
+       where: {
+         id: params.chatId,
+         userId
+       }
+     });
+ 
+     if (!chat) {
+-      return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
++      return apiErrorResponse('Chat not found', 404, 'CHAT_NOT_FOUND');
+     }
+ 
+     // Fetch messages
+     const messages = await prisma.supportMessage.findMany({
+@@ -30,8 +31,9 @@
+ 
+     return NextResponse.json(messages);
+   } catch (error) {
+-    console.error('Error fetching messages:', error);
+-    return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 });
++    console.error('Error fetching messages:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to fetch messages',
++      500, 'FETCH_MESSAGES_FAILED', error instanceof Error ? error.message : String(error)
++    );
+   }
+ }
+ 
+@@ -41,28 +43,28 @@
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+     const userId = decoded.id;
+-
+     // Verify the chat belongs to this user
+     const chat = await prisma.supportChat.findUnique({
+       where: {
+         id: params.chatId,
+         userId
+       }
+     });
+ 
+     if (!chat) {
+-      return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
++      return apiErrorResponse('Chat not found', 404, 'CHAT_NOT_FOUND');
+     }
+ 
+     // Don't allow messages if chat is closed
+     if (chat.status === 'closed') {
+-      return NextResponse.json({ error: 'Cannot send messages to a closed chat' }, { status: 400 });
++      return apiErrorResponse('Cannot send messages to a closed chat', 400, 'CHAT_CLOSED');
+     }
+ 
+     // Get message content from request
+     const { content } = await req.json();
+     if (!content) {
+-      return NextResponse.json({ error: 'Message content is required' }, { status: 400 });
++      return apiErrorResponse('Message content is required', 400, 'MESSAGE_CONTENT_REQUIRED');
+     }
+ 
+     // Create message
+     const message = await prisma.supportMessage.create({
+       data: {
+         chatId: params.chatId,
+         content,
+         sender: userId,
+         senderType: 'user',
+         read: false
+       }
+     });
+ 
+     // Update chat timestamp
+     await prisma.supportChat.update({
+       where: { id: params.chatId },
+       data: { updatedAt: new Date() }
+     });
+ 
+     return NextResponse.json(message);
+   } catch (error) {
+-    console.error('Error sending message:', error);
+-    return NextResponse.json({ error: 'Failed to send message' }, { status: 500 });
++    console.error('Error sending message:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to send message',
++      500, 'SEND_MESSAGE_FAILED', error instanceof Error ? error.message : String(error)
++    );
+   }
+ }
+diff --git a/app/api/user/support-chats/route.ts b/app/api/user/support-chats/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/user/support-chats/route.ts
++++ b/app/api/user/support-chats/route.ts
+@@ -1,13 +1,14 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import prisma from '@/lib/prisma';
+ import jwt from 'jsonwebtoken';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function GET(req: NextRequest) {
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+     const userId = decoded.id;
+-
+     // Fetch all support chats for this user
+     const supportChats = await prisma.supportChat.findMany({
+       where: {
+@@ -30,15 +31,15 @@
+     });
+ 
+     return NextResponse.json(supportChats);
+   } catch (error) {
+-    console.error('Error fetching support chats:', error);
+-    return NextResponse.json({ error: 'Failed to fetch support chats' }, { status: 500 });
++    console.error('Error fetching support chats:', error); // Log the actual error for debugging
++    return apiErrorResponse('Failed to fetch support chats', 500, 'FETCH_SUPPORT_CHATS_FAILED', error instanceof Error ? error.message : String(error));
+   }
+ }
+ 
+ export async function POST(req: NextRequest) {
+   try {
+     // Get token from cookies
+     const token = req.cookies.get('next-auth.session-token')?.value;
+     if (!token) {
+-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
++      return apiErrorResponse('Unauthorized', 401, 'UNAUTHORIZED');
+     }
+ 
+     // Verify token and get userId
+     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
+     const userId = decoded.id;
+-
+     const { category, priority } = await req.json();
+ 
+     // Create a new support chat
+@@ -62,6 +63,9 @@
+ 
+     return NextResponse.json(supportChat);
+   } catch (error) {
+-    console.error('Error creating support chat:', error);
+-    return NextResponse.json({ error: 'Failed to create support chat' }, { status: 500 });
++    console.error('Error creating support chat:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Failed to create support chat',
++      500, 'CREATE_SUPPORT_CHAT_FAILED', error instanceof Error ? error.message : String(error)
++    );
+   }
+ }
+diff --git a/app/api/verify-email/route.ts b/app/api/verify-email/route.ts
+index abcdef1..abcdef2 100644
+--- a/app/api/verify-email/route.ts
++++ b/app/api/verify-email/route.ts
+@@ -1,5 +1,6 @@
+ import { NextRequest, NextResponse } from 'next/server';
+ import jwt from 'jsonwebtoken';
+ import prisma from '@/lib/prisma';
++import { apiErrorResponse } from '@/lib/errorHandling';
+ 
+ export async function GET(req: NextRequest) {
+   const token = req.nextUrl.searchParams.get('token');
+@@ -12,8 +13,8 @@
+     const decoded = jwt.verify(token, process.env.JWT_SECRET!);
+ 
+     if (typeof decoded !== 'object' || !('userId' in decoded)) {
+-      return NextResponse.redirect(
+-        new URL('/signin?alert=invalid_token', req.nextUrl.origin)
++      return apiErrorResponse(
++        'Invalid token', 400, 'INVALID_TOKEN'
+       );
+     }
+ 
+@@ -27,6 +28,9 @@
+       new URL('/signin?alert=success_token', req.nextUrl.origin)
+     );
+   } catch (error) {
+-    return NextResponse.redirect(
+-      new URL('/signin?alert=expired_token', req.nextUrl.origin)
++    console.error('Email verification error:', error); // Log the actual error for debugging
++    return apiErrorResponse(
++      'Expired or invalid token',
++      400, 'EXPIRED_OR_INVALID_TOKEN', error instanceof Error ? error.message : String(error)
+     );
+   }
+ }
+diff --git a/app/terms/page.tsx b/app/terms/page.tsx
+new file mode 100644
+index 0000000..a1b2c3d
+--- /dev/null
++++ b/app/terms/page.tsx
+@@ -0,0 +1,108 @@
++import Navbar from "@/components/Navbar";
++import Footer from "@/components/Footer";
++import { FileText } from "lucide-react";
++
++export default function TermsOfServicePage() {
++  const termsSections = [
++    {
++      title: "Introduction",
++      content: [
++        "Welcome to AgroMarket! These Terms of Service ('Terms') govern your use of our website, products, and services (collectively, the 'Services'). By accessing or using our Services, you agree to be bound by these Terms. If you do not agree to these Terms, please do not use our Services.",
++        "AgroMarket is an online marketplace connecting farmers and agricultural product buyers. We provide a platform for listing, searching, and facilitating transactions of agricultural goods.",
++      ],
++    },
++    {
++      title: "Account Registration and Eligibility",
++      content: [
++        "To access certain features of our Services, you may be required to register for an account. You must be at least 18 years old to create an account and use our Services. You agree to provide accurate, current, and complete information during the registration process and to update such information to keep it accurate, current, and complete.",
++        "You are responsible for safeguarding your password and for any activities or actions under your account. AgroMarket cannot and will not be liable for any loss or damage arising from your failure to comply with the above requirements.",
++      ],
++    },
++    {
++      title: "User Responsibilities",
++      content: [
++        "You agree to use the Services only for lawful purposes and in a way that does not infringe the rights of, restrict or inhibit anyone else's use and enjoyment of the Services. Prohibited behavior includes harassing or causing distress or inconvenience to any other user, transmitting obscene or offensive content, or disrupting the normal flow of dialogue within our Services.",
++        "You are solely responsible for all content that you upload, post, publish, or display (hereinafter, 'upload') on or through the Services, or transmit to other users.",
++      ],
++    },
++    {
++      title: "Marketplace Rules and Transactions",
++      content: [
++        "AgroMarket acts as a platform to connect buyers and sellers. We are not directly involved in the transaction between buyers and sellers. As a result, we have no control over the quality, safety, morality or legality of any aspect of the items listed, the truth or accuracy of the listings, the ability of sellers to sell items or the ability of buyers to pay for items.",
++        "All transactions conducted through the platform are at the user's own risk. We encourage users to exercise due diligence and communicate clearly before finalizing any transaction.",
++      ],
++    },
++    {
++      title: "Intellectual Property",
++      content: [
++        "The Services and all content, features, and functionality (including but not limited to all information, software, text, displays, images, video, and audio, and the design, selection, and arrangement thereof) are owned by AgroMarket, its licensors, or other providers of such material and are protected by international copyright, trademark, patent, trade secret, and other intellectual property or proprietary rights laws.",
++      ],
++    },
++    {
++      title: "Termination",
++      content: [
++        "We may terminate or suspend your account and bar access to the Services immediately, without prior notice or liability, under our sole discretion, for any reason whatsoever and without limitation, including but not limited to a breach of the Terms.",
++      ],
++    },
++    {
++      title: "Disclaimer of Warranties",
++      content: [
++        "Our Services are provided on an 'AS IS' and 'AS AVAILABLE' basis. AgroMarket makes no representations or warranties of any kind, express or implied, as to the operation of their Services, or the information, content or materials included therein. You expressly agree that your use of these Services, their content, and any services or items obtained from us is at your sole risk.",
++      ],
++    },
++    {
++      title: "Limitation of Liability",
++      content: [
++        "In no event shall AgroMarket, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from (i) your access to or use of or inability to access or use the Service; (ii) any conduct or content of any third party on the Service; (iii) any content obtained from the Service; and (iv) unauthorized access, use or alteration of your transmissions or content, whether based on warranty, contract, tort (including negligence) or any other legal theory, whether or not we have been informed of the possibility of such damage, and even if a remedy set forth herein is found to have failed of its essential purpose.",
++      ],
++    },
++    {
++      title: "Governing Law",
++      content: [
++        "These Terms shall be governed and construed in accordance with the laws of Nigeria, without regard to its conflict of law provisions.",
++      ],
++    },
++    {
++      title: "Changes to Terms",
++      content: [
++        "We reserve the right, at our sole discretion, to modify or replace these Terms at any time. If a revision is material we will provide at least 30 days' notice prior to any new terms taking effect. What constitutes a material change will be determined at our sole discretion.",
++      ],
++    },
++    {
++      title: "Contact Us",
++      content: [
++        "If you have any questions about these Terms, please contact us at legal@agromarket.ng.",
++      ],
++    },
++  ];
++
++  return (
++    <>
++      <Navbar />
++
++      {/* Hero Section */}
++      <section className="bg-green-50 py-12 px-4 sm:px-6 lg:px-8">
++        <div className="max-w-3xl mx-auto text-center">
++          <FileText className="mx-auto h-12 w-12 text-green-600" />
++          <h1 className="mt-4 text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
++            Terms of Service
++          </h1>
++          <p className="mt-4 text-xl text-gray-600">
++            Please read these terms carefully before using our services.
++          </p>
++          <p className="mt-2 text-sm text-gray-500">
++            Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
++          </p>
++        </div>
++      </section>
++
++      {/* Terms Content Section */}
++      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
++        <div className="max-w-3xl mx-auto">
++          <div className="space-y-12">
++            {termsSections.map((section, index) => (
++              <div key={index}>
++                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
++                  {index + 1}. {section.title}
++                </h2>
++                <div className="space-y-4 text-gray-700 text-lg leading-relaxed">
++                  {section.content.map((paragraph, pIndex) => (
++                    <p key={pIndex}>{paragraph}</p>
++                  ))}
++                </div>
++              </div>
++            ))}
++          </div>
++        </div>
++      </section>
++
++      <Footer />
++    </>
++  );
++}
+```

@@ -1,72 +1,91 @@
 import { NextRequest, NextResponse } from 'next/server';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
 import prisma from '@/lib/prisma';
-import { SignUpRequest, SignInRequest } from '@/types';
-
-// Helper functions for JSON response
-const jsonResponse = (status: number, data: any) => new NextResponse(JSON.stringify(data), { status });
+import { apiErrorResponse } from '@/lib/errorHandling';
 
 // Configure Nodemailer transporter
 const transporter = nodemailer.createTransport({
-  service: 'gmail', 
+  service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
+    pass: process.env.EMAIL_PASS
+  }
 });
 
-// POST: SignUp Handler
 export async function POST(req: NextRequest) {
-  const { name, email, password }: SignUpRequest = await req.json();
+  const { type, email, token, newPassword } = await req.json();
 
-  // Check if the user already exists
-  const existingUser = await prisma.user.findUnique({ where: { email } });
-  if (existingUser) return jsonResponse(400, { error: 'User already exists' });
-
-  // Hash password
-  const hashedPassword = await bcrypt.hash(password, 10);
-
-  // Create new user
-  const user = await prisma.user.create({
-    data: { name, email, password: hashedPassword }
-  });
-
-  // Generate a verification token
-  const verificationToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: '1d' });
-
-  // Send verification email
-  const verificationUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/verify-email?token=${verificationToken}`;
-  await transporter.sendMail({
-    from: process.env.EMAIL_USER,
-    to: email,
-    subject: 'Verify your account',
-    html: `<p>Hi ${name},</p>
-           <p>Thanks for signing up. Please verify your email by clicking the link below:</p>
-           <a href="${verificationUrl}">Verify your account</a>`,
-  });
-
-  return jsonResponse(201, { message: 'User created successfully', user });
+  switch (type) {
+    case 'forgot-password':
+      return handleForgotPassword(email);
+    case 'reset-password':
+      return handleResetPassword(token, newPassword);
+    default:
+      return apiErrorResponse('Invalid request type', 400, 'INVALID_REQUEST_TYPE');
+  }
 }
 
-// POST: SignIn Handler
-export async function PUT(req: NextRequest) {
-  const { email, password }: SignInRequest = await req.json();
+async function handleForgotPassword(email: string) {
+  console.log("User email: ", email);
+  try {
+    // Check if user exists
+    const user = await prisma.user.findUnique({ where: { email } });
+    console.log("User found: ", user);
+    if (!user) return apiErrorResponse('User not found', 404, 'USER_NOT_FOUND');
 
-  // Find user
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || typeof user.verified === 'undefined' || !user.verified) {
-    return jsonResponse(401, { error: 'Account not verified or invalid email/password' });
+    // Generate a reset token
+    const resetToken = jwt.sign(
+      { userId: user.id },
+      process.env.NEXTAUTH_SECRET!,
+      { expiresIn: '1h' }
+    );
+
+    // Send reset email
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Password Reset Request',
+      html: `
+        <h1>Password Reset</h1>
+        <p>Click the link below to reset your password:</p>
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${resetToken}">
+          Reset Password
+        </a>
+      `,
+    });
+
+    return NextResponse.json({ message: 'Password reset link sent to your email' }, { status: 200 });
+  } catch (error) {
+    console.error('Error in forgot password:', error);
+    return apiErrorResponse(
+      'Failed to send reset email',
+      500,
+      'EMAIL_SEND_FAILED',
+      error instanceof Error ? error.message : String(error)
+    );
   }
+}
 
-  // Compare passwords
-  const passwordMatch = await bcrypt.compare(password!, user.password!);
-  if (!passwordMatch) return jsonResponse(401, { error: 'Invalid email or password' });
+async function handleResetPassword(token: string, newPassword: string) {
+  try {
+    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { userId: string };
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
 
+    await prisma.user.update({
+      where: { id: decoded.userId },
+      data: { password: hashedPassword },
+    });
 
-  // Generate JWT
-  const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET!, { expiresIn: '1h' });
-
-  return jsonResponse(200, { message: 'Login successful', token });
+    return NextResponse.json({ message: 'Password reset successfully' }, { status: 200 });
+  } catch (error) {
+    console.error('Error in reset password:', error);
+    return apiErrorResponse(
+      'Invalid or expired token',
+      400,
+      'INVALID_OR_EXPIRED_TOKEN',
+      error instanceof Error ? error.message : String(error)
+    );
+  }
 }

@@ -19,6 +19,7 @@
 # misc
 .DS_Store
 *.pem
+/.qodo
 
 # debug
 npm-debug.log*
@@ -41,3 +42,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Ignore uploaded files but keep the directory
+public/uploads/*
+!public/uploads/.gitkeep

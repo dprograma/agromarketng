@@ -1,0 +1,5 @@
+This folder will contain product images:
+- tomatoes.jpg
+- rice.jpg
+- palm-oil.jpg
+- honey.jpg

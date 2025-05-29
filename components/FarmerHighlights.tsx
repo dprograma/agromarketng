@@ -1,3 +1,4 @@
+import React from "react";
 import Image from "next/image";
 import farmerHighlight1 from "../public/assets/img/farmer-highlight1.png";
 import farmerHighlight2 from "../public/assets/img/farmer-highlight2.png";
@@ -20,11 +21,10 @@ const FarmerHighlights = () => {
           <div className="flex flex-col items-center text-center p-6 bg-gray-100 rounded-lg shadow-md">
             <div className="relative w-32 h-32 mb-4">
               <Image
-                src={farmerHighlight1} 
+                src={farmerHighlight1}
                 alt="Farmer Profile"
-                layout="fill"
-                objectFit="cover"
-                className="rounded-full"
+                fill
+                className="rounded-full object-cover"
               />
             </div>
             <h3 className="text-xl font-semibold text-green-900">John Adamu</h3>
@@ -43,9 +43,8 @@ const FarmerHighlights = () => {
               <Image
                 src={farmerHighlight2}
                 alt="Farmer Profile"
-                layout="fill"
-                objectFit="cover"
-                className="rounded-full"
+                fill
+                className="rounded-full object-cover"
               />
             </div>
             <h3 className="text-xl font-semibold text-green-900">Mohammed Abubakar</h3>
@@ -62,11 +61,10 @@ const FarmerHighlights = () => {
           <div className="flex flex-col items-center text-center p-6 bg-gray-100 rounded-lg shadow-md">
             <div className="relative w-32 h-32 mb-4">
               <Image
-                src={farmerHighlight3} 
+                src={farmerHighlight3}
                 alt="Farmer Profile"
-                layout="fill"
-                objectFit="cover"
-                className="rounded-full"
+                fill
+                className="rounded-full object-cover"
               />
             </div>
             <h3 className="text-xl font-semibold text-green-900">Ade Omolade</h3>
