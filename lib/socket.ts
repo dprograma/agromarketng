@@ -1,9 +1,13 @@
 import { Server as NetServer } from 'http';
-import prisma from "@/lib/prisma";
+import prisma from "./prisma";
 import { Server as SocketIOServer } from 'socket.io';
 import { NextApiResponse } from 'next';
 import jwt from 'jsonwebtoken';
-import { createNotification } from '@/lib/notifications';
+import { createNotification } from './notifications';
+
+declare global {
+  var io: SocketIOServer | undefined;
+}
 
 export type NextApiResponseWithSocket = NextApiResponse & {
   socket: {
@@ -94,7 +98,7 @@ const incrementUnreadCount = async (chatId: string, recipientId: string) => {
 };
 
 export const initSocket = (server: NetServer) => {
-  if (!(server as any).io) {
+  if (!global.io) {
     console.log('*First use, starting socket.io');
 
     const io = new SocketIOServer(server, {
@@ -775,8 +779,9 @@ export const initSocket = (server: NetServer) => {
       });
     });
 
-    (server as any).io = io;
+    global.io = io;
+    console.log('Socket.IO server attached to global instance.');
   }
-  return (server as any).io;
+  return global.io;
 };
 

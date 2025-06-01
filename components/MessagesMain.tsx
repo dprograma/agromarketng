@@ -3,48 +3,20 @@
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from 'next/navigation';
 import { useSession } from "@/components/SessionWrapper";
-import { io, Socket } from "socket.io-client";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Send, MessageSquare, User } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { Message, Chat } from "@/types";
+import { Message, Chat, SupportChat } from "@/types";
 import toast from "react-hot-toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useSupportChat } from '@/lib/hooks/useSupportChat';
 
-
-interface SupportMessage {
-  id: string;
-  content: string;
-  sender: string;
-  senderType: 'user' | 'agent';
-  createdAt: string;
-  read: boolean;
-}
-
-interface SupportChat {
-  id: string;
-  userId: string;
-  agentId: string | null;
-  status: string;
-  category: string;
-  priority: number;
-  messages: SupportMessage[];
-  createdAt: string;
-  updatedAt: string;
-  agent?: {
-    user: {
-      name: string;
-      email: string;
-    };
-  } | null;
-}
 
 export default function Messages() {
   const searchParams = useSearchParams();
-  const [socket, setSocket] = useState<Socket | null>(null);
   const { session } = useSession();
   const [activeTab, setActiveTab] = useState("product-chats");
 
@@ -54,14 +26,13 @@ export default function Messages() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
 
-  // Support chats (user-to-agent)
-  const [supportChats, setSupportChats] = useState<SupportChat[]>([]);
-  const [selectedSupportChat, setSelectedSupportChat] = useState<SupportChat | null>(null);
-  const [supportMessages, setSupportMessages] = useState<SupportMessage[]>([]);
+  // Support chats (user-to-agent) - use hook instead of local state
   const [newSupportMessage, setNewSupportMessage] = useState("");
 
-  const [isLoading, setIsLoading] = useState(true);
+  // State for product chat message sending loading
   const [isSending, setIsSending] = useState(false);
+
+  // Use loading state from the hook for support chats
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supportMessagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -74,103 +45,61 @@ export default function Messages() {
     supportMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Initialize socket connection
+  // Initialize support chat hook
+  const {
+    supportChats, // Provided by hook
+    activeChat: selectedSupportChat, // Provided by hook, mapped to component state name
+    messages: supportMessages, // Provided by hook, mapped to component state name
+    isLoading: isSupportLoading,
+    isSending: isSupportSending,
+    connectionState, // Can be used to show connection status if needed
+    error: supportError,
+    sendMessage: sendSupportMessageHook, // Provided by hook
+    setActiveChat: setSelectedSupportChatHook, // Provided by hook, mapped to component state name
+    createSupportChat: createNewSupportChat,
+    refreshChats: refreshSupportChats
+  } = useSupportChat({
+    userId: session?.id || '', // Pass userId from session
+    token: session?.token || '', // Pass token from session
+    role: session?.role || 'user' // Pass role from session
+  });
+
+  // Effect to handle setting active tab based on search params and selecting chats
   useEffect(() => {
-    if (session?.token) {
-      const socketInstance = io({
-        path: '/api/socketio',
-        auth: {
-          token: session.token,
-          role: 'user'
-        },
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
-        timeout: 10000
-      });
-
-      socketInstance.on('connect', () => {
-        console.log('Connected to WebSocket');
-      });
-
-      socketInstance.on('connect_error', (error) => {
-        console.error('Socket connection error:', error);
-        toast.error('Connection error. Please refresh the page.');
-      });
-
-      // Product chat messages
-      socketInstance.on('message_received', (newMessage: Message) => {
-        setMessages(prev => [...prev, newMessage]);
-      });
-
-      // Support chat messages
-      socketInstance.on('support_message', (data: { chatId: string, message: SupportMessage }) => {
-        setSupportMessages(prev => [...prev, data.message]);
-
-        // Update the chat with the new message
-        setSupportChats(prev => prev.map(chat => {
-          if (chat.id === data.chatId) {
-            return {
-              ...chat,
-              messages: [...chat.messages, data.message],
-              updatedAt: new Date().toISOString()
-            };
-          }
-          return chat;
-        }));
-      });
-
-      // Notification for new support chat
-      socketInstance.on('support_chat_created', (chat: SupportChat) => {
-        setSupportChats(prev => [chat, ...prev]);
-        toast.success('New support chat created');
-      });
-
-      setSocket(socketInstance);
-
-      return () => {
-        socketInstance.disconnect();
-      };
+    const tab = searchParams.get('tab');
+    if (tab) {
+      setActiveTab(tab);
     }
-  }, [session]);
 
-  useEffect(() => {
     const chatId = searchParams.get('chatId');
     if (chatId) {
-      const chat = chats.find(c => c.id === chatId);
-      if (chat) {
-        setSelectedChat(chat);
+      // Check which tab is active to determine which chat list to search
+      if (tab === 'product-chats') {
+        const chat = chats.find(c => c.id === chatId);
+        if (chat) {
+          setSelectedChat(chat);
+        }
+      } else if (tab === 'support-chats') {
+        // Use the hook's function to set the active support chat
+        setSelectedSupportChatHook(chatId);
       }
     }
-  }, [chats, searchParams]);
+  }, [searchParams, chats, supportChats, setSelectedSupportChatHook]); // Add supportChats and setSelectedSupportChatHook as dependencies
 
-  // Join chat room when selecting a chat
-  useEffect(() => {
-    if (socket && selectedChat) {
-      socket.emit('join_chat', selectedChat.id);
-
-      return () => {
-        socket.emit('leave_chat', selectedChat.id);
-      };
-    }
-  }, [socket, selectedChat]);
-
+  // Effect to fetch all chats when session is available
   useEffect(() => {
     if (session) {
-      fetchAllChats();
+      // Only fetch product chats here, support chats are fetched by the hook
+      fetchChats();
     }
   }, [session]);
 
+  // Remove effects that fetch messages for selected chats - handled by hook/local fetch
   useEffect(() => {
     if (selectedChat) {
       fetchMessages(selectedChat.id);
     }
   }, [selectedChat]);
-
-  useEffect(() => {
-    if (selectedSupportChat) {
-      fetchSupportMessages(selectedSupportChat.id);
-    }
-  }, [selectedSupportChat]);
 
   useEffect(() => {
     scrollToBottom();
@@ -180,22 +109,24 @@ export default function Messages() {
     scrollToSupportBottom();
   }, [supportMessages]);
 
+  // Combine loading states if necessary for the overall component loading indicator
+  const [isProductLoading, setIsProductLoading] = useState(true);
+  const overallLoading = isProductLoading || isSupportLoading;
+
   const fetchAllChats = async () => {
-    setIsLoading(true);
     try {
-      // Fetch product chats
+      // Only fetch product chats here, support chats are fetched by the hook
       await fetchChats();
 
-      // Fetch support chats
-      await fetchSupportChats();
+      // Support chats are loaded by the hook's internal logic
+      // await fetchSupportChats(); // Remove this call
     } catch (error) {
       console.error('Error fetching all chats:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const fetchChats = async () => {
+    setIsProductLoading(true);
     try {
       const response = await fetch('/api/chats', {
         credentials: 'include'
@@ -211,25 +142,8 @@ export default function Messages() {
     } catch (error) {
       console.error('Error fetching product chats:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to fetch chats');
-    }
-  };
-
-  const fetchSupportChats = async () => {
-    try {
-      const response = await fetch('/api/user/support-chats', {
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch support chats');
-      }
-
-      const data = await response.json();
-      setSupportChats(data);
-    } catch (error) {
-      console.error('Error fetching support chats:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to fetch support chats');
+    } finally {
+      setIsProductLoading(false);
     }
   };
 
@@ -252,47 +166,26 @@ export default function Messages() {
     }
   };
 
-  const fetchSupportMessages = async (chatId: string) => {
-    try {
-      const response = await fetch(`/api/user/support-chats/${chatId}/messages`, {
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch support messages');
-      }
-
-      const data = await response.json();
-      setSupportMessages(data);
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to fetch support messages');
-    }
-  };
-
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedChat || !newMessage.trim() || !socket) return;
+    if (!selectedChat || !newMessage.trim()) return;
 
     setIsSending(true);
     try {
+      // Send message via API
       const response = await fetch(`/api/chats/${selectedChat.id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: newMessage }),
+        credentials: 'include'
       });
 
       if (!response.ok) throw new Error('Failed to send message');
-      const message = await response.json();
+      const sentMessage: Message = await response.json();
 
-      // Emit message through socket
-      socket.emit('new_message', {
-        chatId: selectedChat.id,
-        message
-      });
+      // Add the new message to the state
+      setMessages(prev => [...prev, sentMessage]);
 
-      setMessages(prev => [...prev, message]);
       setNewMessage("");
     } catch (error) {
       console.error('Error:', error);
@@ -304,317 +197,234 @@ export default function Messages() {
 
   const sendSupportMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedSupportChat || !newSupportMessage.trim() || !socket) return;
+    if (!selectedSupportChat || !newSupportMessage.trim() || isSupportSending) return;
 
-    setIsSending(true);
-    try {
-      const response = await fetch(`/api/user/support-chats/${selectedSupportChat.id}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newSupportMessage }),
-      });
+    await sendSupportMessageHook(selectedSupportChat.id, newSupportMessage);
+    setNewSupportMessage("");
+  };
 
-      if (!response.ok) throw new Error('Failed to send message');
-      const message = await response.json();
-
-      // Emit message through socket
-      socket.emit('support_message', {
-        chatId: selectedSupportChat.id,
-        message
-      });
-
-      setSupportMessages(prev => [...prev, message]);
-      setNewSupportMessage("");
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error('Failed to send message. Please try again.');
-    } finally {
-      setIsSending(false);
+  // Add a function to create a new support chat if needed in the UI
+  const handleCreateSupportChat = async (subject: string, initialMessage: string) => {
+    const newChat = await createNewSupportChat(subject, initialMessage);
+    if (newChat) {
+      // Optionally set the new chat as active
+      setSelectedSupportChatHook(newChat.id);
+      setActiveTab('support-chats'); // Switch to support chats tab
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-green-600" />
-      </div>
-    );
-  }
-
+  // JSX Structure - Update to use hook data
   return (
-    <div className="flex flex-col h-screen bg-gray-100">
-      <Tabs defaultValue="product-chats" className="w-full" onValueChange={setActiveTab}>
-        <div className="bg-white p-4 border-b">
+    <div className="flex h-full">
+      <div className="w-1/3 border-r">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="product-chats" className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" /> Product Chats
-            </TabsTrigger>
-            <TabsTrigger value="support-chats" className="flex items-center gap-2">
-              <User className="w-4 h-4" /> Support Chats
-            </TabsTrigger>
+            <TabsTrigger value="product-chats">Product Chats</TabsTrigger>
+            <TabsTrigger value="support-chats">Support Chats ({supportChats.length})</TabsTrigger>
           </TabsList>
-        </div>
-
-        <TabsContent value="product-chats" className="flex-1 flex overflow-hidden">
-          {/* Product Chat List */}
-          <div className="w-1/3 bg-white border-r">
-            <div className="p-4 border-b">
-              <h2 className="text-lg font-semibold">Product Messages</h2>
-            </div>
-            <div className="overflow-y-auto h-[calc(100vh-10rem)]">
-              {chats.length === 0 ? (
-                <div className="p-4 text-center text-gray-500">
-                  <p>No product chats found</p>
-                </div>
-              ) : (
-                chats.map((chat) => (
-                  <div
+          <TabsContent value="product-chats" className="h-[calc(100vh-200px)] overflow-y-auto">
+            {/* Product Chat List - Keep existing logic */}
+            {overallLoading ? (
+              <div className="flex justify-center items-center h-full">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            ) : chats.length === 0 ? (
+              <div className="flex justify-center items-center h-full">
+                <p>No product chats yet.</p>
+              </div>
+            ) : (
+              <ul>
+                {chats.map(chat => (
+                  <li
                     key={chat.id}
-                    className={`p-4 border-b cursor-pointer hover:bg-gray-50 ${selectedChat?.id === chat.id ? "bg-gray-50" : ""
-                      }`}
+                    className={`p-4 cursor-pointer hover:bg-gray-100 ${selectedChat?.id === chat.id ? 'bg-gray-100' : ''}`}
                     onClick={() => setSelectedChat(chat)}
                   >
+                    {/* Display Product Chat Info */}
                     <div className="flex items-center space-x-3">
-                      <Image
-                        src={chat.ad.images[0] || "/placeholder.png"}
-                        alt={chat.ad.title}
-                        width={50}
-                        height={50}
-                        className="rounded-md object-cover"
-                      />
-                      <div className="flex-1">
-                        <h3 className="font-medium text-sm">{chat.ad.title}</h3>
-                        <p className="text-gray-500 text-xs">
-                          {chat.messages[0]?.content || "No messages yet"}
-                        </p>
+                      <div className="relative w-10 h-10 rounded-full overflow-hidden">
+                        {chat.ad.images && chat.ad.images[0] ? (
+                          <Image src={chat.ad.images[0]} alt={chat.ad.title} fill style={{ objectFit: 'cover' }} />
+                        ) : (
+                          <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500">
+                            <MessageSquare className="w-5 h-5" />
+                          </div>
+                        )}
                       </div>
-                      {chat.participants[0].unreadCount > 0 && (
-                        <Badge variant="secondary">
-                          {chat.participants[0].unreadCount}
-                        </Badge>
+                      <div className="flex-1">
+                        <p className="font-semibold truncate">{chat.ad.title}</p>
+                        {/* Display last message if available */}
+                        {chat.messages && chat.messages.length > 0 && (
+                          <p className="text-sm text-gray-600 truncate">{chat.messages[chat.messages.length - 1].content}</p>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {/* Display time since last message if available */}
+                        {chat.messages && chat.messages.length > 0 && formatDistanceToNow(new Date(chat.messages[chat.messages.length - 1].createdAt), { addSuffix: true })}
+                      </div>
+                      {/* Display unread count */}
+                      {(chat.participants?.find(p => p.user.id === session?.id)?.unreadCount ?? 0) > 0 && (
+                        <Badge variant="destructive">{chat.participants.find(p => p.user.id === session?.id)?.unreadCount}</Badge>
                       )}
                     </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Product Chat Messages */}
-          {selectedChat ? (
-            <div className="flex-1 flex flex-col">
-              <div className="p-4 border-b bg-white">
-                <h3 className="font-medium">{selectedChat.ad.title}</h3>
-                <p className="text-sm text-gray-500">
-                  with {selectedChat.participants[0].user.name}
-                </p>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-4">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex mb-4 ${message.senderId === session?.id
-                      ? "justify-end"
-                      : "justify-start"
-                      }`}
-                  >
-                    <div
-                      className={`max-w-[70%] rounded-lg p-3 ${message.senderId === session?.id
-                        ? "bg-green-600 text-white"
-                        : "bg-gray-200"
-                        }`}
-                    >
-                      <p className="text-sm">{message.content}</p>
-                      <p className="text-xs mt-1 opacity-70">
-                        {formatDistanceToNow(new Date(message.createdAt), {
-                          addSuffix: true,
-                        })}
-                      </p>
-                    </div>
-                  </div>
+                  </li>
                 ))}
-                <div ref={messagesEndRef} />
+              </ul>
+            )}
+          </TabsContent>
+          <TabsContent value="support-chats" className="h-[calc(100vh-200px)] overflow-y-auto">
+            {/* Support Chat List - Use hook data */}
+            {isSupportLoading ? (
+              <div className="flex justify-center items-center h-full">
+                <Loader2 className="h-8 w-8 animate-spin" />
               </div>
-
-              <form onSubmit={sendMessage} className="p-4 bg-white border-t">
-                <div className="flex space-x-2">
-                  <Input
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Type a message..."
-                    className="flex-1"
-                  />
-                  <Button
-                    type="submit"
-                    disabled={isSending || !newMessage.trim()}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    {isSending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Send className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-              </form>
-            </div>
-          ) : (
-            <div className="flex-1 flex items-center justify-center bg-gray-50">
-              <p className="text-gray-500">Select a chat to start messaging</p>
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="support-chats" className="flex-1 flex overflow-hidden">
-          {/* Support Chat List */}
-          <div className="w-1/3 bg-white border-r">
-            <div className="p-4 border-b">
-              <h2 className="text-lg font-semibold">Support Chats</h2>
-              <Button
-                onClick={() => {
-                  // Create new support chat
-                  if (socket) {
-                    socket.emit('support_message', {
-                      content: 'I need help with my account',
-                      userId: session?.id
-                    });
-                    toast.success('Support request sent. An agent will be with you shortly.');
-                  }
-                }}
-                className="mt-2 w-full bg-green-600 hover:bg-green-700 text-sm py-1"
-              >
-                New Support Request
-              </Button>
-            </div>
-            <div className="overflow-y-auto h-[calc(100vh-12rem)]">
-              {supportChats.length === 0 ? (
-                <div className="p-4 text-center text-gray-500">
-                  <p>No support chats found</p>
-                </div>
-              ) : (
-                supportChats.map((chat) => (
-                  <div
+            ) : supportChats.length === 0 ? (
+              <div className="flex flex-col justify-center items-center h-full space-y-4">
+                <p>No support chats yet.</p>
+                {/* Optional: Add a button to create a new support chat */}
+                <Button onClick={() => handleCreateSupportChat('General Inquiry', 'I need help with...')}>Create Support Chat</Button>
+              </div>
+            ) : (
+              <ul>
+                {supportChats.map(chat => (
+                  <li
                     key={chat.id}
-                    className={`p-4 border-b cursor-pointer hover:bg-gray-50 ${selectedSupportChat?.id === chat.id ? "bg-gray-50" : ""
-                      }`}
-                    onClick={() => setSelectedSupportChat(chat)}
+                    className={`p-4 cursor-pointer hover:bg-gray-100 ${selectedSupportChat?.id === chat.id ? 'bg-gray-100' : ''}`}
+                    onClick={() => setSelectedSupportChatHook(chat.id)} // Use hook's setter
                   >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-medium text-sm">Support Chat</h3>
-                        <p className="text-gray-500 text-xs">
-                          {chat.messages[0]?.content || "No messages yet"}
-                        </p>
+                    {/* Display Support Chat Info */}
+                    <div className="flex items-center space-x-3">
+                      <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+                        <User className="w-5 h-5 text-gray-500" />
                       </div>
-                      <div className="flex flex-col items-end">
-                        <Badge
-                          variant={
-                            chat.status === 'pending' ? 'secondary' :
-                              chat.status === 'active' ? 'default' : 'outline'
-                          }
-                          className="mb-1"
-                        >
-                          {chat.status}
-                        </Badge>
-                        <span className="text-xs text-gray-400">
-                          {formatDistanceToNow(new Date(chat.updatedAt), { addSuffix: true })}
-                        </span>
+                      <div className="flex-1">
+                        <p className="font-semibold">Support Chat: {chat.ticketId}</p>
+                        {/* Display last message if available */}
+                        {supportMessages.length > 0 && supportMessages[supportMessages.length - 1].chatId === chat.id && (
+                          <p className="text-sm text-gray-600 truncate">{supportMessages[supportMessages.length - 1].content}</p>
+                        )}
                       </div>
+                      <div className="text-xs text-gray-500">
+                        {/* Display time since last message if available */}
+                        {supportMessages.length > 0 && supportMessages[supportMessages.length - 1].chatId === chat.id && formatDistanceToNow(new Date(supportMessages[supportMessages.length - 1].createdAt), { addSuffix: true })}
+                      </div>
+                      {/* Add unread count if available in SupportChat type */}
+                      {/* chat.unreadCount > 0 && (<Badge variant="destructive">{chat.unreadCount}</Badge>) */}
                     </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
+      <div className="flex-1 flex flex-col">
+        {/* Chat Display Area */}
+        {activeTab === "product-chats" && selectedChat && (
+          <div className="flex-1 flex flex-col">
+            {/* Product Chat Header */}
+            <div className="border-b p-4 flex items-center space-x-3">
+              <div className="relative w-10 h-10 rounded-full overflow-hidden">
+                {selectedChat.ad.images && selectedChat.ad.images[0] ? (
+                  <Image src={selectedChat.ad.images[0]} alt={selectedChat.ad.title} fill style={{ objectFit: 'cover' }} />
+                ) : (
+                  <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500">
+                    <MessageSquare className="w-5 h-5" />
                   </div>
-                ))
+                )}
+              </div>
+              <h3 className="text-lg font-semibold">{selectedChat.ad.title}</h3>
+            </div>
+
+            {/* Product Messages */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {messages.map((message, index) => (
+                <div
+                  key={message.id}
+                  className={`mb-4 ${message.senderId === session?.id ? 'text-right' : 'text-left'}`}
+                >
+                  <span className={`inline-block p-2 rounded-lg ${message.senderId === session?.id ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'}`}>
+                    {message.content}
+                  </span>
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Product Message Input */}
+            <div className="border-t p-4">
+              <form onSubmit={sendMessage} className="flex space-x-2">
+                <Input
+                  type="text"
+                  placeholder="Type a message..."
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  disabled={isSending}
+                />
+                <Button type="submit" disabled={isSending || !newMessage.trim()}>
+                  {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                </Button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "support-chats" && selectedSupportChat && (
+          <div className="flex-1 flex flex-col">
+            {/* Support Chat Header */}
+            <div className="border-b p-4 flex items-center space-x-3">
+              <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+                <User className="w-5 h-5 text-gray-500" />
+              </div>
+              <h3 className="text-lg font-semibold">Support Chat: {selectedSupportChat.ticketId}</h3>
+              {/* Display status if available in SupportChat type */}
+              {selectedSupportChat.status && (<Badge>{selectedSupportChat.status}</Badge>)}
+            </div>
+
+            {/* Support Messages */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {supportMessages.map((message, index) => (
+                <div
+                  key={message.id}
+                  className={`mb-4 ${message.senderId === session?.id ? 'text-right' : 'text-left'}`}
+                >
+                  <span className={`inline-block p-2 rounded-lg ${message.senderId === session?.id ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'}`}>
+                    {message.content}
+                  </span>
+                </div>
+              ))}
+              <div ref={supportMessagesEndRef} />
+            </div>
+
+            {/* Support Message Input */}
+            <div className="border-t p-4">
+              <form onSubmit={sendSupportMessage} className="flex space-x-2">
+                <Input
+                  type="text"
+                  placeholder="Type a support message..."
+                  value={newSupportMessage}
+                  onChange={(e) => setNewSupportMessage(e.target.value)}
+                  disabled={isSupportSending || selectedSupportChat.status === 'closed'}
+                />
+                <Button type="submit" disabled={isSupportSending || !newSupportMessage.trim() || selectedSupportChat.status === 'closed'}>
+                  {isSupportSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                </Button>
+              </form>
+              {selectedSupportChat.status === 'closed' && (
+                <p className="text-xs text-center mt-2 text-red-500">
+                  This support chat is closed. You cannot send messages.
+                </p>
               )}
             </div>
           </div>
+        )}
 
-          {/* Support Chat Messages */}
-          {selectedSupportChat ? (
-            <div className="flex-1 flex flex-col">
-              <div className="p-4 border-b bg-white">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="font-medium">Support Chat</h3>
-                    <p className="text-sm text-gray-500">
-                      {selectedSupportChat.agent ?
-                        `with Agent: ${selectedSupportChat.agent.user.name}` :
-                        'Waiting for agent...'
-                      }
-                    </p>
-                  </div>
-                  <Badge
-                    variant={
-                      selectedSupportChat.status === 'pending' ? 'secondary' :
-                        selectedSupportChat.status === 'active' ? 'default' : 'outline'
-                    }
-                  >
-                    {selectedSupportChat.status}
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-4">
-                {supportMessages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex mb-4 ${message.senderType === 'user'
-                      ? "justify-end"
-                      : "justify-start"
-                      }`}
-                  >
-                    <div
-                      className={`max-w-[70%] rounded-lg p-3 ${message.senderType === 'user'
-                        ? "bg-green-600 text-white"
-                        : "bg-gray-200"
-                        }`}
-                    >
-                      <p className="text-sm">{message.content}</p>
-                      <p className="text-xs mt-1 opacity-70">
-                        {formatDistanceToNow(new Date(message.createdAt), {
-                          addSuffix: true,
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-                <div ref={supportMessagesEndRef} />
-              </div>
-
-              <form onSubmit={sendSupportMessage} className="p-4 bg-white border-t">
-                <div className="flex space-x-2">
-                  <Input
-                    value={newSupportMessage}
-                    onChange={(e) => setNewSupportMessage(e.target.value)}
-                    placeholder="Type a message..."
-                    className="flex-1"
-                    disabled={selectedSupportChat.status === 'closed'}
-                  />
-                  <Button
-                    type="submit"
-                    disabled={isSending || !newSupportMessage.trim() || selectedSupportChat.status === 'closed'}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    {isSending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Send className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-                {selectedSupportChat.status === 'closed' && (
-                  <p className="text-xs text-center mt-2 text-red-500">
-                    This support chat is closed. You cannot send messages.
-                  </p>
-                )}
-              </form>
-            </div>
-          ) : (
-            <div className="flex-1 flex items-center justify-center bg-gray-50">
-              <p className="text-gray-500">Select a support chat or create a new one</p>
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+        {!selectedChat && !selectedSupportChat && (
+          <div className="flex-1 flex items-center justify-center text-gray-500">
+            <p>Select a chat to view messages.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

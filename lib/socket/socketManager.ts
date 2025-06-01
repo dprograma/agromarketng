@@ -1,10 +1,6 @@
+// lib/socket/socketManager.ts
 import { io, Socket } from 'socket.io-client';
-import { getPendingMessages, removePendingMessage, updatePendingMessageRetry } from '../cache/chatCache';
 
-// Maximum number of retry attempts for sending pending messages
-const MAX_RETRY_ATTEMPTS = 5;
-
-// Socket connection states
 export enum ConnectionState {
   DISCONNECTED = 'disconnected',
   CONNECTING = 'connecting',
@@ -13,294 +9,353 @@ export enum ConnectionState {
   ERROR = 'error'
 }
 
-// Socket manager class
-export class SocketManager {
-  private static instance: SocketManager;
+export interface SocketManagerEvents {
+  connectionStateChanged: (state: ConnectionState) => void;
+  messageReceived: (data: any) => void;
+  supportMessage: (data: any) => void;
+  supportChatCreated: (data: any) => void;
+  agentAccepted: (data: any) => void;
+  supportChatClosed: (data: any) => void;
+  notificationReceived: (data: any) => void;
+  typingStarted: (data: any) => void;
+  typingStopped: (data: any) => void;
+  error: (data: any) => void;
+}
+
+class SocketManager {
+  private static instance: SocketManager | null = null;
   private socket: Socket | null = null;
+  private listeners: Map<keyof SocketManagerEvents, Set<Function>> = new Map();
   private connectionState: ConnectionState = ConnectionState.DISCONNECTED;
-  private reconnectAttempts: number = 0;
-  private maxReconnectAttempts: number = 10;
-  private reconnectInterval: number = 5000; // 5 seconds
-  private reconnectTimer: NodeJS.Timeout | null = null;
-  private eventListeners: Map<string, Set<Function>> = new Map();
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 5;
+  private reconnectInterval = 3000;
   private token: string | null = null;
   private role: string | null = null;
   private userId: string | null = null;
-  private pendingMessageProcessor: NodeJS.Timeout | null = null;
 
-  // Private constructor for singleton pattern
-  private constructor() {}
+  constructor() {
+    // Initialize listener sets
+    Object.keys({} as SocketManagerEvents).forEach(event => {
+      this.listeners.set(event as keyof SocketManagerEvents, new Set());
+    });
+  }
 
-  // Get singleton instance
-  public static getInstance(): SocketManager {
+  static getInstance(): SocketManager {
     if (!SocketManager.instance) {
       SocketManager.instance = new SocketManager();
     }
     return SocketManager.instance;
   }
 
-  // Initialize socket connection
-  public init(token: string, role: string = 'user', userId: string): void {
-    this.token = token;
-    this.role = role;
-    this.userId = userId;
-
-    if (this.socket) {
-      this.disconnect();
-    }
-
-    this.connect();
-    this.startPendingMessageProcessor();
+  // Initialize the socket connection (alias for connect method)
+  init(token: string, role: string, userId: string): Promise<void> {
+    return this.connect(token, role, userId);
   }
 
-  // Connect to socket server
-  private connect(): void {
-    if (this.connectionState === ConnectionState.CONNECTING || 
-        this.connectionState === ConnectionState.CONNECTED) {
-      return;
+  // Event listener management
+  on<K extends keyof SocketManagerEvents>(event: K, callback: SocketManagerEvents[K]) {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, new Set());
     }
+    this.listeners.get(event)!.add(callback);
+  }
 
-    this.connectionState = ConnectionState.CONNECTING;
-    this.notifyListeners('connectionStateChanged', this.connectionState);
+  off<K extends keyof SocketManagerEvents>(event: K, callback: SocketManagerEvents[K]) {
+    const eventListeners = this.listeners.get(event);
+    if (eventListeners) {
+      eventListeners.delete(callback);
+    }
+  }
 
-    try {
-      this.socket = io(process.env.NEXT_PUBLIC_SITE_URL || window.location.origin, {
-        path: '/api/socketio',
-        auth: {
-          token: this.token,
-          role: this.role,
-          userId: this.userId
-        },
-        reconnectionAttempts: this.maxReconnectAttempts,
-        reconnectionDelay: this.reconnectInterval,
-        timeout: 10000,
-        transports: ['websocket', 'polling']
+  private notifyListeners<K extends keyof SocketManagerEvents>(
+    event: K,
+    ...args: Parameters<SocketManagerEvents[K]>
+  ) {
+    const eventListeners = this.listeners.get(event);
+    if (eventListeners) {
+      eventListeners.forEach(callback => {
+        try {
+          (callback as any)(...args);
+        } catch (error) {
+          console.error(`Error in socket event listener for ${event}:`, error);
+        }
       });
+    }
+  }
 
-      // Connection events
-      this.socket.on('connect', this.handleConnect.bind(this));
-      this.socket.on('disconnect', this.handleDisconnect.bind(this));
-      this.socket.on('connect_error', this.handleError.bind(this));
-      this.socket.on('reconnect_attempt', this.handleReconnectAttempt.bind(this));
-      this.socket.on('reconnect', this.handleReconnect.bind(this));
-      this.socket.on('reconnect_error', this.handleReconnectError.bind(this));
-      this.socket.on('reconnect_failed', this.handleReconnectFailed.bind(this));
-    } catch (error) {
-      console.error('Error initializing socket:', error);
-      this.connectionState = ConnectionState.ERROR;
+  // Connection management
+  connect(token: string, role: string, userId: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (this.socket?.connected) {
+        console.log('Socket already connected');
+        resolve();
+        return;
+      }
+
+      this.token = token;
+      this.role = role;
+      this.userId = userId;
+
+      if (this.socket) {
+        this.socket.disconnect();
+      }
+
+      this.connectionState = ConnectionState.CONNECTING;
       this.notifyListeners('connectionStateChanged', this.connectionState);
-      this.scheduleReconnect();
+
+      try {
+        // Connect to the standalone socket server
+        const socketUrl = process.env.NODE_ENV === 'production'
+          ? process.env.NEXT_PUBLIC_BASE_URL?.replace('http', 'ws') || 'ws://localhost:3002'
+          : `http://localhost:${process.env.SOCKET_PORT || 3002}`;
+
+        console.log('Connecting to socket server:', socketUrl);
+
+        this.socket = io(socketUrl, {
+          auth: {
+            token: this.token,
+            role: this.role,
+            userId: this.userId
+          },
+          reconnectionAttempts: this.maxReconnectAttempts,
+          reconnectionDelay: this.reconnectInterval,
+          timeout: 10000,
+          transports: ['websocket', 'polling'],
+          forceNew: true,
+          autoConnect: true
+        });
+
+        // Connection events
+        this.socket.on('connect', () => {
+          console.log('Socket connected successfully');
+          this.connectionState = ConnectionState.CONNECTED;
+          this.reconnectAttempts = 0;
+          this.notifyListeners('connectionStateChanged', this.connectionState);
+          resolve();
+        });
+
+        this.socket.on('disconnect', (reason) => {
+          console.log('Socket disconnected:', reason);
+          this.connectionState = ConnectionState.DISCONNECTED;
+          this.notifyListeners('connectionStateChanged', this.connectionState);
+          
+          // Auto-reconnect for certain disconnect reasons
+          if (reason === 'io server disconnect') {
+            // Server initiated disconnect, try to reconnect
+            setTimeout(() => this.reconnect(), this.reconnectInterval);
+          }
+        });
+
+        this.socket.on('connect_error', (error) => {
+          console.error('Socket connection error:', error);
+          this.connectionState = ConnectionState.ERROR;
+          this.notifyListeners('connectionStateChanged', this.connectionState);
+          reject(error);
+        });
+
+        this.socket.on('reconnect_attempt', (attemptNumber) => {
+          console.log(`Socket reconnect attempt ${attemptNumber}`);
+          this.connectionState = ConnectionState.RECONNECTING;
+          this.notifyListeners('connectionStateChanged', this.connectionState);
+        });
+
+        this.socket.on('reconnect', (attemptNumber) => {
+          console.log(`Socket reconnected after ${attemptNumber} attempts`);
+          this.connectionState = ConnectionState.CONNECTED;
+          this.reconnectAttempts = 0;
+          this.notifyListeners('connectionStateChanged', this.connectionState);
+        });
+
+        this.socket.on('reconnect_error', (error) => {
+          console.error('Socket reconnection error:', error);
+          this.reconnectAttempts++;
+          
+          if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            this.connectionState = ConnectionState.ERROR;
+            this.notifyListeners('connectionStateChanged', this.connectionState);
+          }
+        });
+
+        // Application-specific events
+        this.setupEventListeners();
+
+      } catch (error) {
+        console.error('Error creating socket connection:', error);
+        this.connectionState = ConnectionState.ERROR;
+        this.notifyListeners('connectionStateChanged', this.connectionState);
+        reject(error);
+      }
+    });
+  }
+
+  private setupEventListeners() {
+    if (!this.socket) return;
+
+    // Chat events
+    this.socket.on('message_received', (data) => {
+      this.notifyListeners('messageReceived', data);
+    });
+
+    this.socket.on('typing_started', (data) => {
+      this.notifyListeners('typingStarted', data);
+    });
+
+    this.socket.on('typing_stopped', (data) => {
+      this.notifyListeners('typingStopped', data);
+    });
+
+    // Support chat events
+    this.socket.on('support_message', (data) => {
+      this.notifyListeners('supportMessage', data);
+    });
+
+    this.socket.on('support_chat_created', (data) => {
+      this.notifyListeners('supportChatCreated', data);
+    });
+
+    this.socket.on('agent_accepted', (data) => {
+      this.notifyListeners('agentAccepted', data);
+    });
+
+    this.socket.on('support_chat_closed', (data) => {
+      this.notifyListeners('supportChatClosed', data);
+    });
+
+    // Notification events
+    this.socket.on('notification_received', (data) => {
+      this.notifyListeners('notificationReceived', data);
+    });
+
+    // Error events
+    this.socket.on('error', (data) => {
+      console.error('Socket error:', data);
+      this.notifyListeners('error', data);
+    });
+
+    this.socket.on('no_agents_available', (data) => {
+      console.log('No agents available:', data);
+      this.notifyListeners('error', data);
+    });
+  }
+
+  private reconnect() {
+    if (this.token && this.role && this.userId) {
+      console.log('Attempting to reconnect socket...');
+      this.connect(this.token, this.role, this.userId).catch(error => {
+        console.error('Reconnection failed:', error);
+      });
     }
   }
 
-  // Handle successful connection
-  private handleConnect(): void {
-    console.log('SocketManager: Socket connected');
-    this.reconnectAttempts = 0;
-    this.connectionState = ConnectionState.CONNECTED;
-    this.notifyListeners('connectionStateChanged', this.connectionState);
-    
-    // Process any pending messages
-    this.processPendingMessages();
-  }
-
-  // Handle disconnection
-  private handleDisconnect(reason: string): void {
-    console.log(`SocketManager: Socket disconnected: ${reason}`);
-    this.connectionState = ConnectionState.DISCONNECTED;
-    this.notifyListeners('connectionStateChanged', this.connectionState);
-    
-    // If not closed by client, try to reconnect
-    if (reason !== 'io client disconnect') {
-      this.scheduleReconnect();
-    }
-  }
-
-  // Handle connection error
-  private handleError(error: Error): void {
-    console.error('SocketManager: Socket connection error:', error);
-    this.connectionState = ConnectionState.ERROR;
-    this.notifyListeners('connectionStateChanged', this.connectionState);
-    this.scheduleReconnect();
-  }
-
-  // Handle reconnection attempt
-  private handleReconnectAttempt(attempt: number): void {
-    console.log(`SocketManager: Socket reconnection attempt ${attempt}`);
-    this.reconnectAttempts = attempt;
-    this.connectionState = ConnectionState.RECONNECTING;
-    this.notifyListeners('connectionStateChanged', this.connectionState);
-  }
-
-  // Handle successful reconnection
-  private handleReconnect(attempt: number): void {
-    console.log(`SocketManager: Socket reconnected after ${attempt} attempts`);
-    this.reconnectAttempts = 0;
-    this.connectionState = ConnectionState.CONNECTED;
-    this.notifyListeners('connectionStateChanged', this.connectionState);
-    
-    // Process any pending messages
-    this.processPendingMessages();
-  }
-
-  // Handle reconnection error
-  private handleReconnectError(error: Error): void {
-    console.error('SocketManager: Socket reconnection error:', error);
-    this.connectionState = ConnectionState.ERROR;
-    this.notifyListeners('connectionStateChanged', this.connectionState);
-  }
-
-  // Handle reconnection failure
-  private handleReconnectFailed(): void {
-    console.error('SocketManager: Socket reconnection failed after maximum attempts');
-    this.connectionState = ConnectionState.ERROR;
-    this.notifyListeners('connectionStateChanged', this.connectionState);
-  }
-
-  // Schedule reconnection attempt
-  private scheduleReconnect(): void {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-    }
-
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectTimer = setTimeout(() => {
-        this.reconnectAttempts++;
-        this.connect();
-      }, this.reconnectInterval);
-    }
-  }
-
-  // Disconnect socket
-  public disconnect(): void {
+  disconnect() {
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
     }
-    
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-    
-    if (this.pendingMessageProcessor) {
-      clearInterval(this.pendingMessageProcessor);
-      this.pendingMessageProcessor = null;
-    }
-    
     this.connectionState = ConnectionState.DISCONNECTED;
     this.notifyListeners('connectionStateChanged', this.connectionState);
   }
 
-  // Get current connection state
-  public getConnectionState(): ConnectionState {
+  // Generic emit method
+  emit(event: string, data?: any) {
+    if (this.socket?.connected) {
+      this.socket.emit(event, data);
+    } else {
+      console.warn(`Cannot emit ${event}: socket not connected`);
+    }
+  }
+
+  // Chat methods
+  joinChat(chatId: string) {
+    if (this.socket?.connected) {
+      this.socket.emit('join_chat', chatId);
+    }
+  }
+
+  leaveChat(chatId: string) {
+    if (this.socket?.connected) {
+      this.socket.emit('leave_chat', chatId);
+    }
+  }
+
+  sendMessage(data: { chatId: string; message: any; recipientId: string }) {
+    if (this.socket?.connected) {
+      this.socket.emit('new_message', data);
+    }
+  }
+
+  startTyping(chatId: string) {
+    if (this.socket?.connected) {
+      this.socket.emit('typing_started', { chatId });
+    }
+  }
+
+  stopTyping(chatId: string) {
+    if (this.socket?.connected) {
+      this.socket.emit('typing_stopped', { chatId });
+    }
+  }
+
+  // Support chat methods
+  joinSupportChat(chatId: string) {
+    if (this.socket?.connected) {
+      this.socket.emit('join_support_chat', chatId);
+    }
+  }
+
+  leaveSupportChat(chatId: string) {
+    if (this.socket?.connected) {
+      this.socket.emit('leave_support_chat', chatId);
+    }
+  }
+
+  sendSupportMessage(data: any) {
+    if (this.socket?.connected) {
+      this.socket.emit('support_message', data);
+    }
+  }
+
+  acceptSupportChat(chatId: string) {
+    if (this.socket?.connected) {
+      this.socket.emit('accept_support_chat', { chatId });
+    }
+  }
+
+  closeSupportChat(chatId: string, reason?: string) {
+    if (this.socket?.connected) {
+      this.socket.emit('close_support_chat', { chatId, reason });
+    }
+  }
+
+  // Notification methods
+  sendNotification(data: { userId: string; type: string; message: string; time?: string }) {
+    if (this.socket?.connected) {
+      this.socket.emit('send_notification', data);
+    }
+  }
+
+  broadcastNotification(data: { type: string; message: string; userIds?: string[] }) {
+    if (this.socket?.connected) {
+      this.socket.emit('broadcast_notification', data);
+    }
+  }
+
+  // Getters
+  get isConnected(): boolean {
+    return this.socket?.connected || false;
+  }
+
+  get getConnectionState(): ConnectionState {
     return this.connectionState;
   }
 
-  // Add event listener
-  public on(event: string, callback: Function): void {
-    if (!this.eventListeners.has(event)) {
-      this.eventListeners.set(event, new Set());
-    }
-    this.eventListeners.get(event)?.add(callback);
-    
-    // If this is a socket event and socket exists, register the callback
-    if (this.socket && event !== 'connectionStateChanged') {
-      this.socket.on(event, (...args: any[]) => callback(...args));
-    }
-  }
-
-  // Remove event listener
-  public off(event: string, callback: Function): void {
-    if (this.eventListeners.has(event)) {
-      this.eventListeners.get(event)?.delete(callback);
-    }
-    
-    // If this is a socket event and socket exists, remove the callback
-    if (this.socket && event !== 'connectionStateChanged') {
-      this.socket.off(event, callback as any);
-    }
-  }
-
-  // Notify all listeners of an event
-  private notifyListeners(event: string, ...args: any[]): void {
-    if (this.eventListeners.has(event)) {
-      this.eventListeners.get(event)?.forEach(callback => {
-        try {
-          callback(...args);
-        } catch (error) {
-          console.error(`Error in ${event} listener:`, error);
-        }
-      });
-    }
-  }
-
-  // Emit event to server
-  public emit(event: string, ...args: any[]): void {
-    if (this.socket && this.connectionState === ConnectionState.CONNECTED) {
-      this.socket.emit(event, ...args);
-    } else {
-      console.warn(`Cannot emit ${event}: Socket not connected`);
-    }
-  }
-
-  // Start the pending message processor
-  private startPendingMessageProcessor(): void {
-    if (this.pendingMessageProcessor) {
-      clearInterval(this.pendingMessageProcessor);
-    }
-    
-    // Check for pending messages every 30 seconds
-    this.pendingMessageProcessor = setInterval(() => {
-      if (this.connectionState === ConnectionState.CONNECTED) {
-        this.processPendingMessages();
-      }
-    }, 30000);
-  }
-
-  // Process pending messages
-  private async processPendingMessages(): Promise<void> {
-    if (this.connectionState !== ConnectionState.CONNECTED) {
-      return;
-    }
-    
-    try {
-      const pendingMessages = await getPendingMessages();
-      
-      for (const message of pendingMessages) {
-        // Skip messages that have exceeded retry attempts
-        if (message.retryCount >= MAX_RETRY_ATTEMPTS) {
-          console.warn(`Message ${message.id} exceeded max retry attempts, removing`);
-          await removePendingMessage(message.id);
-          continue;
-        }
-        
-        try {
-          if (message.type === 'regular') {
-            // Emit regular chat message
-            this.socket?.emit('new_message', {
-              chatId: message.chatId,
-              content: message.content,
-              pendingId: message.id
-            });
-          } else {
-            // Emit support chat message
-            this.socket?.emit('new_support_message', {
-              chatId: message.chatId,
-              content: message.content,
-              pendingId: message.id
-            });
-          }
-          
-          // Remove the message if it was sent successfully
-          await removePendingMessage(message.id);
-        } catch (error) {
-          console.error(`Error sending pending message ${message.id}:`, error);
-          await updatePendingMessageRetry(message.id);
-        }
-      }
-    } catch (error) {
-      console.error('Error processing pending messages:', error);
-    }
+  get getSocket(): Socket | null {
+    return this.socket;
   }
 }
+
+// Export singleton instance and class
+export { SocketManager };
+export const socketManager = new SocketManager();
+export default socketManager;

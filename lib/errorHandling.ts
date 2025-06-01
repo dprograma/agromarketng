@@ -35,11 +35,16 @@ export const handleApiError = (
 
 /**
  * Safely parse JSON without throwing
- * @param jsonString The JSON string to parse
- * @param fallback Fallback value if parsing fails
+ * @param jsonString The JSON string to parse (can be null or undefined)
+ * @param fallback Fallback value if parsing fails or input is null/undefined
  * @returns Parsed JSON or fallback value
  */
-export const safeJsonParse = <T>(jsonString: string, fallback: T): T => {
+export const safeJsonParse = <T>(jsonString: string | null | undefined, fallback: T): T => {
+  // Handle null or undefined input explicitly
+  if (jsonString === null || jsonString === undefined) {
+    return fallback;
+  }
+
   try {
     return JSON.parse(jsonString) as T;
   } catch (error) {
