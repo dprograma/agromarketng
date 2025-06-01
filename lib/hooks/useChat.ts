@@ -143,10 +143,12 @@ export function useChat({ userId, token }: UseChatProps): UseChatReturn {
       }));
     };
 
-    socketManager.on('message_received', handleNewMessage);
+    // Fixed: Use 'messageReceived' instead of 'message_received'
+    socketManager.on('messageReceived', handleNewMessage);
 
     return () => {
-      socketManager.off('message_received', handleNewMessage);
+      // Fixed: Use 'messageReceived' instead of 'message_received'
+      socketManager.off('messageReceived', handleNewMessage);
     };
   }, [userId, token, activeChat, messages]);
 
@@ -233,7 +235,8 @@ export function useChat({ userId, token }: UseChatProps): UseChatReturn {
 
       // Check if socket is connected
       const socketManager = SocketManager.getInstance();
-      const isConnected = socketManager.getConnectionState() === ConnectionState.CONNECTED;
+      // Fixed: Use getConnectionState as a getter property, not a function call
+      const isConnected = socketManager.getConnectionState === ConnectionState.CONNECTED;
 
       if (isConnected) {
         // Send via socket

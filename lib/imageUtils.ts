@@ -35,18 +35,29 @@ export function getResponsiveSizes(customSizes?: Partial<ResponsiveImageSizes>):
  * @param src Image source
  * @returns Placeholder blur data URL or undefined
  */
-export function getImagePlaceholder(src: string | StaticImageData): string | undefined {
+export function getImagePlaceholder(src: string | StaticImageData | null | undefined): string | undefined {
+  // Handle null, undefined, or empty string src
+  if (!src) {
+    return undefined;
+  }
+
   // If it's a StaticImageData object with blurDataURL, return it
-  if (typeof src !== 'string' && src.blurDataURL) {
+  if (typeof src !== 'string') {
+    // Handle StaticImageData without blurDataURL
+    if (!src.blurDataURL) {
+      return undefined;
+    }
     return src.blurDataURL;
   }
 
   // For external URLs, return undefined (Next.js will handle it)
-  if (typeof src === 'string' && (src.startsWith('http://') || src.startsWith('https://'))) {
+  if (src.startsWith('http://') || src.startsWith('https://')) {
     return undefined;
   }
 
   // For local images without blur data, return a tiny placeholder
+  // This case might need adjustment based on how local images are handled and tested
+  // For now, keeping the existing placeholder for local strings that are not external URLs
   return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjZjFmMWYxIi8+Cjwvc3ZnPg==';
 }
 
