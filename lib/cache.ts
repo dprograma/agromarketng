@@ -3,7 +3,7 @@ type CacheEntry<T> = {
     timestamp: number;
 };
 
-class Cache {
+export class Cache {
     private static instance: Cache;
     private cache: Map<string, CacheEntry<any>>;
     private readonly DEFAULT_TTL: number = 5 * 60 * 1000; // 5 minutes
