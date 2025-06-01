@@ -151,10 +151,12 @@ export function useSupportChat({ userId, token, role = 'user' }: UseSupportChatP
       }));
     };
 
-    socketManager.on('support_message', handleNewMessage);
+    // Fixed: Use 'supportMessage' instead of 'support_message'
+    socketManager.on('supportMessage', handleNewMessage);
 
     return () => {
-      socketManager.off('support_message', handleNewMessage);
+      // Fixed: Use 'supportMessage' instead of 'support_message'
+      socketManager.off('supportMessage', handleNewMessage);
     };
   }, [userId, token, activeChat, messages]);
 
@@ -243,7 +245,8 @@ export function useSupportChat({ userId, token, role = 'user' }: UseSupportChatP
 
       // Check if socket is connected
       const socketManager = SocketManager.getInstance();
-      const isConnected = socketManager.getConnectionState() === ConnectionState.CONNECTED;
+      // Fixed: Use getConnectionState as a getter property, not a function call
+      const isConnected = socketManager.getConnectionState === ConnectionState.CONNECTED;
 
       if (isConnected) {
         // Send via socket
