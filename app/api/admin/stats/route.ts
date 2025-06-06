@@ -42,15 +42,6 @@ export async function GET(req: NextRequest) {
       where: { isAvailable: true }
     });
 
-    // Get active chats count
-    const activeChats = await prisma.supportChat.count({
-      where: { status: 'active' }
-    });
-
-    // Calculate average response time (in minutes)
-    // This is a simplified calculation - in a real app, you'd track message timestamps
-    const avgResponseTime = 2.5; // Placeholder for now
-
     // Calculate resolution rate (percentage of closed tickets)
     const totalTickets = await prisma.supportTicket.count();
     const resolvedTickets = await prisma.supportTicket.count({
@@ -64,8 +55,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       totalAgents,
       activeAgents,
-      activeChats,
-      avgResponseTime,
       resolutionRate
     });
   } catch (error) {

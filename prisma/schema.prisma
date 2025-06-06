@@ -22,15 +22,16 @@ model User {
   accounts           Account[]
   ads                Ad[]
   Agent              Agent?
-  ChatParticipant    ChatParticipant[]
   invoices           Invoice[]
-  Message            Message[]
   notifications      Notification[]
   paymentMethods     PaymentMethod[]
   sessions           Session[]
-  SupportChat        SupportChat[]
   supportTickets     SupportTicket[]
   transactions       Transaction[]
+  conversationsAsBuyer Conversation[] @relation("BuyerConversations")
+  conversationsAsSeller Conversation[] @relation("SellerConversations")
+  sentMessages       Message[]
+  sentSupportMessages SupportMessage[] @relation("SupportMessageSender") // New relation for support messages
   subscriptionPlan   SubscriptionPlan? @relation("UserSubscription", fields: [subscriptionPlanId], references: [id])
 }
 
@@ -65,7 +66,7 @@ model Ad {
   subcategory        String?
   subscriptionPlan   SubscriptionPlan? @relation("AdSubscription", fields: [subscriptionPlanId], references: [id])
   user               User              @relation(fields: [userId], references: [id])
-  Chat               Chat[]
+  conversations      Conversation[]
 
   @@index([category])
   @@index([location])
@@ -178,53 +179,64 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-model Chat {
-  id           String            @id @default(cuid())
-  adId         String
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  ad           Ad                @relation(fields: [adId], references: [id])
-  participants ChatParticipant[]
-  messages     Message[]
+model SupportTicket {
+  id          String           @id @default(cuid())
+  subject     String
+  priority    String
+  category    String
+  status      String           @default("open")
+  attachments String[]
+  userId      String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  user        User             @relation(fields: [userId], references: [id])
+  messages    SupportMessage[] // Relation to SupportMessage model
 }
 
-model ChatParticipant {
-  id          String   @id @default(cuid())
-  userId      String
-  chatId      String
-  unreadCount Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  chat        Chat     @relation(fields: [chatId], references: [id])
-  user        User     @relation(fields: [userId], references: [id])
+model SupportMessage {
+  id            String        @id @default(cuid())
+  ticketId      String
+  senderId      String
+  content       String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  ticket        SupportTicket @relation(fields: [ticketId], references: [id])
+  sender        User          @relation("SupportMessageSender", fields: [senderId], references: [id])
+  isAgentReply  Boolean       @default(false) // To distinguish agent replies
+}
 
-  @@unique([userId, chatId])
+
+model Conversation {
+  id          String    @id @default(cuid())
+  adId        String
+  buyerId     String
+  sellerId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  ad          Ad        @relation(fields: [adId], references: [id])
+  buyer       User      @relation("BuyerConversations", fields: [buyerId], references: [id])
+  seller      User      @relation("SellerConversations", fields: [sellerId], references: [id])
+  messages    Message[]
+
+  @@unique([adId, buyerId]) // Ensure only one conversation per ad per buyer
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([updatedAt])
 }
 
 model Message {
-  id        String   @id @default(cuid())
-  content   String
-  chatId    String
-  senderId  String
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  chat      Chat     @relation(fields: [chatId], references: [id])
-  sender    User     @relation(fields: [senderId], references: [id])
-}
+  id             String       @id @default(cuid())
+  conversationId String
+  senderId       String
+  content        String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  sender         User         @relation(fields: [senderId], references: [id])
 
-model SupportTicket {
-  id          String   @id @default(cuid())
-  subject     String
-  message     String
-  priority    String
-  category    String
-  status      String   @default("open")
-  attachments String[]
-  userId      String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id])
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
 }
 
 model Agent {
@@ -238,33 +250,6 @@ model Agent {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   user        User          @relation(fields: [userId], references: [id])
-  SupportChat SupportChat[]
-}
-
-model SupportChat {
-  id        String           @id @default(cuid())
-  userId    String
-  agentId   String?
-  status    String           @default("pending")
-  category  String           @default("general")
-  priority  Int              @default(1)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
-  agent     Agent?           @relation(fields: [agentId], references: [id])
-  user      User             @relation(fields: [userId], references: [id])
-  messages  SupportMessage[]
-}
-
-model SupportMessage {
-  id         String      @id @default(cuid())
-  chatId     String
-  content    String
-  sender     String
-  senderType String
-  read       Boolean     @default(false)
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  chat       SupportChat @relation(fields: [chatId], references: [id])
 }
 
 model Newsletter {

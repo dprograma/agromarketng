@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, MessageSquare, TicketCheck, Clock, CheckCircle } from "lucide-react";
 import toast from "react-hot-toast";
-import ChatManagement from "./ChatManagement";
+import ChatManagement from "@/components/AdminDashboard/Chat";
 import TicketManagement from "./TicketManagement";
 import KnowledgeBase from "./KnowledgeBase";
 import AgentAnalytics from "../AgentAnalytics";
