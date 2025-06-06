@@ -1,7 +1,5 @@
 import prisma from '@/lib/prisma';
 import { formatDistanceToNow } from 'date-fns';
-import { Server as SocketIOServer } from 'socket.io';
-
 /**
  * Creates a new notification for a user
  */
@@ -118,56 +116,3 @@ export async function getUnreadNotificationCount(userId: string) {
   }
 }
 
-/**
- * Sends a real-time notification to a user
- * This function creates a notification in the database and emits a socket event
- */
-export async function sendRealTimeNotification(
-  io: SocketIOServer,
-  userId: string,
-  type: string,
-  message: string,
-  time?: string
-) {
-  try {
-    // Create notification in database
-    const notification = await createNotification(userId, type, message, time);
-
-    // Emit to the specific user
-    io.to(`user_${userId}`).emit('notification_received', notification);
-
-    return notification;
-  } catch (error) {
-    console.error('Error sending real-time notification:', error);
-    throw error;
-  }
-}
-
-/**
- * Broadcasts a notification to multiple users
- */
-export async function broadcastNotification(
-  io: SocketIOServer,
-  userIds: string[],
-  type: string,
-  message: string
-) {
-  try {
-    const notifications = [];
-
-    for (const userId of userIds) {
-      // Create notification in database
-      const notification = await createNotification(userId, type, message);
-
-      // Emit to the specific user
-      io.to(`user_${userId}`).emit('notification_received', notification);
-
-      notifications.push(notification);
-    }
-
-    return notifications;
-  } catch (error) {
-    console.error('Error broadcasting notification:', error);
-    throw error;
-  }
-}

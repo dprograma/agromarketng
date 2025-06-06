@@ -1,147 +1,107 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import prisma from "@/lib/prisma";
-import jwt from "jsonwebtoken";
-import * as fs from "fs";
-import path from "path";
+import { NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/authOptions'; // Assuming you have authOptions defined here
 
+const prisma = new PrismaClient();
 
-export async function POST(req: Request) {
+// Handle POST requests to create a new support ticket
+export async function POST(request: Request) {
   try {
-    // Verify authentication
-    const token = (await cookies()).get('next-auth.session-token')?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!);
-    const session: any = decoded;
+    const { subject, message, priority, category, attachments } = await request.json();
 
-    const formData = await req.formData();
-    const subject = formData.get("subject") as string;
-    const message = formData.get("message") as string;
-    const priority = formData.get("priority") as string;
-    const category = formData.get("category") as string;
-    const attachments = formData.getAll("attachments") as File[];
+    if (!subject || !message || !priority || !category) {
+      return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
+    }
 
-    // Upload attachments locally
-    const attachmentUrls = await Promise.all(
-      attachments.map(async (file) => {
-        try {
-          // Validate file
-          validateFile(file);
-
-          // Save file and get public URL
-          const fileUrl = await saveLocalFile(file);
-          return fileUrl;
-        } catch (error: any) {
-          console.error(`Error uploading ${file.name}:`, error);
-          throw new Error(error.message);
-        }
-      })
-    );
-
-    // Create support ticket in database
-    const ticket = await prisma.supportTicket.create({
+    const newTicket = await prisma.supportTicket.create({
       data: {
         subject,
-        message,
         priority,
         category,
-        attachments: attachmentUrls,
-        userId: session.user.id,
-        status: "open",
+        attachments: attachments || [],
+        userId: session.user.id, // Use session.user.id
+        status: 'open',
       },
     });
 
-    return NextResponse.json({ success: true, ticket });
+    // Create the initial support message linked to the ticket
+    await prisma.supportMessage.create({
+      data: {
+        ticketId: newTicket.id,
+        senderId: session.user.id, // Use session.user.id
+        content: message,
+        isAgentReply: false, // Initial message is from the user
+      },
+    });
+
+    // TODO: Send email notification to agent(s) about the new ticket
+
+    return NextResponse.json(newTicket, { status: 201 });
+
   } catch (error) {
-    console.error("Error creating support ticket:", error);
-    return NextResponse.json(
-      { error: "Failed to create support ticket" },
-      { status: 500 }
-    );
+    console.error('Error creating support ticket:', error);
+    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }
 
-export async function GET(req: Request) {
+// Handle GET requests to retrieve support tickets
+export async function GET(request: Request) {
   try {
-    // Verify authentication
-    const token = (await cookies()).get('next-auth.session-token')?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!);
-    const session: any = decoded;
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Agents can view all tickets, users can only view their own
+    if (session.user.role === 'agent') {
+      const tickets = await prisma.supportTicket.findMany({
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          messages: true, // Include messages for each ticket
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+      return NextResponse.json(tickets);
+    } else {
+      const userTickets = await prisma.supportTicket.findMany({
+        where: {
+          userId: session.user.id,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+           messages: true, // Include messages for each ticket
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+      return NextResponse.json(userTickets);
     }
 
-    const tickets = await prisma.supportTicket.findMany({
-      where: {
-        userId: session.user.id,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-
-    return NextResponse.json({ tickets });
   } catch (error) {
-    console.error("Error fetching support tickets:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch support tickets" },
-      { status: 500 }
-    );
+    console.error('Error fetching support tickets:', error);
+    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }
-
-function validateFile(file: File) {
-  // Maximum file size (5MB)
-  const MAX_FILE_SIZE = 5 * 1024 * 1024;
-
-  // Allowed file types
-  const ALLOWED_TYPES = [
-    'image/jpeg',
-    'image/png',
-    'image/gif',
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  ];
-
-  if (file.size > MAX_FILE_SIZE) {
-    throw new Error('File size exceeds 5MB limit');
-  }
-
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    throw new Error('File type not allowed. Please upload images, PDFs, or Word documents');
-  }
-}
-
-
-async function saveLocalFile(file: File): Promise<string> {
-  // Create a unique filename
-  const timestamp = Date.now();
-  const randomString = Math.random().toString(36).substring(2, 15);
-  const filename = `${timestamp}-${randomString}-${file.name}`;
-  
-  // Convert File to Buffer
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-
-  // Ensure uploads directory exists
-  const uploadDir = './public/uploads';
-  await fs.promises.mkdir(uploadDir, { recursive: true });
-
-  // Save file
-  const filepath = path.join(uploadDir, filename);
-  await fs.promises.writeFile(filepath, buffer);
-
-  // Return public URL
-  return `/uploads/${filename}`;
-}
-
-
-

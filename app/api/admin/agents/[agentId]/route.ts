@@ -16,15 +16,9 @@ async function validateAdmin(req: NextRequest) {
   }
 }
 
-type RouteContext = {
-  params: Promise<{
-    agentId: string;
-  }>;
-};
-
 export async function GET(
   req: NextRequest,
-  context: RouteContext
+  context: { params: Promise<{ agentId: string }> }
 ) {
   try {
     const session = await validateAdmin(req);
@@ -32,7 +26,8 @@ export async function GET(
       return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
     }
 
-    const { agentId } = await context.params;
+    const params = await context.params;
+    const { agentId } = params;
 
     const agent = await prisma.agent.findUnique({
       where: { id: agentId },
@@ -65,7 +60,7 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  context: RouteContext
+  context: { params: Promise<{ agentId: string }> }
 ) {
   try {
     const session = await validateAdmin(req);
@@ -74,7 +69,8 @@ export async function PATCH(
     }
 
     const data = await req.json();
-    const { agentId } = await context.params;
+    const params = await context.params;
+    const { agentId } = params;
 
     // Validate data
     if (data.isAvailable !== undefined && typeof data.isAvailable !== 'boolean') {
@@ -113,7 +109,7 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  context: RouteContext
+  context: { params: Promise<{ agentId: string }> }
 ) {
   try {
     const session = await validateAdmin(req);
@@ -121,7 +117,8 @@ export async function DELETE(
       return apiErrorResponse("Unauthorized", 401, "UNAUTHORIZED");
     }
 
-    const { agentId } = await context.params;
+    const params = await context.params;
+    const { agentId } = params;
 
     // Check if agent exists
     const agent = await prisma.agent.findUnique({

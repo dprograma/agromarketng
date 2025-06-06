@@ -38,7 +38,7 @@ import CategoriesSavedSearchesMain from "@/components/CategoriesSavedSearchesMai
 import NotificationsMain from "@/components/NotificationsMain";
 import ProfileMain from "@/components/ProfileMain";
 import BillingMain from "@/components/BillingMain";
-import SupportMain from "@/components/SupportMain";
+import UserSupportTickets from "@/components/UserSupportTickets";
 
 interface DashboardMainProps {
   defaultTab?: string;
@@ -544,7 +544,7 @@ export default function DashboardMain({ defaultTab = "dashboard" }: DashboardMai
 
         {/* Support Tab */}
         <TabsContent value="support">
-          <SupportMain />
+          <UserSupportTickets />
         </TabsContent>
       </Tabs>
     </div>

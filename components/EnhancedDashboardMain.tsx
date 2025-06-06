@@ -27,7 +27,6 @@ import CategoriesSavedSearchesMain from "@/components/CategoriesSavedSearchesMai
 import NotificationsMain from "@/components/NotificationsMain";
 import ProfileMain from "@/components/ProfileMain";
 import BillingMain from "@/components/BillingMain";
-import SupportMain from "@/components/SupportMain";
 
 interface EnhancedDashboardMainProps {
   defaultTab?: string;
@@ -291,7 +290,6 @@ export default function EnhancedDashboardMain({ defaultTab = "dashboard" }: Enha
 
         {/* Support Tab */}
         <TabsContent value="support">
-          <SupportMain />
         </TabsContent>
       </Tabs>
     </div>

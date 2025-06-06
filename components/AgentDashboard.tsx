@@ -2,52 +2,46 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "@/components/SessionWrapper";
-import { io, Socket } from "socket.io-client";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Clock, Loader2, Send } from "lucide-react";
 import toast from "react-hot-toast";
 
-interface ChatMessage {
+// Define types for the new messaging system (simplified for agent view)
+interface AgentMessage {
   id: string;
   content: string;
-  sender: string;
-  senderType: string;
+  senderId: string; // Use senderId to match the new schema
   createdAt: string;
-  read: boolean;
 }
 
-interface Chat {
+import { AgentConversation } from "@/types/agent"; // Import the interface
+
+interface AgentMessage {
   id: string;
-  userId: string;
-  user: {
-    name: string;
-    email: string;
-  };
-  status: string;
-  category: string;
-  priority: number;
-  messages: ChatMessage[];
+  content: string;
+  senderId: string; // Use senderId to match the new schema
   createdAt: string;
-  updatedAt: string;
 }
+
 
 export default function AgentDashboard() {
   const { session } = useSession();
-  const [socket, setSocket] = useState<Socket | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isOnline, setIsOnline] = useState(false);
-  const [activeChats, setActiveChats] = useState<Chat[]>([]);
-  const [pendingChats, setPendingChats] = useState<Chat[]>([]);
-  const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
+  // Agent dashboard doesn't need online status for non-websocket chat
+  // const [isOnline, setIsOnline] = useState(false);
+  const [activeConversations, setActiveConversations] = useState<AgentConversation[]>([]);
+  // Agent dashboard doesn't have pending chats in the new system, they are all conversations
+  // const [pendingChats, setPendingChats] = useState<AgentConversation[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<AgentConversation | null>(null);
   const [message, setMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Fetch chats on component mount
+  // Fetch conversations on component mount
   useEffect(() => {
     if (session) {
-      fetchChats();
+      fetchConversations();
     }
   }, [session]);
 
@@ -56,164 +50,78 @@ export default function AgentDashboard() {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [selectedChat?.messages]);
+  }, [selectedConversation?.messages]);
 
-  // Setup socket connection
-  useEffect(() => {
-    if (!session) return;
+  // Agent dashboard doesn't need socket connection logic
+  // useEffect(() => { ... }, [session]);
 
-    const socketInstance = io(process.env.NEXT_PUBLIC_BASE_URL || window.location.origin, {
-      path: '/api/socketio',
-      auth: {
-        token: session.token,
-        role: 'agent'
-      }
-    });
+  // Agent dashboard doesn't need to update agent status based on socket connection
+  // const updateAgentStatus = async (isAvailable: boolean) => { ... };
 
-    socketInstance.on('connect', () => {
-      console.log('Agent connected to WebSocket');
-      setIsOnline(true);
-      setIsLoading(false);
-
-      // Update agent status in database
-      updateAgentStatus(true);
-    });
-
-    socketInstance.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
-      setIsLoading(false);
-    });
-
-    socketInstance.on('disconnect', () => {
-      setIsOnline(false);
-      // Update agent status in database
-      updateAgentStatus(false);
-    });
-
-    socketInstance.on('new_support_request', (chat: Chat) => {
-      setPendingChats(prev => {
-        // Check if chat already exists
-        if (prev.some(c => c.id === chat.id)) {
-          return prev;
-        }
-        return [...prev, chat];
-      });
-
-      // Show notification
-      toast.success('New support request received');
-    });
-
-    socketInstance.on('user_message', ({ chatId, message }) => {
-      // Update chat messages
-      setActiveChats(prev =>
-        prev.map(chat =>
-          chat.id === chatId
-            ? { ...chat, messages: [...chat.messages, message] }
-            : chat
-        )
-      );
-
-      // Update selected chat if it's the current one
-      if (selectedChat?.id === chatId) {
-        setSelectedChat(prev =>
-          prev ? { ...prev, messages: [...prev.messages, message] } : null
-        );
-      }
-
-      // Show notification if not the selected chat
-      if (selectedChat?.id !== chatId) {
-        toast.success('New message received');
-      }
-    });
-
-    setSocket(socketInstance);
-
-    return () => {
-      // Update agent status before disconnecting
-      updateAgentStatus(false);
-      socketInstance.disconnect();
-    };
-  }, [session]);
-
-  // Function to update agent status
-  const updateAgentStatus = async (isAvailable: boolean) => {
+  // Function to fetch conversations (agents can see all conversations)
+  const fetchConversations = async () => {
+    setIsLoading(true);
     try {
-      await fetch('/api/agent/status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isAvailable })
-      });
-    } catch (error) {
-      console.error('Error updating agent status:', error);
-    }
-  };
-
-  // Function to fetch chats
-  const fetchChats = async () => {
-    try {
-      // Fetch active chats
-      const activeResponse = await fetch('/api/agent/chats?status=active', {
+      const response = await fetch('/api/conversations', { // Agents can fetch all conversations
         credentials: 'include'
       });
 
-      if (activeResponse.ok) {
-        const activeData = await activeResponse.json();
-        setActiveChats(activeData);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch conversations');
       }
 
-      // Fetch pending chats
-      const pendingResponse = await fetch('/api/agent/chats?status=pending', {
-        credentials: 'include'
-      });
-
-      if (pendingResponse.ok) {
-        const pendingData = await pendingResponse.json();
-        setPendingChats(pendingData);
-      }
+      const data = await response.json();
+      // Agent dashboard will display all conversations, no distinction between active/pending here
+      setActiveConversations(data.conversations || []);
+      // setPendingChats([]); // No pending chats in this model
     } catch (error) {
-      console.error('Error fetching chats:', error);
-      toast.error('Failed to load chats');
+      console.error('Error fetching conversations:', error);
+      toast.error('Failed to load conversations');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Function to accept a chat
-  const acceptChat = async (chatId: string) => {
+  // Function to fetch messages for a conversation
+  const fetchMessages = async (conversationId: string) => {
+    setIsLoading(true); // Use general loading for messages too
     try {
-      const response = await fetch(`/api/agent/chats/${chatId}/accept`, {
-        method: 'POST',
+      const response = await fetch(`/api/conversations/${conversationId}/messages`, {
         credentials: 'include'
       });
 
-      if (response.ok) {
-        const chat = await response.json();
-
-        // Remove from pending chats
-        setPendingChats(prev => prev.filter(c => c.id !== chatId));
-
-        // Add to active chats
-        setActiveChats(prev => [...prev, chat]);
-
-        // Select the chat
-        setSelectedChat(chat);
-
-        toast.success('Chat accepted');
-      } else {
-        throw new Error('Failed to accept chat');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch messages');
       }
+
+      const data = await response.json();
+      // Update the selected conversation with fetched messages
+      setSelectedConversation(prev => {
+        if (!prev || prev.id !== conversationId) return prev;
+        return {
+          ...prev,
+          messages: data.messages || []
+        };
+      });
+
     } catch (error) {
-      console.error('Error accepting chat:', error);
-      toast.error('Failed to accept chat');
+      console.error('Error fetching messages:', error);
+      toast.error('Failed to load messages');
+    } finally {
+      setIsLoading(false);
     }
   };
 
+
   // Function to send a message
   const sendMessage = async () => {
-    if (!selectedChat || !message.trim() || !socket) return;
+    if (!selectedConversation || !message.trim()) return;
 
+    // Agent sends message to the conversation
     try {
-      const response = await fetch(`/api/agent/chats/${selectedChat.id}/messages`, {
+      const response = await fetch(`/api/conversations/${selectedConversation.id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -223,37 +131,34 @@ export default function AgentDashboard() {
       if (response.ok) {
         const newMessage = await response.json();
 
-        // Update selected chat
-        setSelectedChat(prev => {
+        // Update selected conversation with the new message
+        setSelectedConversation(prev => {
           if (!prev) return null;
           return {
             ...prev,
-            messages: [...prev.messages, newMessage]
+            messages: [...prev.messages, newMessage.message] // API returns { message: newMessage }
           };
         });
 
-        // Update active chats
-        setActiveChats(prev =>
-          prev.map(chat =>
-            chat.id === selectedChat.id
+        // Update the conversation in the active list
+        setActiveConversations(prev =>
+          prev.map(conv =>
+            conv.id === selectedConversation.id
               ? {
-                ...chat,
-                messages: [...chat.messages, newMessage]
+                ...conv,
+                lastMessage: newMessage.message, // Update last message
+                updatedAt: newMessage.message.createdAt // Update updatedAt
               }
-              : chat
-          )
+              : conv
+          ).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()) // Re-sort
         );
 
-        // Emit message to socket
-        socket.emit('agent_message', {
-          chatId: selectedChat.id,
-          message: newMessage
-        });
 
         // Clear message input
         setMessage('');
       } else {
-        throw new Error('Failed to send message');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to send message');
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -294,45 +199,56 @@ export default function AgentDashboard() {
       <div className="w-1/4 bg-white border-r p-4">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold">Agent Dashboard</h2>
-          <Badge variant={isOnline ? "success" : "destructive"}>
+          {/* Agent online status is not needed for non-websocket chat */}
+          {/* <Badge variant={isOnline ? "success" : "destructive"}>
             {isOnline ? "Online" : "Offline"}
-          </Badge>
+          </Badge> */}
         </div>
 
-        <Tabs defaultValue="active">
+        <Tabs defaultValue="active"> {/* Keep tabs for now, but only one will be used */}
           <TabsList className="w-full">
             <TabsTrigger value="active" className="flex-1">
               <MessageSquare className="w-4 h-4 mr-2" />
-              Active ({activeChats.length})
+              Conversations ({activeConversations.length}) {/* Display all conversations here */}
             </TabsTrigger>
-            <TabsTrigger value="pending" className="flex-1">
+            {/* Remove pending chats tab */}
+            {/* <TabsTrigger value="pending" className="flex-1">
               <Clock className="w-4 h-4 mr-2" />
               Pending ({pendingChats.length})
-            </TabsTrigger>
+            </TabsTrigger> */}
           </TabsList>
 
           <TabsContent value="active">
             <div className="space-y-2">
-              {activeChats.map(chat => (
+              {activeConversations.map(conversation => ( // Map over all conversations
                 <div
-                  key={chat.id}
-                  className={`p-3 rounded-lg cursor-pointer ${selectedChat?.id === chat.id ? 'bg-green-50' : 'hover:bg-gray-50'
+                  key={conversation.id}
+                  className={`p-3 rounded-lg cursor-pointer ${selectedConversation?.id === conversation.id ? 'bg-green-50' : 'hover:bg-gray-50'
                     }`}
-                  onClick={() => setSelectedChat(chat)}
+                  onClick={() => setSelectedConversation(conversation)} // Select the conversation
                 >
                   <div className="flex justify-between items-center">
-                    <span className="font-medium">{chat.user.name}</span>
-                    <Badge variant="outline">{chat.category}</Badge>
+                    {/* Display buyer and seller names */}
+                    <span className="font-medium">{conversation.buyer.name} - {conversation.seller.name}</span>
+                    {/* Category and priority might not be directly on conversation in new schema, remove for now */}
+                    {/* <Badge variant="outline">{conversation.category}</Badge> */}
+                    {/* <Badge variant="outline">
+                      Priority: {conversation.priority}
+                    </Badge> */}
                   </div>
-                  <p className="text-sm text-gray-500 truncate">
-                    {chat.messages[chat.messages.length - 1]?.content}
-                  </p>
+                  {/* Display last message content if available */}
+                  {conversation.messages.length > 0 && (
+                    <p className="text-sm text-gray-500 truncate">
+                      {conversation.messages[conversation.messages.length - 1]?.content}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
           </TabsContent>
 
-          <TabsContent value="pending">
+          {/* Remove pending chats tab content */}
+          {/* <TabsContent value="pending">
             <div className="space-y-2">
               {pendingChats.map(chat => (
                 <div key={chat.id} className="p-3 border rounded-lg">
@@ -352,37 +268,40 @@ export default function AgentDashboard() {
                 </div>
               ))}
             </div>
-          </TabsContent>
+          </TabsContent> */}
         </Tabs>
       </div>
 
       <div className="flex-1 flex flex-col">
-        {selectedChat ? (
+        {selectedConversation ? ( // Use selectedConversation
           <>
             <div className="p-4 bg-white border-b">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="font-medium">{selectedChat.user.name}</h3>
-                  <p className="text-sm text-gray-500">{selectedChat.user.email}</p>
+                  {/* Display buyer and seller info */}
+                  <h3 className="font-medium">Conversation between {selectedConversation.buyer.name} and {selectedConversation.seller.name}</h3>
+                  {/* Display ad title */}
+                  <p className="text-sm text-gray-500">Regarding Ad: {selectedConversation.ad.title}</p>
                 </div>
-                <div className="flex gap-2">
+                {/* Remove category and priority badges */}
+                {/* <div className="flex gap-2">
                   <Badge variant="outline">{selectedChat.category}</Badge>
                   <Badge variant="outline">
                     Priority: {selectedChat.priority}
                   </Badge>
-                </div>
+                </div> */}
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4">
-              {selectedChat.messages.map((msg, idx) => (
+              {selectedConversation.messages.map((msg, idx) => ( // Map over selectedConversation messages
                 <div
-                  key={idx}
-                  className={`flex mb-4 ${msg.senderType === 'agent' ? 'justify-end' : 'justify-start'
+                  key={msg.id} // Use message id as key
+                  className={`flex mb-4 ${msg.senderId === session?.id ? 'justify-end' : 'justify-start' // Use senderId
                     }`}
                 >
                   <div
-                    className={`max-w-[70%] rounded-lg p-3 ${msg.senderType === 'agent'
+                    className={`max-w-[70%] rounded-lg p-3 ${msg.senderId === session?.id // Use senderId
                       ? 'bg-green-500 text-white'
                       : 'bg-gray-100'
                       }`}
@@ -413,7 +332,7 @@ export default function AgentDashboard() {
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center">
-            <p className="text-gray-500">Select a chat to start responding</p>
+            <p className="text-gray-500">Select a conversation to start responding</p>
           </div>
         )}
       </div>
