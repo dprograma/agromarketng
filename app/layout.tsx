@@ -6,7 +6,6 @@ import { Session } from '@/types';
 import "./globals.css";
 import { initCronJobs } from '@/services/cron';
 import { Toaster } from 'react-hot-toast';
-import ConditionalChatButton from "@/components/LiveChat/ConditionalChatButton";
 import CookieConsent from "@/components/CookieConsent";
 import Providers from './providers'
 import { Inter } from 'next/font/google';
@@ -92,7 +91,6 @@ export default async function RootLayout({
           <SessionWrapper session={initialSession}>
             {children}
             <Toaster position="top-right" />
-            <ConditionalChatButton />
             <CookieConsent />
           </SessionWrapper>
         </Providers>

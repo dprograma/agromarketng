@@ -107,7 +107,7 @@ async function getChatVolumeData(startDate: Date) {
     dayEnd.setHours(23, 59, 59, 999);
 
     // Count chats created on this day
-    const chatCount = await prisma.supportChat.count({
+    const chatCount = await prisma.supportTicket.count({
       where: {
         createdAt: {
           gte: dayStart,
@@ -140,7 +140,7 @@ async function getResponseTimeData(startDate: Date) {
     dayEnd.setHours(23, 59, 59, 999);
 
     // Get all support chats that were active on this day
-    const chats = await prisma.supportChat.findMany({
+    const chats = await prisma.supportTicket.findMany({
       where: {
         createdAt: {
           lte: dayEnd
@@ -169,7 +169,7 @@ async function getResponseTimeData(startDate: Date) {
         const userMessage = chat.messages[0];
         const agentResponse = chat.messages[1];
 
-        if (userMessage.senderType === 'user' && agentResponse.senderType === 'agent') {
+        if (!userMessage.isAgentReply && agentResponse.isAgentReply) {
           const userMessageTime = new Date(userMessage.createdAt).getTime();
           const agentResponseTime = new Date(agentResponse.createdAt).getTime();
 
@@ -211,7 +211,7 @@ async function getResolutionRateData(startDate: Date) {
     dayEnd.setHours(23, 59, 59, 999);
 
     // Count total chats that were active on this day
-    const totalChats = await prisma.supportChat.count({
+    const totalChats = await prisma.supportTicket.count({
       where: {
         updatedAt: {
           gte: dayStart,
@@ -224,7 +224,7 @@ async function getResolutionRateData(startDate: Date) {
     });
 
     // Count resolved chats on this day
-    const resolvedChats = await prisma.supportChat.count({
+    const resolvedChats = await prisma.supportTicket.count({
       where: {
         updatedAt: {
           gte: dayStart,
@@ -247,7 +247,7 @@ async function getResolutionRateData(startDate: Date) {
 
 async function getCategoryDistributionData() {
   // Get all distinct categories from the database
-  const distinctCategories = await prisma.supportChat.findMany({
+  const distinctCategories = await prisma.supportTicket.findMany({
     select: {
       category: true
     },
@@ -268,7 +268,7 @@ async function getCategoryDistributionData() {
   // Count chats for each category
   const categoryCounts = await Promise.all(
     categories.map(async (category) => {
-      const count = await prisma.supportChat.count({
+      const count = await prisma.supportTicket.count({
         where: {
           category
         }
@@ -293,13 +293,12 @@ async function getAgentPerformanceData(startDate: Date) {
   const agents = await prisma.agent.findMany({
     include: {
       user: {
-        select: {
-          name: true,
-        },
-      },
-      SupportChat: {
         include: {
-          messages: true
+          supportTickets: {
+            include: {
+              messages: true
+            }
+          }
         }
       }
     },
@@ -317,12 +316,12 @@ async function getAgentPerformanceData(startDate: Date) {
     let totalResponseTime = 0;
     let responsesCount = 0;
 
-    for (const chat of agent.SupportChat) {
+    for (const ticket of agent.user.supportTickets) {
       // Find pairs of user messages followed by agent responses
-      const messages = chat.messages;
+      const messages = ticket.messages;
 
       for (let i = 0; i < messages.length - 1; i++) {
-        if (messages[i].senderType === 'user' && messages[i + 1].senderType === 'agent') {
+        if (!messages[i].isAgentReply && messages[i + 1].isAgentReply) {
           const userMessageTime = new Date(messages[i].createdAt).getTime();
           const agentResponseTime = new Date(messages[i + 1].createdAt).getTime();
 
@@ -341,11 +340,11 @@ async function getAgentPerformanceData(startDate: Date) {
       : 0;
 
     // Calculate resolution rate
-    const totalChats = agent.SupportChat.length;
-    const resolvedChats = agent.SupportChat.filter(chat => chat.status === 'closed').length;
+    const totalTickets = agent.user.supportTickets.length;
+    const resolvedTickets = agent.user.supportTickets.filter((ticket: { status: string; }) => ticket.status === 'closed').length;
 
-    const agentResolutionRate = totalChats > 0
-      ? Math.round((resolvedChats / totalChats) * 100)
+    const agentResolutionRate = totalTickets > 0
+      ? Math.round((resolvedTickets / totalTickets) * 100)
       : 0;
 
     // For satisfaction, we don't have real data yet, so we'll use a placeholder

@@ -127,38 +127,6 @@ export const isValidToken = (token: string | undefined | null): boolean => {
   return token.length > 20 && token.includes('.');
 };
 
-/**
- * Handle socket connection errors
- * @param socket The socket instance
- * @param errorCallback Callback function for error handling
- */
-export const setupSocketErrorHandling = (
-  socket: any,
-  errorCallback?: (error: any) => void
-): void => {
-  if (!socket) return;
-
-  socket.on('connect_error', (error: any) => {
-    console.error('Socket connection error:', error);
-    if (errorCallback) errorCallback(error);
-  });
-
-  socket.on('error', (error: any) => {
-    console.error('Socket error:', error);
-    if (errorCallback) errorCallback(error);
-  });
-
-  socket.on('disconnect', (reason: string) => {
-    console.log('Socket disconnected:', reason);
-    if (reason === 'io server disconnect' || reason === 'io client disconnect') {
-      // The disconnection was initiated by the server or client, no need to reconnect
-    } else {
-      // Attempt to reconnect
-      socket.connect();
-    }
-  });
-};
-
 interface ErrorResponse {
   error: string;
   status: number;

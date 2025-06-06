@@ -18,7 +18,7 @@ export async function GET(
         const userId = decoded.id;
 
         return await cache.getOrSet(`chat-${(await params).chatId}-messages`, async () => {
-            const chat = await prisma.supportChat.findUnique({
+            const chat = await prisma.supportTicket.findUnique({
                 where: { id: (await params).chatId },
                 include: {
                     messages: {
@@ -27,7 +27,7 @@ export async function GET(
                 }
             });
 
-            if (!chat || (chat.userId !== userId && chat.agentId !== userId)) {
+            if (!chat || chat.userId !== userId) {
                 return apiErrorResponse('Chat not found or unauthorized', 404, 'CHAT_NOT_FOUND');
             }
 

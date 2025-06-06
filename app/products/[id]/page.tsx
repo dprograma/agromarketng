@@ -69,17 +69,16 @@ export default function ProductDetails() {
         return;
       }
 
-      toast.loading('Starting chat...');
+      toast.loading('Starting conversation...');
 
-      const response = await fetch('/api/chats', {
+      const response = await fetch('/api/conversations/initiate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           adId: product.id,
-          recipientId: product.userId,
-          message: `Hi, I'm interested in your ad: ${product.title}`
+          initialMessage: `Hi, I'm interested in your ad: ${product.title}`
         }),
         credentials: 'include'
       });
@@ -87,22 +86,22 @@ export default function ProductDetails() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create chat');
+        throw new Error(data.error || 'Failed to initiate conversation');
       }
 
-      if (!data.chat?.id) {
-        throw new Error('No chat ID returned');
+      if (!data.conversation?.id) {
+        throw new Error('No conversation ID returned');
       }
 
       toast.dismiss();
-      toast.success('Chat started successfully!');
+      toast.success('Conversation started successfully!');
 
-      // Redirect to messages with the chat ID
-      router.push(`/dashboard/messages?chatId=${data.chat.id}`);
+      // Redirect to messages with the conversation ID
+      router.push(`/dashboard/messages?conversationId=${data.conversation.id}`);
     } catch (error) {
       toast.dismiss();
-      console.error('Error creating chat:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to start chat');
+      console.error('Error initiating conversation:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to start conversation');
     }
   };
 
