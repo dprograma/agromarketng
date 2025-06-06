@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     const status = req.nextUrl.searchParams.get('status');
 
     // Fetch all support chats with optional status filter
-    const chats = await prisma.supportChat.findMany({
+    const chats = await prisma.supportTicket.findMany({
       where: status ? { status } : undefined,
       include: {
         user: {
@@ -45,16 +45,6 @@ export async function GET(req: NextRequest) {
             id: true,
             name: true,
             email: true,
-          },
-        },
-        agent: {
-          include: {
-            user: {
-              select: {
-                name: true,
-                email: true,
-              },
-            },
           },
         },
         messages: {

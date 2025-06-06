@@ -1,5 +1,4 @@
 import React from 'react';
-import { AdMessage } from "@/types";
 import {
   Home, PlusCircle, BarChart, DollarSign, User, LogOut, Settings, CreditCard, Megaphone, FileText, Receipt, Wallet, AlertCircle, Image, Bell, Shield, Inbox, ShieldAlert, HelpCircle, Ticket, MessageCircle, BookmarkCheckIcon, UserPlus, Headset, LayoutDashboard,
   Users,
@@ -132,7 +131,6 @@ export const NAV_ITEMS = [
   { name: "Post New Ad", icon: PlusCircle, route: "/dashboard/new-ad" },
   { name: "Ad Promotions", icon: DollarSign, route: "/dashboard/promotions" },
   { name: "Analytics", icon: BarChart, route: "/dashboard/analytics" },
-  { name: "Messages", icon: Inbox, route: "/dashboard/messages" },
   { name: "Saved Searches", icon: BookmarkCheckIcon, route: "/dashboard/saved-searches" },
   { name: "Notifications", icon: Bell, route: "/dashboard/notifications" },
   { name: "Agent Management", icon: UserPlus, route: "/admin/agents", adminOnly: true, },
@@ -344,36 +342,6 @@ export const userprofile = [
 ];
 
 
-export const sampleMessages: AdMessage[] = [
-  {
-    id: 1,
-    sender: "John Doe",
-    senderAvatar: "https://randomuser.me/api/portraits/men/1.jpg",
-    adTitle: "Fresh Organic Tomatoes",
-    lastMessage: "Hi, is this still available?",
-    timestamp: "2h ago",
-    isSpam: false,
-  },
-  {
-    id: 2,
-    sender: "Alice Smith",
-    senderAvatar: "https://randomuser.me/api/portraits/women/2.jpg",
-    adTitle: "Premium Organic Fertilizer",
-    lastMessage: "Can you offer bulk pricing?",
-    timestamp: "5h ago",
-    isSpam: false,
-  },
-  {
-    id: 3,
-    sender: "Spam User",
-    senderAvatar: "https://randomuser.me/api/portraits/men/3.jpg",
-    adTitle: "Cheap Loans Available",
-    lastMessage: "Click here for fast loans!",
-    timestamp: "1d ago",
-    isSpam: true,
-  },
-];
-
 export const MessagesTabs = [
   { key: "inbox", label: "Inbox", icon: Inbox },
   { key: "spam", label: "Spam/Blocked", icon: ShieldAlert },
@@ -397,7 +365,6 @@ export const faqData = [
 export const helpTabs = [
   { key: "faq", label: "FAQ", icon: HelpCircle },
   { key: "tickets", label: "Support Tickets", icon: Ticket },
-  // { key: "live-chat", label: "Live Chat", icon: MessageCircle },
 ];
 
 
@@ -418,11 +385,6 @@ export const ADMIN_NAV_ITEMS = [
     title: "Manage Agents",
     href: "/admin/agents",
     icon: Users,
-  },
-  {
-    title: "Chats",
-    href: "/admin/chats",
-    icon: MessageSquare,
   },
   {
     title: "Settings",

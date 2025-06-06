@@ -85,16 +85,7 @@ export default function AgentDashboardLayout({
   useEffect(() => {
     const fetchPendingItems = async () => {
       try {
-        // Fetch pending chats
-        const chatsResponse = await fetch("/api/agent/chats?status=pending", {
-          credentials: "include",
-        });
-        if (chatsResponse.ok) {
-          const chatsData = await chatsResponse.json();
-          setPendingChats(chatsData.length);
-        }
-
-        // Fetch pending tickets
+        // Fetch pending tickets (chats are now handled differently)
         const ticketsResponse = await fetch("/api/agent/tickets?status=pending", {
           credentials: "include",
         });
@@ -211,15 +202,9 @@ export default function AgentDashboardLayout({
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             {AGENT_NAV_ITEMS.map((item) => {
-              // Add badge for pending items
+              // Add badge for pending tickets
               let badge = null;
-              if (item.title === "Chat Management" && pendingChats > 0) {
-                badge = (
-                  <Badge variant="destructive" className="ml-auto">
-                    {pendingChats}
-                  </Badge>
-                );
-              } else if (item.title === "Ticket Management" && pendingTickets > 0) {
+              if (item.title === "Ticket Management" && pendingTickets > 0) {
                 badge = (
                   <Badge variant="destructive" className="ml-auto">
                     {pendingTickets}
@@ -273,17 +258,6 @@ export default function AgentDashboardLayout({
                   <DropdownMenuContent align="right" className="w-56">
                     <DropdownMenuLabel>Notifications</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {pendingChats > 0 ? (
-                      <DropdownMenuItem>
-                        <Clock className="mr-2 h-4 w-4" />
-                        <span>{pendingChats} pending chats</span>
-                      </DropdownMenuItem>
-                    ) : (
-                      <DropdownMenuItem>
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        <span>No pending chats</span>
-                      </DropdownMenuItem>
-                    )}
                     {pendingTickets > 0 ? (
                       <DropdownMenuItem>
                         <Clock className="mr-2 h-4 w-4" />
