@@ -5,11 +5,31 @@ import { apiErrorResponse } from '@/lib/errorHandling';
 
 // Helper function to validate admin session
 async function validateAdmin(req: NextRequest) {
-  try {
-    const token = req.headers.get('authorization')?.split(' ')[1];
-    if (!token) return null;
+  // Try both development and production cookie names
+  const token = req.cookies.get('next-auth.session-token')?.value ||
+                req.cookies.get('__Secure-next-auth.session-token')?.value;
+  if (!token) {
+    return null;
+  }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!);
+  try {
+    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as {
+      id: string;
+      email: string;
+      role: string;
+      exp?: number;
+    };
+
+    // Check token expiration
+    if (decoded.exp && Date.now() >= decoded.exp * 1000) {
+      return null;
+    }
+
+    // Check if user is admin by role
+    if (decoded.role !== 'admin') {
+      return null;
+    }
+
     return decoded;
   } catch (error) {
     return null;

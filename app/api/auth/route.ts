@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
 import prisma from '@/lib/prisma';
 import { apiErrorResponse } from '@/lib/errorHandling';
+import { authRateLimiters } from '@/lib/rateLimit';
 
 // Configure Nodemailer transporter
 const transporter = nodemailer.createTransport({
@@ -16,6 +17,22 @@ const transporter = nodemailer.createTransport({
 
 export async function POST(req: NextRequest) {
   const { type, email, token, newPassword } = await req.json();
+
+  // Apply appropriate rate limiting based on request type
+  let rateLimitResult;
+  if (type === 'forgot-password') {
+    rateLimitResult = authRateLimiters.forgotPassword(req);
+  } else if (type === 'reset-password') {
+    rateLimitResult = authRateLimiters.resetPassword(req);
+  }
+
+  if (rateLimitResult && !rateLimitResult.success) {
+    return apiErrorResponse(
+      'Too many requests. Please try again later.',
+      429,
+      'RATE_LIMIT_EXCEEDED'
+    );
+  }
 
   switch (type) {
     case 'forgot-password':

@@ -3,7 +3,7 @@ import GoogleProvider from 'next-auth/providers/google';
 import FacebookProvider from 'next-auth/providers/facebook';
 import TwitterProvider from 'next-auth/providers/twitter';
 
-export const { handlers, auth, siginIn, signOut } = NextAuth({
+export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     // Google Provider
     GoogleProvider({

@@ -16,6 +16,11 @@ import {
   AlertCircle,
   Phone
 } from "lucide-react";
+import ImageCropper from "./ImageCropper";
+import TwoFactorAuth from "./TwoFactorAuth";
+import EmailChange from "./EmailChange";
+import AccountDeletion from "./AccountDeletion";
+import ActivityHistory from "./ActivityHistory";
 import { cn } from "@/lib/utils";
 import { userprofile } from "@/constants";
 import React from "react";
@@ -26,8 +31,10 @@ interface UserProfile {
   id: string;
   name: string;
   email: string;
+  phone?: string | null;
   image?: string | null;
   role: string;
+  twoFactorEnabled?: boolean;
   createdAt: string;
   updatedAt?: string;
 }
@@ -52,6 +59,16 @@ export default function ProfileSettings() {
     name: "",
     phone: "",
   });
+  const [notificationPreferences, setNotificationPreferences] = useState({
+    emailForAdActivity: true,
+    emailForPromotions: true,
+    smsForPromotions: false,
+    emailForMessages: true,
+    emailForPayments: true,
+  });
+  const [isSavingPreferences, setIsSavingPreferences] = useState(false);
+  const [showImageCropper, setShowImageCropper] = useState(false);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
@@ -62,14 +79,16 @@ export default function ProfileSettings() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const { session, setSession } = useSession();
 
-  // Fetch user profile on component mount
+  // Fetch user profile and notification preferences on component mount
   useEffect(() => {
     fetchUserProfile();
+    fetchNotificationPreferences();
   }, []);
 
   // Update form data when profile is loaded
@@ -95,11 +114,80 @@ export default function ProfileSettings() {
 
       const data = await response.json();
       setProfile(data.user);
+      setTwoFactorEnabled(data.user.twoFactorEnabled || false);
     } catch (error) {
       console.error('Error fetching profile:', error);
       toast.error('Failed to load profile information');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchNotificationPreferences = async () => {
+    try {
+      const response = await fetch('/api/user/profile/notification-preferences', {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch notification preferences');
+      }
+
+      const data = await response.json();
+      setNotificationPreferences(data.preferences);
+    } catch (error) {
+      console.error('Error fetching notification preferences:', error);
+      // Don't show toast error here as it's not critical
+    }
+  };
+
+  const handleNotificationPreferenceChange = (key: string, value: boolean) => {
+    setNotificationPreferences(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  const handle2FAStatusChange = (enabled: boolean) => {
+    setTwoFactorEnabled(enabled);
+    if (profile) {
+      setProfile({ ...profile, twoFactorEnabled: enabled });
+    }
+  };
+
+  const handleEmailChanged = (newEmail: string) => {
+    if (profile) {
+      setProfile({ ...profile, email: newEmail });
+    }
+    fetchUserProfile(); // Refresh profile to get updated data
+  };
+
+  const handleSaveNotificationPreferences = async () => {
+    try {
+      setIsSavingPreferences(true);
+
+      const response = await fetch('/api/user/profile/notification-preferences', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(notificationPreferences),
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update notification preferences');
+      }
+
+      const data = await response.json();
+      setNotificationPreferences(data.preferences);
+      toast.success('Notification preferences updated successfully');
+    } catch (error) {
+      console.error('Error updating notification preferences:', error);
+      toast.error('Failed to update notification preferences');
+    } finally {
+      setIsSavingPreferences(false);
     }
   };
 
@@ -165,12 +253,38 @@ export default function ProfileSettings() {
       image: undefined
     }));
 
-    // Create preview
+    // Store file and show cropper instead of direct preview
+    setSelectedImageFile(file);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setPreviewImage(e.target?.result as string);
+      setShowImageCropper(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCropComplete = (croppedImageFile: File) => {
+    setSelectedImageFile(croppedImageFile);
+    setShowImageCropper(false);
+
+    // Create preview of cropped image
     const reader = new FileReader();
     reader.onload = (e) => {
       setPreviewImage(e.target?.result as string);
     };
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(croppedImageFile);
+  };
+
+  const handleCropCancel = () => {
+    setShowImageCropper(false);
+    setSelectedImageFile(null);
+    setPreviewImage(null);
+
+    // Reset file input
+    const fileInput = fileInputRef.current;
+    if (fileInput) {
+      fileInput.value = '';
+    }
   };
 
   const validateProfileForm = () => {
@@ -292,11 +406,10 @@ export default function ProfileSettings() {
   const handleImageUpload = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const fileInput = fileInputRef.current;
-    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+    if (!selectedImageFile) {
       setErrors(prev => ({
         ...prev,
-        image: 'Please select an image to upload'
+        image: 'Please select and crop an image to upload'
       }));
       return;
     }
@@ -305,7 +418,7 @@ export default function ProfileSettings() {
       setIsUploading(true);
 
       const formData = new FormData();
-      formData.append('image', fileInput.files[0]);
+      formData.append('image', selectedImageFile);
 
       const response = await fetch('/api/user/profile/image', {
         method: 'POST',
@@ -321,8 +434,10 @@ export default function ProfileSettings() {
       const data = await response.json();
       setProfile(data.user);
       setPreviewImage(null);
+      setSelectedImageFile(null);
 
       // Reset file input
+      const fileInput = fileInputRef.current;
       if (fileInput) {
         fileInput.value = '';
       }
@@ -439,19 +554,13 @@ export default function ProfileSettings() {
                 )}
               </div>
 
+              {/* Email Change Section */}
               <div className="space-y-1">
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email Address</label>
-                <div className="relative">
-                  <input
-                    id="email"
-                    type="email"
-                    value={profile?.email || ""}
-                    disabled
-                    className="w-full p-3 border border-gray-300 rounded-md bg-gray-50 text-gray-500 pl-10"
-                    placeholder="Your email address"
-                  />
-                  <span className="absolute right-3 top-3 text-xs text-gray-500">Cannot be changed</span>
-                </div>
+                <label className="block text-sm font-medium text-gray-700">Email Address</label>
+                <EmailChange
+                  currentEmail={profile?.email || ""}
+                  onEmailChanged={handleEmailChanged}
+                />
               </div>
 
               <div className="space-y-1">
@@ -592,20 +701,108 @@ export default function ProfileSettings() {
       {/* Notification Preferences */}
       {activeTab === "notifications" && (
         <div className="mt-6">
-          <h3 className="text-lg font-semibold text-gray-700">🔔 Notification Preferences</h3>
-          <div className="mt-4 space-y-4">
-            <label className="flex items-center space-x-2 text-gray-400">
-              <input type="checkbox" className="form-checkbox text-green-600" />
-              <span>Email notifications for ad activity</span>
-            </label>
+          <h3 className="text-lg font-semibold text-gray-700 flex items-center">
+            <AlertCircle className="w-5 h-5 mr-2" /> Notification Preferences
+          </h3>
+          <p className="text-gray-600 mt-2 mb-4">Choose how you want to receive notifications about your account activity.</p>
 
-            <label className="flex items-center space-x-2 text-gray-400">
-              <input type="checkbox" className="form-checkbox text-green-600" />
-              <span>SMS notifications for promotions</span>
-            </label>
+          {isLoading ? (
+            <div className="flex justify-center items-center h-40">
+              <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+            </div>
+          ) : (
+            <div className="mt-4 space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Email notifications for ad activity</label>
+                    <p className="text-xs text-gray-500">Get notified when your ads are approved, viewed, or expire</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={notificationPreferences.emailForAdActivity}
+                    onChange={(e) => handleNotificationPreferenceChange('emailForAdActivity', e.target.checked)}
+                    className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                  />
+                </div>
 
-            <button className="w-full bg-green-600 text-white py-2 rounded-md hover:bg-green-700 transition">Save Preferences</button>
-          </div>
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Email notifications for promotions</label>
+                    <p className="text-xs text-gray-500">Receive promotional offers and marketing emails</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={notificationPreferences.emailForPromotions}
+                    onChange={(e) => handleNotificationPreferenceChange('emailForPromotions', e.target.checked)}
+                    className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">SMS notifications for promotions</label>
+                    <p className="text-xs text-gray-500">Get promotional offers via text messages</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={notificationPreferences.smsForPromotions}
+                    onChange={(e) => handleNotificationPreferenceChange('smsForPromotions', e.target.checked)}
+                    className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Email notifications for messages</label>
+                    <p className="text-xs text-gray-500">Get notified when you receive new messages from buyers/sellers</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={notificationPreferences.emailForMessages}
+                    onChange={(e) => handleNotificationPreferenceChange('emailForMessages', e.target.checked)}
+                    className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Email notifications for payments</label>
+                    <p className="text-xs text-gray-500">Get notified about payment confirmations, failures, and refunds</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={notificationPreferences.emailForPayments}
+                    onChange={(e) => handleNotificationPreferenceChange('emailForPayments', e.target.checked)}
+                    className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={handleSaveNotificationPreferences}
+                disabled={isSavingPreferences}
+                className={cn(
+                  "w-full py-3 rounded-md text-white font-medium transition-all flex items-center justify-center",
+                  isSavingPreferences
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-green-600 hover:bg-green-700"
+                )}
+              >
+                {isSavingPreferences ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving Preferences...
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4 mr-2" />
+                    Save Preferences
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -738,13 +935,29 @@ export default function ProfileSettings() {
                 </button>
               </div>
 
+              {/* Two-Factor Authentication Section */}
               <div className="pt-6 mt-6 border-t">
-                <h4 className="text-md font-semibold text-gray-700 mb-3">Account Actions</h4>
+                <TwoFactorAuth
+                  isEnabled={twoFactorEnabled}
+                  onStatusChange={handle2FAStatusChange}
+                />
+              </div>
+
+              {/* Account Deletion Section */}
+              <div className="pt-6 mt-6 border-t">
+                <AccountDeletion
+                  userName={profile?.name || ""}
+                  userEmail={profile?.email || ""}
+                />
+              </div>
+
+              <div className="pt-6 mt-6 border-t">
+                <h4 className="text-md font-semibold text-gray-700 mb-3">Session Actions</h4>
                 <button
                   type="button"
                   onClick={handleLogout}
                   disabled={isLoggingOut}
-                  className="w-full bg-red-600 text-white py-3 rounded-md hover:bg-red-700 transition flex items-center justify-center"
+                  className="w-full bg-gray-600 text-white py-3 rounded-md hover:bg-gray-700 transition flex items-center justify-center"
                 >
                   {isLoggingOut ? (
                     <>
@@ -761,6 +974,13 @@ export default function ProfileSettings() {
               </div>
             </form>
           )}
+        </div>
+      )}
+
+      {/* Activity History */}
+      {activeTab === "activity" && (
+        <div className="mt-6">
+          <ActivityHistory />
         </div>
       )}
 
@@ -811,6 +1031,16 @@ export default function ProfileSettings() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Image Cropper Modal */}
+      {showImageCropper && previewImage && (
+        <ImageCropper
+          src={previewImage}
+          onCropComplete={handleCropComplete}
+          onCancel={handleCropCancel}
+          isLoading={isUploading}
+        />
       )}
     </div>
   );

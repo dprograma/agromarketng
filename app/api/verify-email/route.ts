@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!);
+    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!);
 
     if (typeof decoded !== 'object' || !('userId' in decoded)) {
       return NextResponse.redirect(

@@ -199,6 +199,34 @@ export default function MyAdsManagement() {
     }
   }, []);
 
+  // Handle proper delete
+  const handleDelete = useCallback(async (id: string) => {
+    if (!window.confirm('Are you sure you want to permanently delete this ad? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      // Optimistically remove from UI
+      queryClient.setQueryData(['myAds'], (oldData: MyAdsResponse | undefined) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          ads: oldData.ads.filter(ad => ad.id !== id)
+        };
+      });
+
+      const { data } = await debugRSC.safeApiCall(`/api/ads/${id}`, {
+        method: 'DELETE',
+      }, `Delete Ad - ${id}`);
+
+      showToast({ type: 'success', message: 'Ad deleted successfully' });
+    } catch (error) {
+      // Revert optimistic update on error
+      queryClient.invalidateQueries({ queryKey: ['myAds'] });
+      showToast({ type: 'error', message: error instanceof Error ? error.message : 'Error deleting ad' });
+    }
+  }, [queryClient]);
+
   const updateAnalytics = async (id: string, type: 'views' | 'clicks' | 'shares') => {
     try {
       const { data } = await debugRSC.safeApiCall(`/api/ads/${id}/analytics`, {
@@ -496,11 +524,7 @@ export default function MyAdsManagement() {
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuItem
-                              onClick={() => {
-                                if (window.confirm('Are you sure you want to delete this ad?')) {
-                                  updateStatus(ad.id, "Deleted");
-                                }
-                              }}
+                              onClick={() => handleDelete(ad.id)}
                               className="text-red-600"
                             >
                               <Trash2 className="h-4 w-4 mr-2" />

@@ -46,61 +46,66 @@ export default function CreateAgent() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 mt-4">
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="agent@example.com"
-          required
-        />
-      </div>
+    <div className="max-w-md mx-auto">
+      <form onSubmit={handleSubmit} className="space-y-6 mt-4">
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-sm font-medium">Email *</Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="agent@example.com"
+            className="w-full"
+            required
+          />
+        </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="name">Name</Label>
-        <Input
-          id="name"
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="John Doe"
-          required
-        />
-      </div>
+        <div className="space-y-2">
+          <Label htmlFor="name" className="text-sm font-medium">Full Name *</Label>
+          <Input
+            id="name"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="John Doe"
+            className="w-full"
+            required
+          />
+        </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="specialties">
-          Specialties (comma-separated)
-        </Label>
-        <Input
-          id="specialties"
-          value={specialties}
-          onChange={(e) => setSpecialties(e.target.value)}
-          placeholder="Technical Support, Billing, General"
-          required
-        />
-        <p className="text-sm text-gray-500">
-          Enter specialties separated by commas
-        </p>
-      </div>
+        <div className="space-y-2">
+          <Label htmlFor="specialties" className="text-sm font-medium">
+            Specialties (comma-separated) *
+          </Label>
+          <Input
+            id="specialties"
+            value={specialties}
+            onChange={(e) => setSpecialties(e.target.value)}
+            placeholder="Technical Support, Billing, General"
+            className="w-full"
+            required
+          />
+          <p className="text-xs text-gray-500">
+            Enter specialties separated by commas (e.g., Technical Support, Billing Issues)
+          </p>
+        </div>
 
-      <Button
-        type="submit"
-        disabled={isSubmitting}
-        className="w-full"
-      >
-        {isSubmitting ? (
-          <>
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Creating Agent...
-          </>
-        ) : (
-          "Create Agent"
-        )}
-      </Button>
-    </form>
+        <Button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full py-2 text-sm"
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Creating Agent...
+            </>
+          ) : (
+            "Create New Agent"
+          )}
+        </Button>
+      </form>
+    </div>
   );
 }

@@ -24,6 +24,7 @@ interface Category {
 export default function SearchResults() {
   const searchParams = useSearchParams();
   const [results, setResults] = useState<Ad[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -33,9 +34,12 @@ export default function SearchResults() {
         const response = await fetch(`/api/search?${searchParams.toString()}`);
         if (!response.ok) throw new Error('Search failed');
         const data = await response.json();
-        setResults(data);
+        setResults(data.results || []);
+        setTotalCount(data.pagination?.totalCount || 0);
       } catch (error) {
         console.error('Search error:', error);
+        setResults([]);
+        setTotalCount(0);
       } finally {
         setIsLoading(false);
       }
@@ -58,12 +62,22 @@ export default function SearchResults() {
               <h2 className="text-xl font-semibold text-gray-900 mb-6">
                 Recommended for You
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Show some featured products here */}
-                {results.slice(0, 4).map((ad) => (
-                  <ProductCard key={ad.id} product={ad} />
-                ))}
-              </div>
+              {isLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-green-600" />
+                </div>
+              ) : results.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {results.slice(0, 4).map((ad) => (
+                    <ProductCard key={ad.id} product={ad} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-500 mb-4">No featured products available at the moment.</p>
+                  <p className="text-sm text-gray-400">Use the search above to find specific products.</p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -80,10 +94,10 @@ export default function SearchResults() {
               <>
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-semibold text-gray-900">
-                    {results.length} Results Found
+                    {totalCount} Results Found
                   </h2>
                   <p className="text-sm text-gray-600">
-                    Showing results for "{searchParams.get('q')}"
+                    {searchParams.get('q') ? `Showing results for "${searchParams.get('q')}"` : 'Browse all products'}
                   </p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

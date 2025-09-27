@@ -43,16 +43,30 @@ const Footer = () => {
           <div>
             <h3 className="mb-3 font-semibold text-gray-300">Legal</h3>
             <ul>
-              {legal.map((item, index) => (
-                <li key={index} className="mb-1">
-                  <Link
-                    href="/"
-                    className="text-gray-300 hover:text-white transition-colors"
-                  >
-                    {item}
-                  </Link>
-                </li>
-              ))}
+              <li className="mb-1">
+                <Link
+                  href="/terms"
+                  className="text-gray-300 hover:text-white transition-colors"
+                >
+                  Terms
+                </Link>
+              </li>
+              <li className="mb-1">
+                <Link
+                  href="/privacy"
+                  className="text-gray-300 hover:text-white transition-colors"
+                >
+                  Privacy
+                </Link>
+              </li>
+              <li className="mb-1">
+                <Link
+                  href="/legal"
+                  className="text-gray-300 hover:text-white transition-colors"
+                >
+                  Legal
+                </Link>
+              </li>
             </ul>
           </div>
 
