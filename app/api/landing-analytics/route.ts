@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   try {
     // Get total number of active ads
     const totalAds = await prisma.ad.count({
-      where: { status: 'Active' }
+      where: { status: 'active' }
     });
 
     // Get total number of users (farmers)
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     // Get total number of states covered (unique locations)
     const locations = await prisma.ad.groupBy({
       by: ['location'],
-      where: { status: 'Active' }
+      where: { status: 'active' }
     });
     const statesCovered = new Set(locations.map(loc => {
       // Extract state from location (assuming format like "City, State")
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     // Get top categories
     const topCategories = await prisma.ad.groupBy({
       by: ['category'],
-      where: { status: 'Active' },
+      where: { status: 'active' },
       _count: { id: true },
       orderBy: { _count: { id: 'desc' } },
       take: 5
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
 
     // Get recent activity (most recent ads)
     const recentActivity = await prisma.ad.findMany({
-      where: { status: 'Active' },
+      where: { status: 'active' },
       orderBy: { createdAt: 'desc' },
       take: 5,
       select: {

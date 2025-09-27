@@ -1,15 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
+import { promotionRateLimiters } from '@/lib/rateLimit';
+import { apiErrorResponse } from '@/lib/errorHandling';
+import { PromotionAuditLogger } from '@/lib/promotionAudit';
 
 export async function GET(request: NextRequest) {
   try {
-    // Add console.log to debug
-    console.log('Received request for promotions');
+    // Apply rate limiting
+    const rateLimitResult = promotionRateLimiters.promotions(request);
+    if (!rateLimitResult.success) {
+      return apiErrorResponse(
+        'Rate limit exceeded. Too many requests.',
+        429,
+        'RATE_LIMIT_EXCEEDED',
+        `Try again after ${new Date(rateLimitResult.resetTime).toISOString()}`
+      );
+    }
 
     // Get token from cookies
     const token = request.cookies.get('next-auth.session-token')?.value;
-    console.log('Token exists:', !!token);
 
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -18,14 +28,11 @@ export async function GET(request: NextRequest) {
     // Verify token and get userId
     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
     const userId = decoded.id;
-    console.log('User ID:', userId);
 
     // Get current date
     const now = new Date();
 
     try {
-      // Debug database queries
-      console.log('Fetching boosted ads and subscription');
       
       // Get active boosts with error handling
       const boostedAds = await prisma.ad.findMany({
@@ -67,10 +74,6 @@ export async function GET(request: NextRequest) {
         return null;
       });
 
-      console.log('Data fetched successfully:', {
-        boostsCount: boostedAds.length,
-        hasSubscription: !!subscription
-      });
 
       return NextResponse.json({
         boosts: boostedAds.map(ad => ({
@@ -94,6 +97,20 @@ export async function GET(request: NextRequest) {
           benefits: subscription.benefits
         } : null
       });
+
+      // Log promotion view for analytics (non-blocking)
+      if (boostedAds.length > 0 || subscription) {
+        PromotionAuditLogger.logPromotionView(
+          userId,
+          'promotions_dashboard',
+          'AD',
+          request.headers.get('user-agent') || undefined,
+          request.headers.get('x-forwarded-for')?.split(',')[0] || undefined
+        ).catch(error => {
+          // Don't fail the request if audit logging fails
+          console.warn('Audit logging failed:', error);
+        });
+      }
 
     } catch (dbError) {
       console.error('Database error:', dbError);

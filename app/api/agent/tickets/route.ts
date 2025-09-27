@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
     if (status === 'active') {
       query = {
         where: {
-          assignedTo: session.agentId,
+          agentId: session.agentId,
           status: 'active'
         },
         include: {
@@ -54,7 +54,15 @@ export async function GET(req: NextRequest) {
               email: true
             }
           },
-          responses: {
+          messages: {
+            include: {
+              sender: {
+                select: {
+                  name: true,
+                  email: true
+                }
+              }
+            },
             orderBy: {
               createdAt: 'asc'
             }
@@ -78,7 +86,7 @@ export async function GET(req: NextRequest) {
     } else if (status === 'closed') {
       query = {
         where: {
-          assignedTo: session.agentId,
+          agentId: session.agentId,
           status: 'closed'
         },
         include: {
@@ -88,7 +96,15 @@ export async function GET(req: NextRequest) {
               email: true
             }
           },
-          responses: {
+          messages: {
+            include: {
+              sender: {
+                select: {
+                  name: true,
+                  email: true
+                }
+              }
+            },
             orderBy: {
               createdAt: 'asc'
             }
@@ -99,7 +115,7 @@ export async function GET(req: NextRequest) {
       // Default to all tickets assigned to this agent
       query = {
         where: {
-          assignedTo: session.agentId
+          agentId: session.agentId
         },
         include: {
           user: {
@@ -108,7 +124,15 @@ export async function GET(req: NextRequest) {
               email: true
             }
           },
-          responses: {
+          messages: {
+            include: {
+              sender: {
+                select: {
+                  name: true,
+                  email: true
+                }
+              }
+            },
             orderBy: {
               createdAt: 'asc'
             }
@@ -117,72 +141,24 @@ export async function GET(req: NextRequest) {
       };
     }
     
-    // For now, return mock data since we don't have the actual SupportTicket model yet
-    // In a real implementation, this would be: const tickets = await prisma.supportTicket.findMany(query);
-    
-    const mockTickets = [
-      {
-        id: "ticket1",
-        subject: "Payment not processing",
-        message: "I've been trying to make a payment for the last hour but it keeps failing. Can you help?",
-        priority: "high",
-        category: "billing",
-        status: status || "active",
-        attachments: [],
-        userId: "user1",
-        user: {
-          name: "John Doe",
-          email: "john@example.com"
-        },
-        createdAt: new Date(Date.now() - 3600000).toISOString(),
-        updatedAt: new Date(Date.now() - 1800000).toISOString(),
-        assignedTo: session.agentId,
-        responses: [
-          {
-            id: "resp1",
-            content: "I'll look into this right away. Can you tell me what error message you're seeing?",
-            ticketId: "ticket1",
-            createdAt: new Date(Date.now() - 1800000).toISOString(),
-            createdBy: session.agentId,
-            createdByType: "agent"
-          },
-          {
-            id: "resp2",
-            content: "It says 'Payment method declined'. I've tried two different cards.",
-            ticketId: "ticket1",
-            createdAt: new Date(Date.now() - 1700000).toISOString(),
-            createdBy: "user1",
-            createdByType: "user"
-          }
-        ]
-      },
-      {
-        id: "ticket2",
-        subject: "Can't access my account",
-        message: "I'm trying to log in but it says my password is incorrect. I've reset it twice already.",
-        priority: "medium",
-        category: "technical",
-        status: status || "active",
-        attachments: [],
-        userId: "user2",
-        user: {
-          name: "Jane Smith",
-          email: "jane@example.com"
-        },
-        createdAt: new Date(Date.now() - 7200000).toISOString(),
-        updatedAt: new Date(Date.now() - 3600000).toISOString(),
-        assignedTo: session.agentId,
-        responses: []
-      }
-    ];
-    
-    // Filter based on status if needed
-    let tickets = mockTickets;
-    if (status) {
-      tickets = mockTickets.filter(ticket => ticket.status === status);
-    }
-    
-    return NextResponse.json(tickets);
+    // Fetch tickets from database
+    const tickets = await prisma.supportTicket.findMany(query);
+
+    // Transform the data to match the frontend expectations
+    const transformedTickets = tickets.map(ticket => ({
+      ...ticket,
+      priority: ticket.priority === 3 ? 'high' : ticket.priority === 2 ? 'medium' : 'low',
+      responses: (ticket as any).messages?.map((message: any) => ({
+        id: message.id,
+        content: message.content,
+        ticketId: message.ticketId,
+        createdAt: message.createdAt.toISOString(),
+        createdBy: message.senderId,
+        createdByType: message.isAgentReply ? 'agent' : 'user'
+      })) || []
+    }));
+
+    return NextResponse.json(transformedTickets);
   } catch (error) {
     console.error('Error fetching tickets:', error);
     return NextResponse.json({ error: "Failed to fetch tickets" }, { status: 500 });
@@ -202,48 +178,70 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
     
-    // In a real implementation, this would be:
-    // const ticket = await prisma.supportTicket.create({
-    //   data: {
-    //     subject,
-    //     message,
-    //     priority: priority || "medium",
-    //     category: category || "general",
-    //     status: "active",
-    //     userId,
-    //     assignedTo: session.agentId
-    //   },
-    //   include: {
-    //     user: {
-    //       select: {
-    //         name: true,
-    //         email: true
-    //       }
-    //     }
-    //   }
-    // });
-    
-    // Mock response
-    const ticket = {
-      id: "ticket" + Date.now(),
-      subject,
-      message,
-      priority: priority || "medium",
-      category: category || "general",
-      status: "active",
-      attachments: [],
-      userId,
-      user: {
-        name: "Customer Name",
-        email: "customer@example.com"
+    // Convert priority string to int
+    const priorityInt = priority === 'high' ? 3 : priority === 'medium' ? 2 : 1;
+
+    // Create the ticket
+    const ticket = await prisma.supportTicket.create({
+      data: {
+        subject,
+        priority: priorityInt,
+        category: category || "general",
+        status: "active",
+        userId,
+        agentId: session.agentId,
+        attachments: []
       },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      assignedTo: session.agentId,
-      responses: []
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true
+          }
+        },
+        messages: {
+          include: {
+            sender: {
+              select: {
+                name: true,
+                email: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'asc'
+          }
+        }
+      }
+    });
+
+    // Create initial message if provided
+    if (message) {
+      await prisma.supportMessage.create({
+        data: {
+          ticketId: ticket.id,
+          senderId: userId,
+          content: message,
+          isAgentReply: false
+        }
+      });
+    }
+
+    // Transform response to match frontend expectations
+    const transformedTicket = {
+      ...ticket,
+      priority: ticket.priority === 3 ? 'high' : ticket.priority === 2 ? 'medium' : 'low',
+      responses: (ticket as any).messages?.map((msg: any) => ({
+        id: msg.id,
+        content: msg.content,
+        ticketId: msg.ticketId,
+        createdAt: msg.createdAt.toISOString(),
+        createdBy: msg.senderId,
+        createdByType: msg.isAgentReply ? 'agent' : 'user'
+      })) || []
     };
     
-    return NextResponse.json(ticket);
+    return NextResponse.json(transformedTicket);
   } catch (error) {
     console.error('Error creating ticket:', error);
     return NextResponse.json({ error: "Failed to create ticket" }, { status: 500 });

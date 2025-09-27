@@ -23,7 +23,9 @@ const transporter = nodemailer.createTransport({
 });
 
 async function validateAdmin(req: NextRequest) {
-  const token = req.cookies.get('next-auth.session-token')?.value;
+  // Try both development and production cookie names
+  const token = req.cookies.get('next-auth.session-token')?.value ||
+                req.cookies.get('__Secure-next-auth.session-token')?.value;
   if (!token) {
     return null;
   }
@@ -31,11 +33,10 @@ async function validateAdmin(req: NextRequest) {
   try {
     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as {
       id: string;
-      name: string;
+      email: string;
+      role: string;
       exp?: number;
     };
-
-
 
     console.log("admin session token: ", decoded);
 
@@ -44,7 +45,8 @@ async function validateAdmin(req: NextRequest) {
       return null;
     }
 
-    if (decoded.name !== "Admin") {
+    // Check if user is admin by role
+    if (decoded.role !== 'admin') {
       return null;
     }
 

@@ -8,8 +8,9 @@ import bcrypt from 'bcryptjs';
  */
 export async function GET(req: NextRequest) {
   try {
-    // Get token from cookies
-    const token = req.cookies.get('next-auth.session-token')?.value;
+    // Get token from cookies (try both development and production cookie names)
+    const token = req.cookies.get('next-auth.session-token')?.value ||
+                  req.cookies.get('__Secure-next-auth.session-token')?.value;
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -25,8 +26,10 @@ export async function GET(req: NextRequest) {
         id: true,
         name: true,
         email: true,
+        phone: true,
         image: true,
         role: true,
+        twoFactorEnabled: true,
         createdAt: true,
         updatedAt: true,
       }
@@ -51,8 +54,9 @@ export async function GET(req: NextRequest) {
  */
 export async function PATCH(req: NextRequest) {
   try {
-    // Get token from cookies
-    const token = req.cookies.get('next-auth.session-token')?.value;
+    // Get token from cookies (try both development and production cookie names)
+    const token = req.cookies.get('next-auth.session-token')?.value ||
+                  req.cookies.get('__Secure-next-auth.session-token')?.value;
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -113,8 +117,10 @@ export async function PATCH(req: NextRequest) {
         id: true,
         name: true,
         email: true,
+        phone: true,
         image: true,
         role: true,
+        twoFactorEnabled: true,
         createdAt: true,
         updatedAt: true,
       }

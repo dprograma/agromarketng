@@ -5,7 +5,10 @@ import { apiErrorResponse } from '@/lib/errorHandling';
 
 // Helper function to validate admin session
 async function validateAdmin(req: NextRequest) {
-  const token = req.cookies.get('next-auth.session-token')?.value;
+  // Try both development and production cookie names
+  const token = req.cookies.get('next-auth.session-token')?.value ||
+                req.cookies.get('__Secure-next-auth.session-token')?.value;
+
   if (!token) {
     return null;
   }
@@ -13,8 +16,15 @@ async function validateAdmin(req: NextRequest) {
   try {
     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as {
       id: string;
+      email: string;
       role: string;
+      exp?: number;
     };
+
+    // Check token expiration
+    if (decoded.exp && Date.now() >= decoded.exp * 1000) {
+      return null;
+    }
 
     // Check if user is admin
     if (decoded.role !== 'admin') {
@@ -47,11 +57,29 @@ export async function GET(req: NextRequest) {
             email: true,
           },
         },
+        agent: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
         messages: {
           orderBy: {
             createdAt: 'desc',
           },
           take: 1,
+          include: {
+            sender: {
+              select: {
+                name: true,
+              },
+            },
+          },
         },
       },
       orderBy: {

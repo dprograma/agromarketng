@@ -11,7 +11,11 @@ model User {
   id                 String            @id @default(cuid())
   name               String            @db.VarChar(255)
   email              String            @unique @db.VarChar(255)
+  phone              String?           @db.VarChar(20)
   password           String?           @db.VarChar(255)
+  twoFactorEnabled   Boolean           @default(false)
+  twoFactorSecret    String?           @db.VarChar(255)
+  backupCodes        String[]          @default([])
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   verified           Boolean           @default(false)
@@ -24,6 +28,7 @@ model User {
   Agent              Agent?
   invoices           Invoice[]
   notifications      Notification[]
+  notificationPreferences NotificationPreferences?
   paymentMethods     PaymentMethod[]
   sessions           Session[]
   supportTickets     SupportTicket[]
@@ -32,6 +37,9 @@ model User {
   conversationsAsSeller Conversation[] @relation("SellerConversations")
   sentMessages       Message[]
   sentSupportMessages SupportMessage[] @relation("SupportMessageSender") // New relation for support messages
+  savedSearches      SavedSearch[]
+  activityLogs       ActivityLog[]
+  knowledgeArticles  KnowledgeArticle[]
   subscriptionPlan   SubscriptionPlan? @relation("UserSubscription", fields: [subscriptionPlanId], references: [id])
 }
 
@@ -182,14 +190,16 @@ model VerificationToken {
 model SupportTicket {
   id          String           @id @default(cuid())
   subject     String
-  priority    String
+  priority    Int              @default(1) // 1=Low, 2=Medium, 3=High
   category    String
-  status      String           @default("open")
+  status      String           @default("pending") // pending, active, closed
   attachments String[]
   userId      String
+  agentId     String?          // Assigned agent ID
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   user        User             @relation(fields: [userId], references: [id])
+  agent       Agent?           @relation(fields: [agentId], references: [id])
   messages    SupportMessage[] // Relation to SupportMessage model
 }
 
@@ -240,16 +250,17 @@ model Message {
 }
 
 model Agent {
-  id          String        @id @default(cuid())
-  userId      String        @unique
-  isOnline    Boolean       @default(false)
-  isAvailable Boolean       @default(true)
-  activeChats Int           @default(0)
-  lastActive  DateTime      @default(now())
-  specialties String[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  user        User          @relation(fields: [userId], references: [id])
+  id            String          @id @default(cuid())
+  userId        String          @unique
+  isOnline      Boolean         @default(false)
+  isAvailable   Boolean         @default(true)
+  activeChats   Int             @default(0)
+  lastActive    DateTime        @default(now())
+  specialties   String[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  user          User            @relation(fields: [userId], references: [id])
+  supportTickets SupportTicket[] // Support tickets assigned to this agent
 }
 
 model Newsletter {
@@ -272,4 +283,105 @@ model Notification {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   user      User     @relation(fields: [userId], references: [id])
+}
+
+model NotificationPreferences {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  emailForAdActivity Boolean  @default(true)
+  emailForPromotions Boolean  @default(true)
+  smsForPromotions   Boolean  @default(false)
+  emailForMessages   Boolean  @default(true)
+  emailForPayments   Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model KnowledgeArticle {
+  id          String   @id @default(cuid())
+  title       String
+  content     String   @db.Text
+  category    String
+  tags        String[]
+  views       Int      @default(0)
+  helpful     Int      @default(0)
+  notHelpful  Int      @default(0)
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  creator     User     @relation(fields: [createdBy], references: [id])
+
+  @@index([category])
+  @@index([createdAt])
+}
+
+model SearchAnalytics {
+  id          String   @id @default(cuid())
+  searchTerm  String
+  userId      String?
+  resultCount Int      @default(0)
+  filters     Json     @default("{}")
+  sessionId   String
+  timestamp   DateTime @default(now())
+  userAgent   String?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  @@index([searchTerm])
+  @@index([timestamp])
+  @@index([userId])
+}
+
+model SavedSearch {
+  id          String   @id @default(cuid())
+  query       String   @db.VarChar(255)
+  userId      String
+  alertsEnabled Boolean @default(false)
+  category    String?  @db.VarChar(100)
+  location    String?  @db.VarChar(100)
+  priceMin    Decimal? @db.Decimal(10, 2)
+  priceMax    Decimal? @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  lastAlertAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([query])
+  @@index([createdAt])
+  @@unique([userId, query])
+}
+
+model SearchAlert {
+  id            String   @id @default(cuid())
+  savedSearchId String
+  adId          String
+  sentAt        DateTime @default(now())
+
+  @@index([savedSearchId])
+  @@index([adId])
+  @@index([sentAt])
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  userId      String
+  activity    String   // "login", "logout", "password_change", "2fa_enabled", "2fa_disabled", etc.
+  description String?  // Additional details about the activity
+  ipAddress   String?
+  userAgent   String?
+  deviceInfo  String?
+  location    String?  // City, Country (if geolocation is available)
+  success     Boolean  @default(true)
+  metadata    Json?    // Additional structured data
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([activity])
+  @@index([createdAt])
+  @@index([userId, createdAt])
 }

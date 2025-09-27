@@ -186,27 +186,27 @@ export default function EnhancedAgentsList() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row justify-between gap-4">
-        <div className="relative flex-1">
+        <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
           <Input
             placeholder="Search agents by name, email, or specialty..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-10 w-full"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Button
             variant={filterAvailable === true ? "default" : "outline"}
             onClick={() => setFilterAvailable(filterAvailable === true ? null : true)}
-            className="text-sm"
+            className="text-sm whitespace-nowrap"
           >
             Online Only
           </Button>
           <Button
             variant="outline"
             onClick={() => setViewMode(viewMode === "table" ? "cards" : "table")}
-            className="text-sm"
+            className="text-sm whitespace-nowrap"
           >
             {viewMode === "table" ? "Card View" : "Table View"}
           </Button>
@@ -219,118 +219,140 @@ export default function EnhancedAgentsList() {
         </div>
       ) : viewMode === "table" ? (
         <div className="rounded-md border overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-gray-50 hover:bg-gray-50">
-                <TableHead className="font-semibold">
-                  <button
-                    onClick={() => handleSort("name")}
-                    className="flex items-center gap-1 hover:text-green-600"
-                  >
-                    Name
-                    {sortField === "name" && (
-                      <ArrowUpDown className="w-3 h-3" />
-                    )}
-                  </button>
-                </TableHead>
-                <TableHead className="font-semibold">
-                  <button
-                    onClick={() => handleSort("email")}
-                    className="flex items-center gap-1 hover:text-green-600"
-                  >
-                    Email
-                    {sortField === "email" && (
-                      <ArrowUpDown className="w-3 h-3" />
-                    )}
-                  </button>
-                </TableHead>
-                <TableHead className="font-semibold text-center">
-                  <button
-                    onClick={() => handleSort("status")}
-                    className="flex items-center gap-1 hover:text-green-600 mx-auto"
-                  >
-                    Status
-                    {sortField === "status" && (
-                      <ArrowUpDown className="w-3 h-3" />
-                    )}
-                  </button>
-                </TableHead>
-                <TableHead className="font-semibold text-center">
-                  <button
-                    onClick={() => handleSort("activeChats")}
-                    className="flex items-center gap-1 hover:text-green-600 mx-auto"
-                  >
-                    Active Chats
-                    {sortField === "activeChats" && (
-                      <ArrowUpDown className="w-3 h-3" />
-                    )}
-                  </button>
-                </TableHead>
-                <TableHead className="font-semibold">Specialties</TableHead>
-                <TableHead className="font-semibold text-center">
-                  <button
-                    onClick={() => handleSort("satisfaction")}
-                    className="flex items-center gap-1 hover:text-green-600 mx-auto"
-                  >
-                    Rating
-                    {sortField === "satisfaction" && (
-                      <ArrowUpDown className="w-3 h-3" />
-                    )}
-                  </button>
-                </TableHead>
-                <TableHead className="font-semibold text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gray-50 hover:bg-gray-50">
+                  <TableHead className="font-semibold min-w-[120px]">
+                    <button
+                      onClick={() => handleSort("name")}
+                      className="flex items-center gap-1 hover:text-green-600 text-xs sm:text-sm"
+                    >
+                      Name
+                      {sortField === "name" && (
+                        <ArrowUpDown className="w-3 h-3" />
+                      )}
+                    </button>
+                  </TableHead>
+                  <TableHead className="font-semibold min-w-[180px] hidden md:table-cell">
+                    <button
+                      onClick={() => handleSort("email")}
+                      className="flex items-center gap-1 hover:text-green-600 text-xs sm:text-sm"
+                    >
+                      Email
+                      {sortField === "email" && (
+                        <ArrowUpDown className="w-3 h-3" />
+                      )}
+                    </button>
+                  </TableHead>
+                  <TableHead className="font-semibold text-center min-w-[80px]">
+                    <button
+                      onClick={() => handleSort("status")}
+                      className="flex items-center gap-1 hover:text-green-600 mx-auto text-xs sm:text-sm"
+                    >
+                      Status
+                      {sortField === "status" && (
+                        <ArrowUpDown className="w-3 h-3" />
+                      )}
+                    </button>
+                  </TableHead>
+                  <TableHead className="font-semibold text-center min-w-[80px] hidden sm:table-cell">
+                    <button
+                      onClick={() => handleSort("activeChats")}
+                      className="flex items-center gap-1 hover:text-green-600 mx-auto text-xs sm:text-sm"
+                    >
+                      Chats
+                      {sortField === "activeChats" && (
+                        <ArrowUpDown className="w-3 h-3" />
+                      )}
+                    </button>
+                  </TableHead>
+                  <TableHead className="font-semibold min-w-[120px] hidden lg:table-cell text-xs sm:text-sm">Specialties</TableHead>
+                  <TableHead className="font-semibold text-center min-w-[80px] hidden md:table-cell">
+                    <button
+                      onClick={() => handleSort("satisfaction")}
+                      className="flex items-center gap-1 hover:text-green-600 mx-auto text-xs sm:text-sm"
+                    >
+                      Rating
+                      {sortField === "satisfaction" && (
+                        <ArrowUpDown className="w-3 h-3" />
+                      )}
+                    </button>
+                  </TableHead>
+                  <TableHead className="font-semibold text-right min-w-[120px] text-xs sm:text-sm">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
             <TableBody>
               {sortedAgents.map((agent) => (
                 <React.Fragment key={agent.id}>
                   <TableRow className="hover:bg-gray-50">
-                    <TableCell className="font-medium">{agent.user.name}</TableCell>
-                    <TableCell>{agent.user.email}</TableCell>
+                    <TableCell className="font-medium text-xs sm:text-sm">
+                      <div className="flex flex-col">
+                        <span>{agent.user.name}</span>
+                        <span className="text-xs text-gray-500 md:hidden">{agent.user.email}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell text-xs sm:text-sm">{agent.user.email}</TableCell>
                     <TableCell className="text-center">
                       <Badge
                         variant={agent.isAvailable ? "success" : "secondary"}
-                        className="animate-fade-in"
+                        className="animate-fade-in text-xs"
                       >
                         {agent.isAvailable ? "Online" : "Offline"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-center">{agent.activeChats}</TableCell>
-                    <TableCell>
+                    <TableCell className="text-center text-xs sm:text-sm hidden sm:table-cell">{agent.activeChats}</TableCell>
+                    <TableCell className="hidden lg:table-cell">
                       <div className="flex gap-1 flex-wrap">
-                        {agent.specialties.map((specialty, index) => (
+                        {agent.specialties.slice(0, 2).map((specialty, index) => (
                           <Badge key={index} variant="outline" className="text-xs">
                             {specialty}
                           </Badge>
                         ))}
+                        {agent.specialties.length > 2 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{agent.specialties.length - 2}
+                          </Badge>
+                        )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="text-center hidden md:table-cell">
                       <div className="flex items-center justify-center">
-                        <span className="mr-1">{agent.performance?.satisfaction.toFixed(1)}</span>
+                        <span className="mr-1 text-xs sm:text-sm">{agent.performance?.satisfaction.toFixed(1)}</span>
                         <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
                       </div>
                     </TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => handleViewDetails(agent.id)}
-                        className="text-xs py-1 px-2"
-                      >
-                        Details
-                      </Button>
-                      <Button
-                        variant={agent.isAvailable ? "destructive" : "default"}
-                        onClick={() => handleToggleAgent(agent.id, !agent.isAvailable)}
-                        className="text-xs py-1 px-2"
-                      >
-                        {agent.isAvailable ? (
-                          <XCircle className="w-3 h-3 mr-1" />
-                        ) : (
-                          <CheckCircle className="w-3 h-3 mr-1" />
-                        )}
-                        {agent.isAvailable ? "Deactivate" : "Activate"}
-                      </Button>
+                    <TableCell className="text-right">
+                      <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => handleViewDetails(agent.id)}
+                          className="text-xs py-1 px-2 whitespace-nowrap"
+                        >
+                          Details
+                        </Button>
+                        <Button
+                          variant={agent.isAvailable ? "destructive" : "default"}
+                          onClick={() => handleToggleAgent(agent.id, !agent.isAvailable)}
+                          className="text-xs py-1 px-2 whitespace-nowrap"
+                        >
+                          <span className="hidden sm:inline">
+                            {agent.isAvailable ? (
+                              <XCircle className="w-3 h-3 mr-1" />
+                            ) : (
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                            )}
+                            {agent.isAvailable ? "Deactivate" : "Activate"}
+                          </span>
+                          <span className="sm:hidden">
+                            {agent.isAvailable ? (
+                              <XCircle className="w-3 h-3" />
+                            ) : (
+                              <CheckCircle className="w-3 h-3" />
+                            )}
+                          </span>
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                   <AnimatePresence>
@@ -358,7 +380,8 @@ export default function EnhancedAgentsList() {
                 </React.Fragment>
               ))}
             </TableBody>
-          </Table>
+            </Table>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
