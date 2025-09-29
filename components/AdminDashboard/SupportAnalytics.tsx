@@ -61,6 +61,7 @@ interface AnalyticsData {
 
 export default function SupportAnalytics() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [timeRange, setTimeRange] = useState("7days");
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
@@ -71,6 +72,7 @@ export default function SupportAnalytics() {
 
   const fetchAnalyticsData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const response = await fetch(`/api/admin/analytics?timeRange=${timeRange}`, {
         credentials: "include"
@@ -81,20 +83,32 @@ export default function SupportAnalytics() {
 
         // Transform the API response to match our component's data structure
         const transformedData: AnalyticsData = {
-          chatVolume: data.chatVolume,
-          responseTime: data.responseTime,
-          resolutionRate: data.resolutionRate,
-          categoryDistribution: data.categoryDistribution,
-          agentPerformance: data.agentPerformance
+          chatVolume: data.chatVolume || { labels: [], data: [] },
+          responseTime: data.responseTime || { labels: [], data: [] },
+          resolutionRate: data.resolutionRate || { labels: [], data: [] },
+          categoryDistribution: data.categoryDistribution || { labels: [], data: [] },
+          agentPerformance: data.agentPerformance || { agents: [], responseTime: [], resolutionRate: [], satisfaction: [] }
         };
 
         setAnalyticsData(transformedData);
       } else {
-        throw new Error("Failed to fetch analytics data");
+        const errorData = await response.json().catch(() => ({ message: 'Failed to fetch analytics data' }));
+        throw new Error(errorData.message || "Failed to fetch analytics data");
       }
     } catch (error) {
       console.error("Error fetching analytics data:", error);
-      toast.error("Failed to load analytics data");
+      const errorMessage = error instanceof Error ? error.message : "Failed to load analytics data";
+      setError(errorMessage);
+      toast.error(errorMessage);
+
+      // Set default empty data to prevent render issues
+      setAnalyticsData({
+        chatVolume: { labels: [], data: [] },
+        responseTime: { labels: [], data: [] },
+        resolutionRate: { labels: [], data: [] },
+        categoryDistribution: { labels: [], data: [] },
+        agentPerformance: { agents: [], responseTime: [], resolutionRate: [], satisfaction: [] }
+      });
     } finally {
       setLoading(false);
     }
@@ -104,9 +118,13 @@ export default function SupportAnalytics() {
     return (
       <div className="flex justify-center items-center h-64">
         <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+        <span className="ml-2 text-gray-500">Loading analytics...</span>
       </div>
     );
   }
+
+  // Always render the analytics content, even if there's an error or no data
+  // The charts will show empty state or default values
 
   return (
     <div className="space-y-6">
@@ -134,6 +152,24 @@ export default function SupportAnalytics() {
         </div>
       </div>
 
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="text-red-600 text-sm">
+              <strong>Error:</strong> {error}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchAnalyticsData}
+              className="ml-auto text-red-600 border-red-300 hover:bg-red-100"
+            >
+              Retry
+            </Button>
+          </div>
+        </div>
+      )}
+
       <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -153,11 +189,11 @@ export default function SupportAnalytics() {
                 <div className="h-80">
                   <Bar
                     data={{
-                      labels: analyticsData?.chatVolume.labels,
+                      labels: analyticsData?.chatVolume.labels || [],
                       datasets: [
                         {
                           label: "Number of Chats",
-                          data: analyticsData?.chatVolume.data,
+                          data: analyticsData?.chatVolume.data || [],
                           backgroundColor: "rgba(34, 197, 94, 0.6)",
                         },
                       ],
@@ -188,11 +224,11 @@ export default function SupportAnalytics() {
                 <div className="h-80">
                   <Line
                     data={{
-                      labels: analyticsData?.responseTime.labels,
+                      labels: analyticsData?.responseTime.labels || [],
                       datasets: [
                         {
                           label: "Response Time",
-                          data: analyticsData?.responseTime.data,
+                          data: analyticsData?.responseTime.data || [],
                           borderColor: "rgba(79, 70, 229, 1)",
                           backgroundColor: "rgba(79, 70, 229, 0.1)",
                           tension: 0.3,
@@ -227,11 +263,11 @@ export default function SupportAnalytics() {
                 <div className="h-80">
                   <Line
                     data={{
-                      labels: analyticsData?.resolutionRate.labels,
+                      labels: analyticsData?.resolutionRate.labels || [],
                       datasets: [
                         {
                           label: "Resolution Rate",
-                          data: analyticsData?.resolutionRate.data,
+                          data: analyticsData?.resolutionRate.data || [],
                           borderColor: "rgba(245, 158, 11, 1)",
                           backgroundColor: "rgba(245, 158, 11, 0.1)",
                           tension: 0.3,
@@ -267,11 +303,11 @@ export default function SupportAnalytics() {
                 <div className="h-80">
                   <Doughnut
                     data={{
-                      labels: analyticsData?.categoryDistribution.labels,
+                      labels: analyticsData?.categoryDistribution.labels || [],
                       datasets: [
                         {
                           label: "Categories",
-                          data: analyticsData?.categoryDistribution.data,
+                          data: analyticsData?.categoryDistribution.data || [],
                           backgroundColor: [
                             "rgba(34, 197, 94, 0.6)",
                             "rgba(79, 70, 229, 0.6)",
@@ -307,21 +343,21 @@ export default function SupportAnalytics() {
               <div className="h-96">
                 <Bar
                   data={{
-                    labels: analyticsData?.agentPerformance.agents,
+                    labels: analyticsData?.agentPerformance.agents || [],
                     datasets: [
                       {
                         label: "Avg. Response Time (min)",
-                        data: analyticsData?.agentPerformance.responseTime,
+                        data: analyticsData?.agentPerformance.responseTime || [],
                         backgroundColor: "rgba(79, 70, 229, 0.6)",
                       },
                       {
                         label: "Resolution Rate (%)",
-                        data: analyticsData?.agentPerformance.resolutionRate,
+                        data: analyticsData?.agentPerformance.resolutionRate || [],
                         backgroundColor: "rgba(34, 197, 94, 0.6)",
                       },
                       {
                         label: "Satisfaction (out of 5)",
-                        data: analyticsData?.agentPerformance.satisfaction.map(
+                        data: (analyticsData?.agentPerformance.satisfaction || []).map(
                           (score) => score * 20
                         ), // Scale to percentage
                         backgroundColor: "rgba(245, 158, 11, 0.6)",
@@ -370,11 +406,11 @@ export default function SupportAnalytics() {
               <div className="h-96">
                 <Doughnut
                   data={{
-                    labels: analyticsData?.categoryDistribution.labels,
+                    labels: analyticsData?.categoryDistribution.labels || [],
                     datasets: [
                       {
                         label: "Categories",
-                        data: analyticsData?.categoryDistribution.data,
+                        data: analyticsData?.categoryDistribution.data || [],
                         backgroundColor: [
                           "rgba(34, 197, 94, 0.6)",
                           "rgba(79, 70, 229, 0.6)",
@@ -409,11 +445,11 @@ export default function SupportAnalytics() {
               <div className="h-96">
                 <Bar
                   data={{
-                    labels: analyticsData?.agentPerformance.agents,
+                    labels: analyticsData?.agentPerformance.agents || [],
                     datasets: [
                       {
                         label: "Satisfaction Score (out of 5)",
-                        data: analyticsData?.agentPerformance.satisfaction,
+                        data: analyticsData?.agentPerformance.satisfaction || [],
                         backgroundColor: "rgba(34, 197, 94, 0.6)",
                       },
                     ],
