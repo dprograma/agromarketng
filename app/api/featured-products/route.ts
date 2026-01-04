@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     // Base query conditions
     const whereConditions: any = {
-      status: 'Active',
+      status: 'active',
       price: {
         gte: minPrice,
         lte: maxPrice
@@ -346,7 +346,7 @@ export async function GET(request: NextRequest) {
     const categories = await prisma.ad.groupBy({
       by: ['category'],
       where: {
-        status: 'Active'
+        status: 'active'
       },
       _count: {
         category: true
@@ -367,7 +367,7 @@ export async function GET(request: NextRequest) {
     const availableLocations = await prisma.ad.groupBy({
       by: ['location'],
       where: {
-        status: 'Active'
+        status: 'active'
       },
       _count: {
         location: true

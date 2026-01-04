@@ -3,12 +3,25 @@ import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 import { boostOptions } from '@/constants';
 import { apiErrorResponse } from '@/lib/errorHandling';
+import { promotionRateLimiters } from '@/lib/rateLimit';
+import { PromotionAuditLogger } from '@/lib/promotionAudit';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Apply rate limiting
+    const rateLimitResult = promotionRateLimiters.boost(request);
+    if (!rateLimitResult.success) {
+      return apiErrorResponse(
+        'Rate limit exceeded. Too many boost attempts.',
+        429,
+        'RATE_LIMIT_EXCEEDED',
+        `Try again after ${new Date(rateLimitResult.resetTime).toISOString()}`
+      );
+    }
+
     // Make sure id is valid
     const { id } = await params;
     if (!id) {
@@ -142,6 +155,16 @@ export async function POST(
         boostStartDate: new Date()
       }
     });
+
+    // Log audit event for boost creation
+    await PromotionAuditLogger.logBoostCreated(
+      userId,
+      id,
+      boostType,
+      duration,
+      request.headers.get('user-agent') || undefined,
+      request.headers.get('x-forwarded-for')?.split(',')[0] || undefined
+    );
 
     return NextResponse.json(updatedAd);
   } catch (error) {

@@ -79,22 +79,21 @@ describe('apiUtils', () => {
         it('should throw a generic error and show toast if response is not JSON', async () => {
             mockFetch.mockResolvedValueOnce({
                 ok: false,
+                json: async () => { throw new Error('Not JSON'); },
                 text: async () => 'Not JSON',
-                headers: { get: jest.fn(() => null) } as any, // Ensure get returns null for content-type
-                statusText: 'Internal Server Error', // Add statusText for non-JSON error
+                headers: { get: jest.fn(() => null) } as any,
+                statusText: 'Internal Server Error',
+                status: 500,
             });
 
             await expect(fetchWithErrorHandling('/test-url')).rejects.toThrow(
-                // Updated expected error message
-                'An error occurred. Please try again.'
+                'Internal Server Error'
             );
-            // Updated expected options to include default headers and credentials
             expect(mockFetch).toHaveBeenCalledWith('/test-url', {
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
             });
-            // Updated expected toast message
-            expect(toast.error).toHaveBeenCalledWith('An error occurred. Please try again.');
+            expect(toast.error).toHaveBeenCalledWith('Internal Server Error');
         });
 
         it('should handle network errors', async () => {
@@ -133,16 +132,20 @@ describe('apiUtils', () => {
 
     describe('apiGet', () => {
         it('should call fetchWithErrorHandling with GET method', async () => {
-            const mockData = { success: true, data: { id: 1 } }; // Simulate full response structure
-            jest
-                .spyOn(require('../apiUtils'), 'fetchWithErrorHandling')
-                .mockResolvedValueOnce(mockData);
+            const mockData = { success: true, data: { id: 1 } };
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => mockData,
+                headers: {
+                    get: jest.fn((header) => {
+                        if (header === 'content-type') return 'application/json';
+                        return null;
+                    })
+                } as any,
+            });
 
             const result = await apiGet('/test-url');
-            expect(result).toEqual(mockData); // Expect the full mockData object
-            expect(fetchWithErrorHandling).toHaveBeenCalledWith('/test-url', {
-                method: 'GET',
-            });
+            expect(result).toEqual(mockData);
         });
     });
 

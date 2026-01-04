@@ -1,0 +1,62 @@
+{
+  "mcpServers": {
+    "memory": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@modelcontextprotocol/server-memory"
+      ],
+      "env": {}
+    },
+    "filesystem": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/admin/projects/agromarketng"
+      ],
+      "env": {}
+    },
+    "shell": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@mako10k/mcp-shell-server"
+      ],
+      "env": {}
+    },
+    "postgresql": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@modelcontextprotocol/server-postgres"
+      ],
+      "env": {
+        "PGHOST": "localhost",
+        "PGPORT": "5432",
+        "PGUSER": "agromarketng",
+        "PGPASSWORD": "agromarketng",
+        "PGDATABASE": "agromarketngdb"
+      }
+    },
+    "browser-tools": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@eqiz/browser-tools-mcp-enhanced"
+      ],
+      "env": {}
+    },
+    "github": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}",
+        "GITHUB_REPOSITORY": "dprograma/agromarketng"
+      }
+    }
+  }
+}

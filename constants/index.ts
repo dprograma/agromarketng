@@ -10,6 +10,7 @@ import {
   Beef,
   Sprout,
   Wrench,
+  Activity,
 } from "lucide-react";
 
 
@@ -338,6 +339,7 @@ export const userprofile = [
   { key: "avatar", label: "Profile Picture", icon: Image },
   { key: "notifications", label: "Notifications", icon: Bell },
   { key: "security", label: "Security", icon: Shield },
+  { key: "activity", label: "Activity History", icon: Activity },
   { key: "logout", label: "Logout", icon: LogOut },
 ];
 

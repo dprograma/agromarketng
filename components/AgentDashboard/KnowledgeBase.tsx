@@ -88,78 +88,29 @@ export default function KnowledgeBase() {
     try {
       setIsLoading(true);
 
-      // In a real app, this would be an API call
-      // For now, we'll use mock data
-      setTimeout(() => {
-        const mockArticles: KnowledgeArticle[] = [
-          {
-            id: "1",
-            title: "How to handle customer refund requests",
-            content: "This guide explains the process for handling customer refund requests in accordance with our company policy.\n\n## Policy Overview\n\nOur refund policy allows customers to request refunds within 30 days of purchase for any reason. After 30 days, refunds are only provided for defective products or services.\n\n## Steps to Process a Refund\n\n1. Verify the purchase date and order details\n2. Determine if the request falls within the 30-day window\n3. Check if the product was returned (if applicable)\n4. Process the refund through the payment system\n5. Send confirmation email to the customer\n\n## Special Cases\n\n- For subscription services, prorate the refund based on usage\n- For digital products, ensure the product access has been revoked\n- For high-value refunds (over $500), get manager approval\n\n## Documentation\n\nAlways document the reason for the refund in the customer's account notes and in the refund processing system.",
-            category: "customer-service",
-            tags: ["refunds", "customer-service", "payments"],
-            createdAt: "2023-05-15T10:30:00Z",
-            updatedAt: "2023-06-20T14:45:00Z",
-            views: 245,
-            helpful: 42,
-            notHelpful: 3,
-          },
-          {
-            id: "2",
-            title: "Troubleshooting common technical issues",
-            content: "This article covers the most common technical issues reported by customers and how to resolve them.\n\n## Login Problems\n\n- **Issue**: Customer cannot log in\n- **Solution**: Reset password, check email verification status, verify account hasn't been locked due to multiple failed attempts\n\n## Payment Processing Errors\n\n- **Issue**: Payment declined\n- **Solution**: Verify card details, check for sufficient funds, ensure billing address matches card information\n\n## Mobile App Crashes\n\n- **Issue**: App closes unexpectedly\n- **Solution**: Check app version, suggest reinstalling, verify device compatibility\n\n## Website Loading Issues\n\n- **Issue**: Website doesn't load or loads partially\n- **Solution**: Clear browser cache, try different browser, check internet connection\n\n## Account Synchronization Problems\n\n- **Issue**: Data not syncing between devices\n- **Solution**: Verify sync is enabled, check last sync time, ensure all devices are using the same account",
-            category: "technical",
-            tags: ["troubleshooting", "login", "payments", "mobile", "sync"],
-            createdAt: "2023-04-10T09:15:00Z",
-            updatedAt: "2023-07-05T11:20:00Z",
-            views: 378,
-            helpful: 65,
-            notHelpful: 7,
-          },
-          {
-            id: "3",
-            title: "Product pricing and subscription plans",
-            content: "This document outlines our current pricing structure and subscription plans.\n\n## Basic Plan - $9.99/month\n\n- Access to core features\n- 5GB storage\n- Email support\n- 1 user account\n\n## Professional Plan - $24.99/month\n\n- All Basic features\n- 25GB storage\n- Priority email support\n- 5 user accounts\n- Advanced analytics\n\n## Enterprise Plan - $99.99/month\n\n- All Professional features\n- 100GB storage\n- 24/7 phone and email support\n- Unlimited user accounts\n- Custom integrations\n- Dedicated account manager\n\n## Annual Discounts\n\nAll plans offer a 20% discount when billed annually.\n\n## Special Promotions\n\n- New customers: 30-day free trial of any plan\n- Referral program: One month free for each successful referral\n- Nonprofit organizations: 50% discount on all plans",
-            category: "billing",
-            tags: ["pricing", "subscriptions", "plans", "billing"],
-            createdAt: "2023-03-22T13:45:00Z",
-            updatedAt: "2023-08-01T10:10:00Z",
-            views: 512,
-            helpful: 89,
-            notHelpful: 4,
-          },
-          {
-            id: "4",
-            title: "Shipping and delivery policy",
-            content: "This document explains our shipping methods, timeframes, and policies.\n\n## Shipping Methods\n\n- **Standard Shipping**: 5-7 business days, $5.99\n- **Express Shipping**: 2-3 business days, $12.99\n- **Overnight Shipping**: Next business day, $24.99\n\n## Free Shipping\n\nOrders over $50 qualify for free standard shipping (domestic only).\n\n## International Shipping\n\nWe ship to over 100 countries. International shipping rates vary by location and are calculated at checkout. Please note that international orders may be subject to import duties and taxes.\n\n## Tracking Orders\n\nAll shipments include tracking information that will be emailed once the order ships.\n\n## Delivery Issues\n\nIf a package is lost or damaged during shipping, customers should contact support within 14 days of the expected delivery date.\n\n## Shipping Restrictions\n\nCertain products cannot be shipped to specific locations due to regulations. These restrictions will be noted during checkout.",
-            category: "shipping",
-            tags: ["shipping", "delivery", "international", "tracking"],
-            createdAt: "2023-02-18T15:30:00Z",
-            updatedAt: "2023-07-12T09:25:00Z",
-            views: 289,
-            helpful: 53,
-            notHelpful: 6,
-          },
-          {
-            id: "5",
-            title: "How to use the product search feature",
-            content: "This guide explains how to effectively use our product search feature to help customers find what they're looking for.\n\n## Basic Search\n\nCustomers can enter keywords in the search bar at the top of any page. The search engine will look for matches in product titles, descriptions, and tags.\n\n## Advanced Search Options\n\n### Filters\n\nAfter performing a basic search, customers can refine results using filters such as:\n- Price range\n- Category\n- Brand\n- Rating\n- Availability\n\n### Search Operators\n\nCustomers can use these operators to refine searches:\n- Quotation marks (\"\") for exact phrases\n- Minus sign (-) to exclude words\n- OR to search for either term\n\n## Search Shortcuts\n\n- Typing \"#deals\" shows current promotions\n- Typing \"#new\" shows recently added products\n- Typing \"#popular\" shows bestselling items\n\n## Helping Customers with Search\n\nIf a customer can't find what they're looking for:\n1. Ask for specific details about the product\n2. Suggest alternative search terms\n3. Check if the product is actually available\n4. Use category browsing instead of search if appropriate",
-            category: "product",
-            tags: ["search", "products", "filters", "features"],
-            createdAt: "2023-06-05T11:20:00Z",
-            updatedAt: "2023-08-10T16:15:00Z",
-            views: 176,
-            helpful: 38,
-            notHelpful: 2,
-          },
-        ];
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (categoryFilter && categoryFilter !== 'all') {
+        params.append('category', categoryFilter);
+      }
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
 
-        setArticles(mockArticles);
-        setIsLoading(false);
-      }, 1000);
+      const response = await fetch(`/api/knowledge/articles?${params.toString()}`, {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch articles');
+      }
+
+      const articlesData = await response.json();
+      setArticles(articlesData);
     } catch (error) {
       console.error('Error fetching knowledge base articles:', error);
       toast.error('Failed to load knowledge base');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -189,33 +140,47 @@ export default function KnowledgeBase() {
     setFilteredArticles(filtered);
   };
 
-  const handleCreateArticle = () => {
-    // In a real app, this would be an API call
-    const newId = (articles.length + 1).toString();
-    const createdArticle: KnowledgeArticle = {
-      id: newId,
-      title: newArticle.title,
-      content: newArticle.content,
-      category: newArticle.category,
-      tags: newArticle.tags.split(',').map(tag => tag.trim()),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      views: 0,
-      helpful: 0,
-      notHelpful: 0,
-    };
+  const handleCreateArticle = async () => {
+    if (!newArticle.title || !newArticle.content) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
 
-    setArticles([...articles, createdArticle]);
-    setIsDialogOpen(false);
-    toast.success('Article created successfully');
+    try {
+      const response = await fetch('/api/knowledge/articles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: newArticle.title,
+          content: newArticle.content,
+          category: newArticle.category,
+          tags: newArticle.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
+        }),
+        credentials: 'include'
+      });
 
-    // Reset form
-    setNewArticle({
-      title: "",
-      content: "",
-      category: "general",
-      tags: "",
-    });
+      if (!response.ok) {
+        throw new Error('Failed to create article');
+      }
+
+      const createdArticle = await response.json();
+      setArticles([createdArticle, ...articles]);
+      setIsDialogOpen(false);
+      toast.success('Article created successfully');
+
+      // Reset form
+      setNewArticle({
+        title: "",
+        content: "",
+        category: "general",
+        tags: "",
+      });
+    } catch (error) {
+      console.error('Error creating article:', error);
+      toast.error('Failed to create article');
+    }
   };
 
   const toggleSaveArticle = (articleId: string) => {
@@ -237,19 +202,40 @@ export default function KnowledgeBase() {
     toast.success('Content copied to clipboard');
   };
 
-  const rateArticle = (articleId: string, isHelpful: boolean) => {
-    setArticles(articles.map(article => {
-      if (article.id === articleId) {
-        return {
-          ...article,
-          helpful: isHelpful ? article.helpful + 1 : article.helpful,
-          notHelpful: !isHelpful ? article.notHelpful + 1 : article.notHelpful,
-        };
-      }
-      return article;
-    }));
+  const rateArticle = async (articleId: string, isHelpful: boolean) => {
+    try {
+      const response = await fetch(`/api/knowledge/articles/${articleId}/rate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ isHelpful }),
+        credentials: 'include'
+      });
 
-    toast.success(`Thank you for your feedback!`);
+      if (!response.ok) {
+        throw new Error('Failed to rate article');
+      }
+
+      const ratingData = await response.json();
+
+      // Update the local state with new rating counts
+      setArticles(articles.map(article => {
+        if (article.id === articleId) {
+          return {
+            ...article,
+            helpful: ratingData.helpful,
+            notHelpful: ratingData.notHelpful,
+          };
+        }
+        return article;
+      }));
+
+      toast.success('Thank you for your feedback!');
+    } catch (error) {
+      console.error('Error rating article:', error);
+      toast.error('Failed to submit rating');
+    }
   };
 
   // Format date for display
@@ -311,7 +297,7 @@ export default function KnowledgeBase() {
                     <SelectItem value="technical">Technical</SelectItem>
                     <SelectItem value="billing">Billing</SelectItem>
                     <SelectItem value="product">Product</SelectItem>
-                    <SelectItem value="shipping">Shipping</SelectItem>
+                    <SelectItem value="general">General</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -407,7 +393,13 @@ export default function KnowledgeBase() {
                       key={article.id}
                       className={`p-3 rounded-lg cursor-pointer border ${selectedArticle?.id === article.id ? 'bg-green-50 border-green-200' : 'hover:bg-gray-50'
                         }`}
-                      onClick={() => setSelectedArticle(article)}
+                      onClick={() => {
+                        setSelectedArticle(article);
+                        // Track view
+                        fetch(`/api/knowledge/articles/${article.id}`, {
+                          credentials: 'include'
+                        }).catch(console.error);
+                      }}
                     >
                       <div className="flex justify-between items-start">
                         <h3 className="font-medium">{article.title}</h3>

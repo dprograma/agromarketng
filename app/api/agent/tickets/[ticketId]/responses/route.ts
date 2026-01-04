@@ -45,46 +45,47 @@ export async function POST(
       return NextResponse.json({ error: "Response content is required" }, { status: 400 });
     }
 
-    // In a real implementation, this would be:
-    // // Verify ticket exists and agent is assigned to it
-    // const ticket = await prisma.supportTicket.findUnique({
-    //   where: { 
-    //     id: (await params).ticketId,
-    //     assignedTo: session.agentId
-    //   }
-    // });
-    //
-    // if (!ticket) {
-    //   return NextResponse.json({ error: "Ticket not found or not assigned to you" }, { status: 404 });
-    // }
-    //
-    // // Create response
-    // const response = await prisma.ticketResponse.create({
-    //   data: {
-    //     ticketId: (await params).ticketId,
-    //     content,
-    //     createdBy: session.agentId,
-    //     createdByType: 'agent'
-    //   }
-    // });
-    //
-    // // Update ticket timestamp
-    // await prisma.supportTicket.update({
-    //   where: { id: (await params).ticketId },
-    //   data: { updatedAt: new Date() }
-    // });
-    
-    // Mock response
-    const response = {
-      id: "resp" + Date.now(),
-      content,
-      ticketId: (await params).ticketId,
-      createdAt: new Date().toISOString(),
-      createdBy: session.agentId,
+    const ticketId = (await params).ticketId;
+
+    // Verify ticket exists and agent is assigned to it
+    const ticket = await prisma.supportTicket.findUnique({
+      where: {
+        id: ticketId,
+        agentId: session.agentId
+      }
+    });
+
+    if (!ticket) {
+      return NextResponse.json({ error: "Ticket not found or not assigned to you" }, { status: 404 });
+    }
+
+    // Create response message
+    const response = await prisma.supportMessage.create({
+      data: {
+        ticketId,
+        senderId: session.userId,
+        content,
+        isAgentReply: true
+      }
+    });
+
+    // Update ticket timestamp
+    await prisma.supportTicket.update({
+      where: { id: ticketId },
+      data: { updatedAt: new Date() }
+    });
+
+    // Transform response to match frontend expectations
+    const transformedResponse = {
+      id: response.id,
+      content: response.content,
+      ticketId: response.ticketId,
+      createdAt: response.createdAt.toISOString(),
+      createdBy: response.senderId,
       createdByType: "agent"
     };
     
-    return NextResponse.json(response);
+    return NextResponse.json(transformedResponse);
   } catch (error) {
     console.error('Error creating response:', error);
     return NextResponse.json({ error: "Failed to create response" }, { status: 500 });

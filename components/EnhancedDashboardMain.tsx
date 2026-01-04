@@ -18,7 +18,8 @@ import {
   User,
   CreditCard,
   HelpCircle,
-  Loader2
+  Loader2,
+  FileText
 } from "lucide-react";
 import Spinner from "@/components/Spinner";
 import EnhancedAnalyticsMain from "@/components/EnhancedAnalyticsMain";
@@ -27,6 +28,7 @@ import CategoriesSavedSearchesMain from "@/components/CategoriesSavedSearchesMai
 import NotificationsMain from "@/components/NotificationsMain";
 import ProfileMain from "@/components/ProfileMain";
 import BillingMain from "@/components/BillingMain";
+import MyAdsMain from "@/components/MyAdsMain";
 
 interface EnhancedDashboardMainProps {
   defaultTab?: string;
@@ -95,6 +97,13 @@ export default function EnhancedDashboardMain({ defaultTab = "dashboard" }: Enha
             onClick={() => router.push("/dashboard?tab=analytics")}
           >
             <BarChart className="w-4 h-4" /> Analytics
+          </TabsTrigger>
+          <TabsTrigger
+            value="my-ads"
+            className="flex items-center gap-1"
+            onClick={() => router.push("/dashboard?tab=my-ads")}
+          >
+            <FileText className="w-4 h-4" /> My Ads
           </TabsTrigger>
           <TabsTrigger
             value="messages"
@@ -261,6 +270,11 @@ export default function EnhancedDashboardMain({ defaultTab = "dashboard" }: Enha
         {/* Analytics Tab */}
         <TabsContent value="analytics">
           <EnhancedAnalyticsMain />
+        </TabsContent>
+
+        {/* My Ads Tab */}
+        <TabsContent value="my-ads">
+          <MyAdsMain />
         </TabsContent>
 
         {/* Messages Tab */}

@@ -154,6 +154,7 @@ export async function POST(req: NextRequest) {
         images: imageUrls,
         userId,
         subscriptionPlanId: user.subscriptionPlanId || null,
+        status: "Active", // Auto-activate ads on posting
       },
     });
 

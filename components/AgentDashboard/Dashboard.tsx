@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, MessageSquare, TicketCheck, Clock, CheckCircle } from "lucide-react";
 import toast from "react-hot-toast";
-import ChatManagement from "@/components/AdminDashboard/Chat";
+import AgentChatManagement from "./AgentChatManagement";
 import TicketManagement from "./TicketManagement";
 import KnowledgeBase from "./KnowledgeBase";
 import AgentAnalytics from "../AgentAnalytics";
@@ -30,8 +30,15 @@ interface AgentDashboardProps {
 export default function AgentDashboard({ defaultTab = "overview" }: AgentDashboardProps) {
   const [stats, setStats] = useState<AgentStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const searchParams = useSearchParams();
+  const router = useRouter();
   const tab = searchParams.get("tab") || defaultTab;
+
+  // Update active tab when URL changes
+  useEffect(() => {
+    setActiveTab(tab);
+  }, [tab]);
 
   useEffect(() => {
     fetchAgentStats();
@@ -65,7 +72,10 @@ export default function AgentDashboard({ defaultTab = "overview" }: AgentDashboa
         <p className="text-gray-500 mt-1">Manage your support activities</p>
       </div>
 
-      <Tabs defaultValue={tab} className="w-full">
+      <Tabs value={activeTab} onValueChange={(value) => {
+        setActiveTab(value);
+        router.push(`?tab=${value}`);
+      }} className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="chats">Chats</TabsTrigger>
@@ -214,7 +224,7 @@ export default function AgentDashboard({ defaultTab = "overview" }: AgentDashboa
         </TabsContent>
 
         <TabsContent value="chats">
-          <ChatManagement />
+          <AgentChatManagement />
         </TabsContent>
 
         <TabsContent value="tickets">

@@ -6,6 +6,7 @@ import TwitterProvider from 'next-auth/providers/twitter';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import prisma from '@/lib/prisma';
+import { quickSend } from '@/lib/email';
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
@@ -35,10 +36,85 @@ export const authOptions: NextAuthOptions = {
         if (!email || !password) throw new Error('Email and password are required');
 
         const user = await prisma.user.findUnique({ where: { email } });
-        if (!user || !user.verified) throw new Error('Invalid email or account not verified');
+        if (!user) throw new Error('Invalid credentials');
+
+        // Check if account is locked
+        if (user.accountLockedUntil && user.accountLockedUntil > new Date()) {
+          const lockMinutesRemaining = Math.ceil((user.accountLockedUntil.getTime() - Date.now()) / 60000);
+          throw new Error(`Account is locked due to too many failed login attempts. Please try again in ${lockMinutesRemaining} minutes.`);
+        }
+
+        // Reset lockout if lock period has expired
+        if (user.accountLockedUntil && user.accountLockedUntil <= new Date()) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              failedLoginAttempts: 0,
+              accountLockedUntil: null,
+              lastFailedLoginAt: null
+            }
+          });
+        }
+
+        // Check if account is verified
+        if (!user.verified) throw new Error('Account not verified. Please check your email for verification link.');
 
         const isValidPassword = await bcrypt.compare(password, user.password || '');
-        if (!isValidPassword) throw new Error('Invalid credentials');
+
+        if (!isValidPassword) {
+          // Increment failed login attempts
+          const failedAttempts = (user.failedLoginAttempts || 0) + 1;
+          const now = new Date();
+
+          // Lock account after 5 failed attempts for 30 minutes
+          if (failedAttempts >= 5) {
+            const lockUntil = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutes
+            await prisma.user.update({
+              where: { id: user.id },
+              data: {
+                failedLoginAttempts: failedAttempts,
+                accountLockedUntil: lockUntil,
+                lastFailedLoginAt: now
+              }
+            });
+
+            // Send account locked notification email (async, don't block login)
+            quickSend.accountLocked(user.email, user.name, failedAttempts, lockUntil).catch(err => {
+              console.error('Failed to send account locked email:', err);
+            });
+
+            throw new Error('Too many failed login attempts. Account locked for 30 minutes.');
+          } else {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: {
+                failedLoginAttempts: failedAttempts,
+                lastFailedLoginAt: now
+              }
+            });
+
+            const remainingAttempts = 5 - failedAttempts;
+
+            // Send failed login notification after 3rd attempt (async, don't block login)
+            if (failedAttempts >= 3) {
+              quickSend.failedLoginAttempt(user.email, user.name, failedAttempts, remainingAttempts).catch(err => {
+                console.error('Failed to send login attempt notification email:', err);
+              });
+            }
+
+            throw new Error(`Invalid credentials. ${remainingAttempts} attempts remaining before account lockout.`);
+          }
+        }
+
+        // Successful login - reset failed attempts
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            failedLoginAttempts: 0,
+            accountLockedUntil: null,
+            lastFailedLoginAt: null
+          }
+        });
 
         return { id: user.id, email: user.email, name: user.name };
       },
@@ -75,7 +151,7 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: 'jwt',
-    // maxAge: 60 * 60, 
+    maxAge: 7 * 24 * 60 * 60, // 7 days - better UX for frequent users
   },
   pages: {
     signIn: '/signin',

@@ -1,35 +1,29 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/authOptions'; // Assuming you have authOptions defined here
-import nodemailer from 'nodemailer';
+import { authOptions } from '@/lib/authOptions';
+import { quickSend } from '@/lib/email';
 
 const prisma = new PrismaClient();
 
-// Configure Nodemailer transporter (replace with your actual configuration)
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_SERVER_HOST,
-  port: parseInt(process.env.EMAIL_SERVER_PORT || '587'),
-  auth: {
-    user: process.env.EMAIL_SERVER_USER,
-    pass: process.env.EMAIL_SERVER_PASSWORD,
-  },
-  secure: process.env.EMAIL_SERVER_SECURE === 'true', // true for 465, false for other ports
-});
 
 // Function to send email notification for agent replies
-async function sendAgentReplyEmail(userEmail: string, ticketSubject: string, replyContent: string) {
+async function sendAgentReplyEmail(userEmail: string, userName: string, ticketSubject: string, replyContent: string, ticketId: string) {
   try {
-    const mailOptions = {
-      from: process.env.EMAIL_FROM, // Sender address
-      to: userEmail, // Recipient address
-      subject: `Reply to your support ticket: ${ticketSubject}`, // Subject line
-      text: `An agent has replied to your support ticket "${ticketSubject}".\n\nReply: ${replyContent}\n\nPlease log in to your dashboard to view the full conversation.`, // Plain text body
-      html: `<p>An agent has replied to your support ticket "<strong>${ticketSubject}</strong>".</p><p><strong>Reply:</strong> ${replyContent}</p><p>Please log in to your dashboard to view the full conversation.</p>`, // HTML body
-    };
+    const result = await quickSend.supportReply(
+      userEmail,
+      userName,
+      ticketSubject,
+      replyContent,
+      ticketId,
+      'open'
+    );
 
-    await transporter.sendMail(mailOptions);
-    console.log(`Agent reply email sent to ${userEmail}`);
+    if (!result.success) {
+      console.error('Failed to send agent reply email:', result.error);
+    } else {
+      console.log(`Agent reply email sent to ${userEmail}:`, result.messageId);
+    }
   } catch (error) {
     console.error('Error sending agent reply email:', error);
   }
@@ -77,13 +71,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ tic
 
     // If the message is an agent reply, send an email notification to the user
     if (isAgentReply) {
-      const user = await prisma.user.findUnique({ // Fetch user's email
+      const user = await prisma.user.findUnique({ // Fetch user's email and name
         where: { id: ticket.userId },
-        select: { email: true },
+        select: { email: true, name: true },
       });
 
       if (user?.email) {
-        await sendAgentReplyEmail(user.email, ticket.subject, content);
+        await sendAgentReplyEmail(user.email, user.name || 'User', ticket.subject, content, ticketId);
       }
     }
 

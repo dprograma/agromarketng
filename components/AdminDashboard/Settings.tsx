@@ -28,12 +28,15 @@ export default function Settings() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSettings();
   }, []);
 
   const fetchSettings = async () => {
+    setLoading(true);
+    setError(null);
     try {
       const response = await fetch("/api/admin/settings", {
         credentials: "include",
@@ -43,11 +46,14 @@ export default function Settings() {
         const data = await response.json();
         setSettings(data);
       } else {
-        throw new Error("Failed to fetch settings");
+        const errorData = await response.json().catch(() => ({ message: 'Failed to fetch settings' }));
+        throw new Error(errorData.message || "Failed to fetch settings");
       }
     } catch (error) {
       console.error("Error fetching settings:", error);
-      toast.error("Failed to load settings");
+      const errorMessage = error instanceof Error ? error.message : "Failed to load settings";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -55,6 +61,7 @@ export default function Settings() {
 
   const saveSettings = async () => {
     setSaving(true);
+    setError(null);
     try {
       const response = await fetch("/api/admin/settings", {
         method: "POST",
@@ -66,11 +73,14 @@ export default function Settings() {
       if (response.ok) {
         toast.success("Settings saved successfully");
       } else {
-        throw new Error("Failed to save settings");
+        const errorData = await response.json().catch(() => ({ message: 'Failed to save settings' }));
+        throw new Error(errorData.message || "Failed to save settings");
       }
     } catch (error) {
       console.error("Error saving settings:", error);
-      toast.error("Failed to save settings");
+      const errorMessage = error instanceof Error ? error.message : "Failed to save settings";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -87,6 +97,7 @@ export default function Settings() {
     return (
       <div className="bg-white p-6 rounded-lg shadow-sm border flex justify-center items-center h-64">
         <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+        <span className="ml-2 text-gray-500">Loading settings...</span>
       </div>
     );
   }
@@ -104,6 +115,24 @@ export default function Settings() {
           Save Changes
         </Button>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center">
+            <div className="text-red-600 text-sm">
+              <strong>Error:</strong> {error}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchSettings}
+              className="ml-auto text-red-600 border-red-300 hover:bg-red-100"
+            >
+              Retry
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-6">
         {/* Support Settings */}

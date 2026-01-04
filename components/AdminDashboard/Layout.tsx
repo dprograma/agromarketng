@@ -151,12 +151,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </div>
 
+      {/* Overlay for mobile */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-gray-600 bg-opacity-50 lg:hidden"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
       {/* Main Content */}
-      <div className={cn(
-        "lg:ml-64 min-h-screen transition-all duration-200",
-        isOpen ? "ml-64" : "ml-0"
-      )}>
-        <main className="p-4 md:p-6 max-w-7xl mx-auto">
+      <div className="lg:ml-64 min-h-screen transition-all duration-200">
+        <main className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
           {children}
         </main>
       </div>

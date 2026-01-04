@@ -39,72 +39,55 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // In a real implementation, this would be:
-    // const ticket = await prisma.supportTicket.update({
-    //   where: { 
-    //     id: (await params).ticketId,
-    //     assignedTo: session.agentId
-    //   },
-    //   data: {
-    //     status: 'closed',
-    //   },
-    //   include: {
-    //     user: {
-    //       select: {
-    //         name: true,
-    //         email: true
-    //       }
-    //     },
-    //     responses: true
-    //   }
-    // });
-    
-    // Mock response
-    const ticket = {
-      id: (await params).ticketId,
-      subject: "Payment not processing",
-      message: "I've been trying to make a payment for the last hour but it keeps failing. Can you help?",
-      priority: "high",
-      category: "billing",
-      status: "closed",
-      attachments: [],
-      userId: "user1",
-      user: {
-        name: "John Doe",
-        email: "john@example.com"
+    const ticketId = (await params).ticketId;
+
+    // Update the ticket to closed status, ensuring it's assigned to this agent
+    const ticket = await prisma.supportTicket.update({
+      where: {
+        id: ticketId,
+        agentId: session.agentId
       },
-      createdAt: new Date(Date.now() - 3600000).toISOString(),
-      updatedAt: new Date().toISOString(),
-      assignedTo: session.agentId,
-      responses: [
-        {
-          id: "resp1",
-          content: "I'll look into this right away. Can you tell me what error message you're seeing?",
-          ticketId: (await params).ticketId,
-          createdAt: new Date(Date.now() - 1800000).toISOString(),
-          createdBy: session.agentId,
-          createdByType: "agent"
+      data: {
+        status: 'closed'
+      },
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true
+          }
         },
-        {
-          id: "resp2",
-          content: "It says 'Payment method declined'. I've tried two different cards.",
-          ticketId: (await params).ticketId,
-          createdAt: new Date(Date.now() - 1700000).toISOString(),
-          createdBy: "user1",
-          createdByType: "user"
-        },
-        {
-          id: "resp3",
-          content: "I've fixed the issue with your payment processing. Please try again now.",
-          ticketId: (await params).ticketId,
-          createdAt: new Date().toISOString(),
-          createdBy: session.agentId,
-          createdByType: "agent"
+        messages: {
+          include: {
+            sender: {
+              select: {
+                name: true,
+                email: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'asc'
+          }
         }
-      ]
+      }
+    });
+
+    // Transform response to match frontend expectations
+    const transformedTicket = {
+      ...ticket,
+      priority: ticket.priority === 3 ? 'high' : ticket.priority === 2 ? 'medium' : 'low',
+      responses: (ticket as any).messages?.map((message: any) => ({
+        id: message.id,
+        content: message.content,
+        ticketId: message.ticketId,
+        createdAt: message.createdAt.toISOString(),
+        createdBy: message.senderId,
+        createdByType: message.isAgentReply ? 'agent' : 'user'
+      })) || []
     };
     
-    return NextResponse.json(ticket);
+    return NextResponse.json(transformedTicket);
   } catch (error) {
     console.error('Error closing ticket:', error);
     return NextResponse.json({ error: "Failed to close ticket" }, { status: 500 });
