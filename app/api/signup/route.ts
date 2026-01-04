@@ -1,22 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import nodemailer from 'nodemailer';
 import prisma from '@/lib/prisma';
 import { SignUpRequest } from '@/types';
 import { authRateLimiters } from '@/lib/rateLimit';
+import { quickSend } from '@/lib/email';
 
 // Helper functions for JSON response
 const jsonResponse = (status: number, data: any) => new NextResponse(JSON.stringify(data), { status });
 
-// Configure Nodemailer transporter
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+// Validation patterns
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+const NAME_REGEX = /^[a-zA-Z0-9\s]{2,50}$/;
+const PASSWORD_MIN_LENGTH = 8;
+
+// Validation functions
+function validateEmail(email: string): { valid: boolean; error?: string } {
+  if (!email) return { valid: false, error: 'Email is required' };
+  if (!EMAIL_REGEX.test(email)) return { valid: false, error: 'Invalid email format' };
+  return { valid: true };
+}
+
+function validateName(name: string): { valid: boolean; error?: string } {
+  if (!name) return { valid: false, error: 'Name is required' };
+  if (!NAME_REGEX.test(name)) {
+    return { valid: false, error: 'Name must be 2-50 characters and contain only letters, numbers, and spaces' };
+  }
+  return { valid: true };
+}
+
+function validatePassword(password: string): { valid: boolean; error?: string } {
+  if (!password) return { valid: false, error: 'Password is required' };
+  if (password.length < PASSWORD_MIN_LENGTH) {
+    return { valid: false, error: `Password must be at least ${PASSWORD_MIN_LENGTH} characters long` };
+  }
+  if (!/[A-Z]/.test(password)) {
+    return { valid: false, error: 'Password must contain at least one uppercase letter' };
+  }
+  if (!/[a-z]/.test(password)) {
+    return { valid: false, error: 'Password must contain at least one lowercase letter' };
+  }
+  if (!/[0-9]/.test(password)) {
+    return { valid: false, error: 'Password must contain at least one number' };
+  }
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    return { valid: false, error: 'Password must contain at least one special character' };
+  }
+  return { valid: true };
+}
+
+function sanitizeInput(input: string): string {
+  // Remove HTML tags and trim whitespace
+  return input.replace(/<[^>]*>/g, '').trim();
+}
+
 
 // POST: SignUp Handler
 export async function POST(req: NextRequest) {
@@ -29,8 +66,28 @@ export async function POST(req: NextRequest) {
 
     const { name, email, password }: SignUpRequest = await req.json();
 
+    // Sanitize inputs
+    const sanitizedName = sanitizeInput(name);
+    const sanitizedEmail = sanitizeInput(email).toLowerCase();
+
+    // Validate inputs
+    const nameValidation = validateName(sanitizedName);
+    if (!nameValidation.valid) {
+      return jsonResponse(400, { error: nameValidation.error });
+    }
+
+    const emailValidation = validateEmail(sanitizedEmail);
+    if (!emailValidation.valid) {
+      return jsonResponse(400, { error: emailValidation.error });
+    }
+
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.valid) {
+      return jsonResponse(400, { error: passwordValidation.error });
+    }
+
     // Check if the user already exists
-    const existingUser = await prisma.user.findUnique({ where: { email } });
+    const existingUser = await prisma.user.findUnique({ where: { email: sanitizedEmail } });
     if (existingUser) return jsonResponse(400, { error: 'User already exists' });
 
     // Hash password
@@ -38,7 +95,11 @@ export async function POST(req: NextRequest) {
 
     // Create new user
     const user = await prisma.user.create({
-      data: { name, email, password: hashedPassword }
+      data: {
+        name: sanitizedName,
+        email: sanitizedEmail,
+        password: hashedPassword
+      }
     });
 
     // Generate a verification token
@@ -47,15 +108,14 @@ export async function POST(req: NextRequest) {
     // Send verification email
     const verificationUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/verify-email?token=${verificationToken}`;
     try {
-      const info = await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: email,
-        subject: 'Verify your account',
-        html: `<p>Hi ${name},</p>
-           <p>Thanks for signing up. Please verify your email by clicking the link below:</p>
-           <a href="${verificationUrl}" style="color: #2d89ef; text-decoration: none;">Verify your account</a>`,
-        text: `Hi ${name},\n\nThanks for signing up. Please verify your email by clicking the link below:\n\n${verificationUrl}`,
-      });
+      const result = await quickSend.verification(sanitizedEmail, sanitizedName, verificationUrl);
+
+      if (!result.success) {
+        console.error('Verification email failed:', result.error);
+        // Continue with user creation even if email fails
+      } else {
+        console.log('Verification email sent successfully:', result.messageId);
+      }
     } catch (error: any) {
       console.error('Email sending failed:', error);
       // Continue with user creation even if email fails

@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const where: any = {
-      status: 'active',
+      status: 'Active',
       price: {
         gte: minPrice,
         lte: maxPrice
@@ -53,18 +53,27 @@ export async function GET(request: NextRequest) {
       where.location = { contains: location, mode: 'insensitive' };
     }
 
-    // Build orderBy
-    let orderBy: any = { createdAt: 'desc' };
+    // Build orderBy with priority for featured/boosted ads
+    let orderBy: any[] = [
+      { exclusivePlacement: 'desc' },
+      { listingPriority: 'desc' },
+      { topOfCategory: 'desc' },
+      { featuredOnHome: 'desc' }
+    ];
+
+    // Add user-selected sort as secondary sort
     switch (sort) {
       case 'price_asc':
-        orderBy = { price: 'asc' };
+        orderBy.push({ price: 'asc' });
         break;
       case 'price_desc':
-        orderBy = { price: 'desc' };
+        orderBy.push({ price: 'desc' });
         break;
       case 'views':
-        orderBy = { views: 'desc' };
+        orderBy.push({ views: 'desc' });
         break;
+      default:
+        orderBy.push({ createdAt: 'desc' });
     }
 
     // Get total count for pagination info
@@ -85,13 +94,27 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    // Sort results to prioritize boosted ads at the top
+    const now = new Date();
+    const sortedResults = results.sort((a, b) => {
+      const aIsBoosted = a.boostEndDate && new Date(a.boostEndDate) > now;
+      const bIsBoosted = b.boostEndDate && new Date(b.boostEndDate) > now;
+
+      // Boosted ads come first
+      if (aIsBoosted && !bIsBoosted) return -1;
+      if (!aIsBoosted && bIsBoosted) return 1;
+
+      // If both boosted or both not boosted, maintain existing order
+      return 0;
+    });
+
     // Calculate pagination metadata
     const totalPages = Math.ceil(totalCount / limit);
     const hasNextPage = page < totalPages;
     const hasPreviousPage = page > 1;
 
     const response = {
-      results,
+      results: sortedResults,
       pagination: {
         page,
         limit,

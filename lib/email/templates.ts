@@ -1,6 +1,147 @@
 import { EmailTemplateData } from './types';
 
 export const emailTemplates: Record<string, EmailTemplateData> = {
+  'security-account-locked': {
+    subject: 'Security Alert: Your Account Has Been Locked',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+        <div style="text-align: center; margin-bottom: 30px;">
+          <h1 style="color: #dc2626; margin: 0;">Security Alert</h1>
+        </div>
+
+        <p style="font-size: 16px; line-height: 1.6; color: #333;">Hello {{name}},</p>
+
+        <p style="font-size: 16px; line-height: 1.6; color: #333;">
+          Your AgroMarket account has been temporarily locked due to multiple failed login attempts.
+        </p>
+
+        <div style="background-color: #fef2f2; padding: 20px; border-left: 4px solid #dc2626; margin: 20px 0;">
+          <p style="margin: 0; color: #991b1b;"><strong>Security Details:</strong></p>
+          <ul style="color: #991b1b; margin: 10px 0;">
+            <li>Failed attempts: {{failedAttempts}}</li>
+            <li>Time of last attempt: {{timestamp}}</li>
+            <li>Account locked until: {{lockUntil}}</li>
+          </ul>
+        </div>
+
+        <p style="font-size: 16px; line-height: 1.6; color: #333;">
+          If this was you, please wait {{lockDurationMinutes}} minutes before attempting to log in again. Your account will be automatically unlocked after this period.
+        </p>
+
+        <p style="font-size: 16px; line-height: 1.6; color: #333;">
+          If you don't recognize this activity, your account may be at risk. We recommend:
+        </p>
+
+        <ul style="font-size: 16px; line-height: 1.6; color: #333;">
+          <li>Resetting your password immediately when the lock expires</li>
+          <li>Enabling two-factor authentication</li>
+          <li>Reviewing your recent account activity</li>
+        </ul>
+
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="{{resetPasswordUrl}}" style="background-color: #dc2626; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+            Reset Password
+          </a>
+        </div>
+
+        <p style="font-size: 14px; color: #666;">
+          Need help? Contact our support team at <a href="mailto:support@agromarket.com" style="color: #166534;">support@agromarket.com</a>
+        </p>
+
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #666; font-size: 12px;">
+          <p>© {{year}} AgroMarket. All rights reserved.</p>
+        </div>
+      </div>
+    `,
+    text: `
+      Security Alert: Your Account Has Been Locked
+
+      Hello {{name}},
+
+      Your AgroMarket account has been temporarily locked due to multiple failed login attempts.
+
+      Security Details:
+      - Failed attempts: {{failedAttempts}}
+      - Time of last attempt: {{timestamp}}
+      - Account locked until: {{lockUntil}}
+
+      If this was you, please wait {{lockDurationMinutes}} minutes before attempting to log in again.
+
+      If you don't recognize this activity, please reset your password and enable two-factor authentication.
+
+      Reset Password: {{resetPasswordUrl}}
+
+      Need help? Contact support@agromarket.com
+
+      © {{year}} AgroMarket. All rights reserved.
+    `,
+    description: 'Security notification when account is locked due to failed login attempts'
+  },
+
+  'security-failed-login': {
+    subject: 'Security Alert: Failed Login Attempt',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+        <div style="text-align: center; margin-bottom: 30px;">
+          <h1 style="color: #f59e0b; margin: 0;">Security Alert</h1>
+        </div>
+
+        <p style="font-size: 16px; line-height: 1.6; color: #333;">Hello {{name}},</p>
+
+        <p style="font-size: 16px; line-height: 1.6; color: #333;">
+          We detected a failed login attempt on your AgroMarket account.
+        </p>
+
+        <div style="background-color: #fffbeb; padding: 20px; border-left: 4px solid #f59e0b; margin: 20px 0;">
+          <p style="margin: 0; color: #92400e;"><strong>Attempt Details:</strong></p>
+          <ul style="color: #92400e; margin: 10px 0;">
+            <li>Time: {{timestamp}}</li>
+            <li>Failed attempts so far: {{failedAttempts}}</li>
+            <li>Remaining attempts: {{remainingAttempts}}</li>
+          </ul>
+        </div>
+
+        <p style="font-size: 16px; line-height: 1.6; color: #333;">
+          If this was you, you can safely ignore this email. However, if you don't recognize this activity, we recommend securing your account immediately.
+        </p>
+
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="{{resetPasswordUrl}}" style="background-color: #166534; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+            Secure My Account
+          </a>
+        </div>
+
+        <p style="font-size: 14px; color: #666; text-align: center;">
+          Your account will be locked for 30 minutes after 5 failed attempts.
+        </p>
+
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #666; font-size: 12px;">
+          <p>© {{year}} AgroMarket. All rights reserved.</p>
+        </div>
+      </div>
+    `,
+    text: `
+      Security Alert: Failed Login Attempt
+
+      Hello {{name}},
+
+      We detected a failed login attempt on your AgroMarket account.
+
+      Attempt Details:
+      - Time: {{timestamp}}
+      - Failed attempts so far: {{failedAttempts}}
+      - Remaining attempts: {{remainingAttempts}}
+
+      If this was you, you can safely ignore this email. If not, please secure your account immediately.
+
+      Secure My Account: {{resetPasswordUrl}}
+
+      Your account will be locked for 30 minutes after 5 failed attempts.
+
+      © {{year}} AgroMarket. All rights reserved.
+    `,
+    description: 'Security notification for failed login attempts'
+  },
   welcome: {
     subject: 'Welcome to AgroMarket, {{name}}!',
     html: `

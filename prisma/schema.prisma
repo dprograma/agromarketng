@@ -23,6 +23,9 @@ model User {
   image              String?
   subscriptionPlanId String?
   role               String            @default("user")
+  failedLoginAttempts Int              @default(0)
+  accountLockedUntil DateTime?
+  lastFailedLoginAt  DateTime?
   accounts           Account[]
   ads                Ad[]
   Agent              Agent?

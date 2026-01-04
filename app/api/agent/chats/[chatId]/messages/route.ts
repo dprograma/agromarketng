@@ -2,18 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 import { apiErrorResponse } from '@/lib/errorHandling';
-import nodemailer from 'nodemailer';
-
-// Configure Nodemailer transporter
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_SERVER_HOST,
-  port: parseInt(process.env.EMAIL_SERVER_PORT || '587'),
-  auth: {
-    user: process.env.EMAIL_SERVER_USER,
-    pass: process.env.EMAIL_SERVER_PASSWORD,
-  },
-  secure: process.env.EMAIL_SERVER_SECURE === 'true',
-});
+import { quickSend } from '@/lib/email';
 
 // Helper function to validate agent session
 async function validateAgent(req: NextRequest) {
@@ -65,27 +54,22 @@ async function validateAgent(req: NextRequest) {
 }
 
 // Send email notification to customer when agent replies
-async function sendAgentReplyEmail(userEmail: string, userName: string, chatSubject: string, replyContent: string, agentName: string) {
+async function sendAgentReplyEmail(userEmail: string, userName: string, chatSubject: string, replyContent: string, agentName: string, chatId: string) {
   try {
-    const mailOptions = {
-      from: process.env.EMAIL_FROM,
-      to: userEmail,
-      subject: `Reply from ${agentName} - ${chatSubject}`,
-      html: `
-        <h2>New Reply from Support Agent</h2>
-        <p>Hello ${userName},</p>
-        <p>Your support agent <strong>${agentName}</strong> has replied to your chat about "<strong>${chatSubject}</strong>".</p>
-        <div style="background-color: #f5f5f5; padding: 15px; border-left: 4px solid #22c55e; margin: 20px 0;">
-          <p><strong>Agent Reply:</strong></p>
-          <p>${replyContent.replace(/\n/g, '<br>')}</p>
-        </div>
-        <p>You can continue the conversation by logging into your dashboard.</p>
-        <p>Best regards,<br>Support Team</p>
-      `,
-    };
+    const result = await quickSend.supportReply(
+      userEmail,
+      userName,
+      chatSubject,
+      `${agentName} replied: ${replyContent}`,
+      chatId,
+      'open'
+    );
 
-    await transporter.sendMail(mailOptions);
-    console.log(`Agent reply email sent to ${userEmail}`);
+    if (!result.success) {
+      console.error('Failed to send agent reply email:', result.error);
+    } else {
+      console.log(`Agent reply email sent to ${userEmail}:`, result.messageId);
+    }
   } catch (error) {
     console.error('Error sending agent reply email:', error);
   }
@@ -240,7 +224,8 @@ export async function POST(
         chat.user.name,
         chat.subject,
         content.trim(),
-        session.agent.user.name
+        session.agent.user.name,
+        chatId
       );
     } catch (emailError) {
       console.error('Failed to send email notification:', emailError);

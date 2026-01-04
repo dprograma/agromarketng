@@ -97,6 +97,44 @@ export const quickSend = {
       dashboardUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/agent/dashboard`,
       year: new Date().getFullYear()
     });
+  },
+
+  // Security: Account locked notification
+  accountLocked: async (
+    to: string,
+    name: string,
+    failedAttempts: number,
+    lockUntil: Date
+  ) => {
+    const now = new Date();
+    const lockDurationMinutes = Math.ceil((lockUntil.getTime() - now.getTime()) / 60000);
+
+    return emailService.sendTemplatedEmail('security-account-locked', to, {
+      name,
+      failedAttempts,
+      timestamp: now.toLocaleString(),
+      lockUntil: lockUntil.toLocaleString(),
+      lockDurationMinutes,
+      resetPasswordUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/reset-password`,
+      year: new Date().getFullYear()
+    }, { priority: 'high' });
+  },
+
+  // Security: Failed login attempt notification
+  failedLoginAttempt: async (
+    to: string,
+    name: string,
+    failedAttempts: number,
+    remainingAttempts: number
+  ) => {
+    return emailService.sendTemplatedEmail('security-failed-login', to, {
+      name,
+      failedAttempts,
+      remainingAttempts,
+      timestamp: new Date().toLocaleString(),
+      resetPasswordUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/reset-password`,
+      year: new Date().getFullYear()
+    }, { priority: 'high' });
   }
 };
 

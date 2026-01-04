@@ -39,10 +39,31 @@ export function rateLimit(options: RateLimitOptions) {
 }
 
 function getClientId(req: NextRequest): string {
-  // Use IP address as client identifier
+  // Use multiple identifiers for better accuracy
   const forwarded = req.headers.get('x-forwarded-for');
-  const ip = forwarded ? forwarded.split(',')[0] : 'unknown';
-  return ip;
+  const realIp = req.headers.get('x-real-ip');
+  const cfConnectingIp = req.headers.get('cf-connecting-ip'); // Cloudflare
+  const userAgent = req.headers.get('user-agent') || '';
+
+  // Get the most reliable IP address
+  const ip = cfConnectingIp || realIp || (forwarded ? forwarded.split(',')[0].trim() : 'unknown');
+
+  // Create a composite identifier (IP + partial user agent hash for better uniqueness)
+  // This helps prevent bypassing rate limits by changing user agents while keeping same IP
+  const userAgentHash = userAgent.substring(0, 50); // First 50 chars to avoid too much specificity
+
+  return `${ip}:${hashString(userAgentHash)}`;
+}
+
+// Simple hash function for user agent
+function hashString(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash).toString(36);
 }
 
 function cleanupExpiredEntries(now: number) {

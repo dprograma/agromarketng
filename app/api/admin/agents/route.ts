@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import nodemailer from 'nodemailer';
 import { apiErrorResponse } from '@/lib/errorHandling';
+import { quickSend } from '@/lib/email';
 
 interface UserWithAgent {
   id: string;
@@ -13,14 +13,6 @@ interface UserWithAgent {
   Agent: any | null;
 }
 
-// Configure Nodemailer transporter
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
 
 async function validateAdmin(req: NextRequest) {
   // Try both development and production cookie names
@@ -164,17 +156,21 @@ export async function POST(req: NextRequest) {
       // Send welcome email with verification link
       try {
         const verificationUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/verify-email?token=${verificationToken}`;
-        await transporter.sendMail({
-          from: process.env.EMAIL_USER,
-          to: email,
-          subject: 'Verify Your AgroMarket Support Account',
-          html: `
-            // ...existing email template...
-            <p>Please verify your email by clicking this link: 
-              <a href="${verificationUrl}">Verify Email</a>
-            </p>
-          `
-        });
+
+        // Send both welcome and verification emails
+        const welcomeResult = await quickSend.agentWelcome(email, name, Array.isArray(specialties) ? specialties[0] : specialties || 'General Support');
+
+        if (!welcomeResult.success) {
+          throw new Error(welcomeResult.error || 'Failed to send welcome email');
+        }
+
+        const verificationResult = await quickSend.verification(email, name, verificationUrl);
+
+        if (!verificationResult.success) {
+          throw new Error(verificationResult.error || 'Failed to send verification email');
+        }
+
+        console.log('Agent welcome and verification emails sent successfully');
       } catch (emailError) {
         console.error("Error sending welcome email:", emailError);
         // Delete created user if email fails to prevent orphaned user accounts

@@ -53,27 +53,15 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
 
-    // Base where conditions
+    // Base where conditions - show ALL active ads
     const whereConditions = {
       status: 'Active',
       ...(category && { category }),
     };
 
-    // Add boost condition only if there are boosted ads
-    const boostedAdsExist = await prisma.ad.count({
-      where: {
-        ...whereConditions,
-        boostEndDate: { gt: new Date() }
-      }
-    });
-
+    // Fetch all active ads, but we'll sort boosted ones to the top
     const ads = await prisma.ad.findMany({
-      where: {
-        ...whereConditions,
-        ...(boostedAdsExist && {
-          boostEndDate: { gt: new Date() }
-        })
-      },
+      where: whereConditions,
       orderBy: [
         { exclusivePlacement: 'desc' },
         { listingPriority: 'desc' },
@@ -93,11 +81,25 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    // Sort ads to prioritize boosted ones (active boosts first)
+    const now = new Date();
+    const sortedAds = ads.sort((a, b) => {
+      const aIsBoosted = a.boostEndDate && new Date(a.boostEndDate) > now;
+      const bIsBoosted = b.boostEndDate && new Date(b.boostEndDate) > now;
+
+      // Boosted ads come first
+      if (aIsBoosted && !bIsBoosted) return -1;
+      if (!aIsBoosted && bIsBoosted) return 1;
+
+      // If both boosted or both not boosted, maintain existing order
+      return 0;
+    });
+
     // Get total count for pagination
     const total = await prisma.ad.count({ where: whereConditions });
 
-    if (!ads) {
-      return NextResponse.json({ 
+    if (!sortedAds || sortedAds.length === 0) {
+      return NextResponse.json({
         ads: [],
         total: 0,
         currentPage: page,
@@ -106,7 +108,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      ads,
+      ads: sortedAds,
       total,
       currentPage: page,
       totalPages: Math.ceil(total / limit)
