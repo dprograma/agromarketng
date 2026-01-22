@@ -46,3 +46,6 @@ next-env.d.ts
 # Ignore uploaded files but keep the directory
 public/uploads/*
 !public/uploads/.gitkeep
+
+FEATURED_ADS_IMPLEMENTATION.md
+FEATURED_ADS_INVESTIGATION.md

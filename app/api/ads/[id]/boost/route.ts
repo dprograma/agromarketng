@@ -145,14 +145,15 @@ export async function POST(
     const boostEndDate = new Date();
     boostEndDate.setDate(boostEndDate.getDate() + duration);
 
-    // Update ad
+    // Update ad - set higher boostMultiplier to prioritize in search and featured products
     const updatedAd = await prisma.ad.update({
       where: { id },
       data: {
         featured: true,
         boostType,
         boostEndDate,
-        boostStartDate: new Date()
+        boostStartDate: new Date(),
+        boostMultiplier: 2.0 // Higher multiplier ensures boosted ads rank first (1.0 for non-boosted)
       }
     });
 

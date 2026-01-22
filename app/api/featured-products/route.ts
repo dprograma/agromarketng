@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
     // Base query conditions
     const whereConditions: any = {
       status: 'active',
+      featured: true, // Only show featured ads
       price: {
         gte: minPrice,
         lte: maxPrice
@@ -284,11 +285,12 @@ export async function GET(request: NextRequest) {
         break;
     }
 
-    // Always prioritize boosted ads
+    // Always prioritize boosted ads (paid ads first)
+    // Sorting: boostMultiplier DESC (boosted ads > regular ads), then featured subscription, then user's sort
     orderBy = [
-      { boostMultiplier: 'desc' },
-      { featuredOnHome: 'desc' },
-      ...orderBy
+      { boostMultiplier: 'desc' }, // Boosted/paid ads first (higher multiplier)
+      { featuredOnHome: 'desc' },   // Subscription featured ads second
+      ...orderBy                    // Then user-selected sort (e.g., newest, price)
     ];
 
     // Fetch products
