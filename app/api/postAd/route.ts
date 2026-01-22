@@ -155,6 +155,8 @@ export async function POST(req: NextRequest) {
         userId,
         subscriptionPlanId: user.subscriptionPlanId || null,
         status: "Active", // Auto-activate ads on posting
+        featured: true, // Auto-feature all new ads
+        boostMultiplier: 1.0, // Default priority for non-boosted ads
       },
     });
 

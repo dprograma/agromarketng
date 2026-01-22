@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
     // Build where clause
     const where: any = {
       status: 'Active',
+      featured: true, // Only show featured ads in search
       price: {
         gte: minPrice,
         lte: maxPrice
@@ -53,8 +54,9 @@ export async function GET(request: NextRequest) {
       where.location = { contains: location, mode: 'insensitive' };
     }
 
-    // Build orderBy with priority for featured/boosted ads
+    // Build orderBy with priority for boosted/paid ads first
     let orderBy: any[] = [
+      { boostMultiplier: 'desc' },    // Boosted/paid ads first (highest priority)
       { exclusivePlacement: 'desc' },
       { listingPriority: 'desc' },
       { topOfCategory: 'desc' },
