@@ -5,8 +5,13 @@ import { checkLoginRateLimit, getClientIdentifier } from '@/lib/loginRateLimit';
 
 const handler = NextAuth(authOptions);
 
-// Wrapper for POST requests to apply rate limiting
-async function POST(req: NextRequest) {
+// NextAuth v4 App Router: handler must receive (req, { params }) where
+// params.nextauth contains the catch-all route segments.
+async function GET(req: NextRequest, context: { params: { nextauth: string[] } }) {
+  return handler(req, context);
+}
+
+async function POST(req: NextRequest, context: { params: { nextauth: string[] } }) {
   const body = await req.clone().json().catch(() => ({}));
 
   // Only apply rate limiting to credentials sign-in attempts
@@ -22,7 +27,7 @@ async function POST(req: NextRequest) {
     }
   }
 
-  return handler(req);
+  return handler(req, context);
 }
 
-export { handler as GET, POST };
+export { GET, POST };

@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
       // Continue with user creation even if email fails
     }
 
-    return jsonResponse(201, { message: 'User created successfully', user });
+    return jsonResponse(201, { message: 'User created successfully', user: { id: user.id, name: user.name, email: user.email } });
   } catch (error: any) {
     console.error('Signup error:', error);
     return jsonResponse(500, { error: 'Internal server error' });

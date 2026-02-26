@@ -15,14 +15,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Find the verification token
-    const verificationRecord = await prisma.verificationToken.findUnique({
-      where: {
-        identifier_token: {
-          identifier: `email-change-${token.split('-')[0]}`, // This needs to be adjusted
-          token: token
-        }
-      }
+    // Find the verification token by token value alone, then validate identifier
+    const verificationRecord = await prisma.verificationToken.findFirst({
+      where: { token }
     });
 
     if (!verificationRecord) {
