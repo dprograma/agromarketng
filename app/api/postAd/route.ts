@@ -37,12 +37,6 @@ export async function POST(req: NextRequest) {
       return apiErrorResponse('User not found', 404, 'USER_NOT_FOUND');
     }
 
-    // Check upload limits
-    const ads = await prisma.ad.findMany({ where: { userId } });
-    if (ads.length >= 10 && (!user.subscriptionPlan || user.subscriptionPlan.expiryDate < new Date())) {
-      return apiErrorResponse('Upload limit reached. Please upgrade your subscription.', 402, 'UPLOAD_LIMIT_REACHED');
-    }
-
     // Parse form data
     const formData = await req.formData();
     const title = formData.get('title')?.toString();
