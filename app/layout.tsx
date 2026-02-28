@@ -19,6 +19,10 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
   title: "AgroMarket Nigeria | Buy and Sell Agricultural Products",
   description: "AgroMarket Nigeria offers a trusted classified ads platform for buying and selling agricultural products from farmers, dealers, and agro-companies.",
+  icons: {
+    icon: '/icon.png',
+    apple: '/icon.png',
+  },
   openGraph: {
     title: "AgroMarket Nigeria | Agricultural Classifieds",
     description: "Explore AgroMarket Nigeria for the best deals on agricultural products. Connecting farmers with buyers in Nigeria.",
