@@ -122,8 +122,8 @@ export async function GET(req: NextRequest) {
     // Calculate promotion summary
     const ongoingPromotions = boostedAds;
 
-    // Calculate revenue from promotions (in a real app, this would come from payment records)
-    const earningsFromPromotions = Math.round(boostedAds * 1500 + Math.random() * 1000);
+    // Promotion earnings will come from payment records when transaction tracking is implemented
+    const earningsFromPromotions = 0;
 
     // Get ad performance data for table with more metrics
     const adPerformance = ads.slice(0, 5).map(ad => ({
@@ -153,9 +153,9 @@ export async function GET(req: NextRequest) {
       const dayLabel = date.toLocaleDateString('en-US', { weekday: 'short' });
       dailyLabels.push(dayLabel);
 
-      // Generate some realistic data based on actual totals
-      const dayViews = Math.floor((totalViews / 7) * (0.7 + Math.random() * 0.6));
-      const dayClicks = Math.floor((totalClicks / 7) * (0.7 + Math.random() * 0.6));
+      // Evenly distribute totals across days (actual daily tracking to be added later)
+      const dayViews = Math.floor(totalViews / 7);
+      const dayClicks = Math.floor(totalClicks / 7);
 
       dailyViews.push(dayViews);
       dailyClicks.push(dayClicks);
