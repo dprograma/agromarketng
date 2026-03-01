@@ -270,7 +270,7 @@ export default function EnhancedDashboardMain({ defaultTab = "dashboard" }: Enha
               {/* Recent Activity Feed */}
               <div className="space-y-4 mb-6">
                 <h2 className="text-xl font-semibold text-pretty text-gray-500">Recent Activity</h2>
-                <ActivityFeed />
+                <ActivityFeed activities={dashboardData?.recentActivity} />
               </div>
 
               {/* Ad Performance Table */}
