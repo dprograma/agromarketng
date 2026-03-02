@@ -1,7 +1,8 @@
+import toast from "react-hot-toast";
 import { NextResponse } from 'next/server';
 
 /**
- * Enhanced error handling for API calls (client-side)
+ * Enhanced error handling for API calls
  * @param error The error object
  * @param customMessage Custom error message to display
  * @param silent If true, no toast notification will be shown
@@ -23,11 +24,9 @@ export const handleApiError = (
     errorMessage = error.message;
   }
 
-  // Show toast notification unless silent mode is enabled (client-side only)
-  if (!silent && typeof window !== 'undefined') {
-    import('react-hot-toast').then(({ default: toast }) => {
-      toast.error(errorMessage);
-    });
+  // Show toast notification unless silent mode is enabled
+  if (!silent) {
+    toast.error(errorMessage);
   }
 
   // Return the error for further handling

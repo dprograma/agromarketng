@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getAuthUserId, isAuthError } from '@/lib/auth';
+import { auth } from '@/lib/auth';
 
 // GET /api/conversations/[conversationId]/messages
 export async function GET(
-  request: NextRequest,
+  request: Request,
   { params }: { params: Promise<{ conversationId: string }> }
 ) {
   try {
-    const authResult = await getAuthUserId(request);
-    if (isAuthError(authResult)) {
-      return NextResponse.json({ message: authResult.error }, { status: authResult.status });
+    const session = await auth();
+    if (!session) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = authResult.userId;
     const { conversationId } = await params;
 
     // Verify that the current user is a participant in the conversation
@@ -21,8 +20,8 @@ export async function GET(
       where: {
         id: conversationId,
         OR: [
-          { sellerId: userId },
-          { buyerId: userId },
+          { sellerId: session.user.id },
+          { buyerId: session.user.id },
         ],
       },
     });
@@ -58,16 +57,15 @@ export async function GET(
 
 // POST /api/conversations/[conversationId]/messages
 export async function POST(
-  request: NextRequest,
+  request: Request,
   { params }: { params: Promise<{ conversationId: string }> }
 ) {
   try {
-    const authResult = await getAuthUserId(request);
-    if (isAuthError(authResult)) {
-      return NextResponse.json({ message: authResult.error }, { status: authResult.status });
+    const session = await auth();
+    if (!session) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = authResult.userId;
     const { conversationId } = await params;
     const { content } = await request.json();
 
@@ -80,8 +78,8 @@ export async function POST(
       where: {
         id: conversationId,
         OR: [
-          { sellerId: userId },
-          { buyerId: userId },
+          { sellerId: session.user.id },
+          { buyerId: session.user.id },
         ],
       },
     });
@@ -95,7 +93,7 @@ export async function POST(
       data: {
         content: content,
         conversationId: conversationId,
-        senderId: userId,
+        senderId: session.user.id!, // Assuming session.user.id is the sender
       },
     });
 

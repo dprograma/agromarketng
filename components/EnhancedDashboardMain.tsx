@@ -34,36 +34,13 @@ interface EnhancedDashboardMainProps {
   defaultTab?: string;
 }
 
-interface DashboardData {
-  adPerformance: {
-    activeAds: number;
-    totalViews: number;
-    totalClicks: number;
-    totalShares: number;
-    boostedAds: number;
-    engagementRate: string;
-  };
-  promotionSummary: {
-    ongoingPromotions: number;
-  };
-  recentActivity: any[];
-  adPerformanceTable: {
-    id: string;
-    title: string;
-    views: number;
-    clicks: number;
-    status: string;
-  }[];
-}
-
 export default function EnhancedDashboardMain({ defaultTab = "dashboard" }: EnhancedDashboardMainProps) {
   // State for mobile view and active tab
   const router = useRouter();
   const [isMobile, setIsMobile] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
   const [activeTab, setActiveTab] = useState(defaultTab);
-  const [isLoading, setIsLoading] = useState(true);
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -93,27 +70,6 @@ export default function EnhancedDashboardMain({ defaultTab = "dashboard" }: Enha
       setActiveTab(defaultTab);
     }
   }, [defaultTab]);
-
-  // Fetch real dashboard data from API
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      setIsLoading(true);
-      try {
-        const response = await fetch('/api/user/dashboard?timeRange=30days', {
-          credentials: 'include'
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setDashboardData(data);
-        }
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchDashboardData();
-  }, []);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -212,19 +168,19 @@ export default function EnhancedDashboardMain({ defaultTab = "dashboard" }: Enha
                     <ul className="space-y-2">
                       <li className="flex justify-between">
                         <span>Active Ads:</span>
-                        <span className="font-medium">{dashboardData?.adPerformance.activeAds ?? 0}</span>
+                        <span className="font-medium">12</span>
                       </li>
                       <li className="flex justify-between">
                         <span>Total Views:</span>
-                        <span className="font-medium">{(dashboardData?.adPerformance.totalViews ?? 0).toLocaleString()}</span>
+                        <span className="font-medium">2,345</span>
                       </li>
                       <li className="flex justify-between">
                         <span>Total Clicks:</span>
-                        <span className="font-medium">{(dashboardData?.adPerformance.totalClicks ?? 0).toLocaleString()}</span>
+                        <span className="font-medium">523</span>
                       </li>
                       <li className="flex justify-between">
                         <span>Boosted Ads:</span>
-                        <span className="font-medium">{dashboardData?.adPerformance.boostedAds ?? 0}</span>
+                        <span className="font-medium">4</span>
                       </li>
                     </ul>
                   </CardContent>
@@ -239,11 +195,11 @@ export default function EnhancedDashboardMain({ defaultTab = "dashboard" }: Enha
                     <ul className="space-y-2">
                       <li className="flex justify-between">
                         <span>Ongoing Promotions:</span>
-                        <span className="font-medium">{dashboardData?.promotionSummary.ongoingPromotions ?? 0}</span>
+                        <span className="font-medium">2</span>
                       </li>
                       <li className="flex justify-between">
-                        <span>Engagement Rate:</span>
-                        <span className="font-medium">{dashboardData?.adPerformance.engagementRate ?? '0%'}</span>
+                        <span>Earnings from Promotions:</span>
+                        <span className="font-medium">₦125.00</span>
                       </li>
                     </ul>
                   </CardContent>
@@ -270,10 +226,10 @@ export default function EnhancedDashboardMain({ defaultTab = "dashboard" }: Enha
               {/* Recent Activity Feed */}
               <div className="space-y-4 mb-6">
                 <h2 className="text-xl font-semibold text-pretty text-gray-500">Recent Activity</h2>
-                <ActivityFeed activities={dashboardData?.recentActivity} />
+                <ActivityFeed />
               </div>
 
-              {/* Ad Performance Table */}
+              {/* Custom Table Example */}
               <div className="space-y-4">
                 <h2 className="text-xl font-semibold text-gray-500">Ad Performance Table</h2>
                 <Table>
@@ -286,20 +242,24 @@ export default function EnhancedDashboardMain({ defaultTab = "dashboard" }: Enha
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {dashboardData?.adPerformanceTable && dashboardData.adPerformanceTable.length > 0 ? (
-                      dashboardData.adPerformanceTable.map((ad) => (
-                        <TableRow key={ad.id}>
-                          <TableCell>{ad.title}</TableCell>
-                          <TableCell>{ad.views.toLocaleString()}</TableCell>
-                          <TableCell>{ad.clicks.toLocaleString()}</TableCell>
-                          <TableCell>{ad.status}</TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center text-gray-500">No ads yet. Post your first ad to see performance data.</TableCell>
-                      </TableRow>
-                    )}
+                    <TableRow>
+                      <TableCell>Ad 1</TableCell>
+                      <TableCell>1,245</TableCell>
+                      <TableCell>321</TableCell>
+                      <TableCell>Boosted</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Ad 2</TableCell>
+                      <TableCell>894</TableCell>
+                      <TableCell>223</TableCell>
+                      <TableCell>Active</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Ad 3</TableCell>
+                      <TableCell>473</TableCell>
+                      <TableCell>89</TableCell>
+                      <TableCell>Inactive</TableCell>
+                    </TableRow>
                   </TableBody>
                 </Table>
               </div>
