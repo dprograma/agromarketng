@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import jwt from 'jsonwebtoken';
+import { getAuthUserId, isAuthError } from '@/lib/auth';
 import { formatDistanceToNow } from 'date-fns';
 
 export async function GET(req: NextRequest) {
   try {
-    // Get token from cookies
-    const token = req.cookies.get('next-auth.session-token')?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Unified auth: handles both custom JWT and NextAuth sessions
+    const authResult = await getAuthUserId(req);
+    if (isAuthError(authResult)) {
+      return NextResponse.json(
+        { error: authResult.error, code: authResult.code },
+        { status: authResult.status }
+      );
     }
 
-    // Verify token and get userId
-    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as { id: string };
-    const userId = decoded.id;
+    const userId = authResult.userId;
 
     // Get time range from query params (default to 30 days)
     const timeRange = req.nextUrl.searchParams.get('timeRange') || '30days';
@@ -33,13 +34,13 @@ export async function GET(req: NextRequest) {
         startDate.setDate(now.getDate() - 90);
         break;
       case 'all':
-        startDate = new Date(0); // Beginning of time
+        startDate = new Date(0);
         break;
       default:
         startDate.setDate(now.getDate() - 30);
     }
 
-    // Get user's ads with more detailed information
+    // Get user's ads with detailed information
     const ads = await prisma.ad.findMany({
       where: {
         userId,
@@ -75,12 +76,12 @@ export async function GET(req: NextRequest) {
     const totalShares = ads.reduce((sum, ad) => sum + ad.shares, 0);
     const boostedAds = ads.filter(ad => ad.featured && ad.boostEndDate && new Date(ad.boostEndDate) > new Date()).length;
 
-    // Calculate engagement rate
+    // Calculate engagement rate (guard against division by zero)
     const engagementRate = totalViews > 0
       ? Math.round((totalClicks / totalViews) * 100 * 10) / 10
       : 0;
 
-    // Get user's subscription with detailed information
+    // Get user's subscription and notifications
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -99,10 +100,8 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    // Get recent activity from notifications
-    const notifications = user?.notifications || [];
-
     // Format notifications for recent activity
+    const notifications = user?.notifications || [];
     const recentActivity = notifications.map(notification => ({
       id: notification.id,
       type: notification.type,
@@ -112,20 +111,11 @@ export async function GET(req: NextRequest) {
       createdAt: notification.createdAt
     }));
 
-    // Fallback if no notifications
-    if (recentActivity.length === 0) {
-      recentActivity.push(
-        { id: '1', type: 'info', description: "Welcome to your dashboard!", time: "just now", read: false, createdAt: new Date() }
-      );
-    }
-
-    // Calculate promotion summary
+    // Promotion summary
     const ongoingPromotions = boostedAds;
+    const earningsFromPromotions = 0;
 
-    // Calculate revenue from promotions (in a real app, this would come from payment records)
-    const earningsFromPromotions = Math.round(boostedAds * 1500 + Math.random() * 1000);
-
-    // Get ad performance data for table with more metrics
+    // Ad performance table (top 5)
     const adPerformance = ads.slice(0, 5).map(ad => ({
       id: ad.id,
       title: ad.title,
@@ -138,30 +128,21 @@ export async function GET(req: NextRequest) {
       image: ad.images && ad.images.length > 0 ? ad.images[0] : null
     }));
 
-    // Calculate daily stats for charts
+    // Daily stats for charts (last 7 days)
     const today = new Date();
     const dailyLabels = [];
     const dailyViews = [];
     const dailyClicks = [];
 
-    // Generate daily stats for the last 7 days
     for (let i = 6; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(today.getDate() - i);
-
-      // Format date as "Mon", "Tue", etc.
-      const dayLabel = date.toLocaleDateString('en-US', { weekday: 'short' });
-      dailyLabels.push(dayLabel);
-
-      // Generate some realistic data based on actual totals
-      const dayViews = Math.floor((totalViews / 7) * (0.7 + Math.random() * 0.6));
-      const dayClicks = Math.floor((totalClicks / 7) * (0.7 + Math.random() * 0.6));
-
-      dailyViews.push(dayViews);
-      dailyClicks.push(dayClicks);
+      dailyLabels.push(date.toLocaleDateString('en-US', { weekday: 'short' }));
+      dailyViews.push(Math.floor(totalViews / 7));
+      dailyClicks.push(Math.floor(totalClicks / 7));
     }
 
-    // Calculate category distribution
+    // Category distribution
     const categories: Record<string, number> = {};
     ads.forEach(ad => {
       if (ad.category) {
@@ -172,7 +153,7 @@ export async function GET(req: NextRequest) {
     const categoryDistribution = Object.entries(categories).map(([name, count]) => ({
       name,
       count,
-      percentage: Math.round((count / ads.length) * 100)
+      percentage: ads.length > 0 ? Math.round((count / ads.length) * 100) : 0
     }));
 
     return NextResponse.json({
@@ -201,34 +182,12 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error("Error fetching dashboard data:", error);
-
-    // Provide more specific error messages based on the error type
-    if (error instanceof jwt.JsonWebTokenError) {
-      return NextResponse.json(
-        { error: "Invalid authentication token", code: "INVALID_TOKEN" },
-        { status: 401 }
-      );
-    } else if (error instanceof jwt.TokenExpiredError) {
-      return NextResponse.json(
-        { error: "Authentication token expired", code: "TOKEN_EXPIRED" },
-        { status: 401 }
-      );
-    } else if (error instanceof Error) {
-      // Return a generic error message but with the specific error name for debugging
-      return NextResponse.json(
-        {
-          error: "Failed to fetch dashboard data",
-          code: "SERVER_ERROR",
-          message: error.message,
-          name: error.name
-        },
-        { status: 500 }
-      );
-    }
-
-    // Fallback for unknown errors
     return NextResponse.json(
-      { error: "An unexpected error occurred", code: "UNKNOWN_ERROR" },
+      {
+        error: "Failed to fetch dashboard data",
+        code: "SERVER_ERROR",
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }
