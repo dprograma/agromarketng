@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 import { apiErrorResponse } from '@/lib/errorHandling';
+import { adPostingRateLimiters } from '@/lib/rateLimit';
+import { sanitizeTextInput } from '@/lib/sanitize';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,6 +55,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 // PUT update ad
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Rate limiting
+    const rateLimitResult = adPostingRateLimiters.updateAd(req);
+    if (!rateLimitResult.success) {
+      return apiErrorResponse(
+        'Too many update requests. Please try again later.',
+        429,
+        'RATE_LIMIT_EXCEEDED',
+        `Try again after ${new Date(rateLimitResult.resetTime).toISOString()}`
+      );
+    }
+
     // Get token from different possible sources
     const sessionToken = req.cookies.get('next-auth.session-token')?.value ||
                         req.cookies.get('__Secure-next-auth.session-token')?.value;
@@ -85,18 +98,18 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return apiErrorResponse('Ad not found or access denied', 404, 'AD_NOT_FOUND');
     }
 
-    // Update the ad
+    // Sanitize text inputs
     const updatedAd = await prisma.ad.update({
       where: { id: adId },
       data: {
-        title: updateData.title,
-        category: updateData.category,
-        subcategory: updateData.subcategory,
-        section: updateData.section,
-        location: updateData.location,
+        title: updateData.title ? sanitizeTextInput(updateData.title) : undefined,
+        category: updateData.category ? sanitizeTextInput(updateData.category) : undefined,
+        subcategory: updateData.subcategory ? sanitizeTextInput(updateData.subcategory) : undefined,
+        section: updateData.section ? sanitizeTextInput(updateData.section) : undefined,
+        location: updateData.location ? sanitizeTextInput(updateData.location) : undefined,
         price: updateData.price,
-        description: updateData.description,
-        contact: updateData.contact,
+        description: updateData.description ? sanitizeTextInput(updateData.description) : undefined,
+        contact: updateData.contact ? sanitizeTextInput(updateData.contact) : undefined,
         images: updateData.images,
         updatedAt: new Date()
       }

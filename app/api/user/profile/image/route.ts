@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
-import { writeFile } from 'fs/promises';
 import { apiErrorResponse } from '@/lib/errorHandling';
-import { join } from 'path';
+import { uploadProfileImage } from '@/lib/cloudinary';
 
 /**
  * POST - Upload user profile image
@@ -53,19 +52,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Generate unique filename
-    const timestamp = Date.now();
-    const extension = file.type.split('/')[1];
-    const filename = `${userId}-${timestamp}.${extension}`;
-
-    // Save file to public directory
+    // Upload to Cloudinary
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const path = join(process.cwd(), 'public', 'uploads', 'profiles', filename);
-    await writeFile(path, buffer);
+    const result = await uploadProfileImage(buffer, userId);
 
-    // Update user profile with new image URL
-    const imageUrl = `/uploads/profiles/${filename}`;
+    // Update user profile with Cloudinary URL
+    const imageUrl = result.url;
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: { image: imageUrl },
