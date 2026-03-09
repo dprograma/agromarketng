@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
-import { writeFile } from 'fs/promises';
-import { join } from 'path';
 import { apiErrorResponse } from '@/lib/errorHandling';
+import { uploadToCloudinary } from '@/lib/cloudinary';
+import { adPostingRateLimiters } from '@/lib/rateLimit';
+import { sanitizeAdFields } from '@/lib/sanitize';
+import { validateFileMagicBytes } from '@/lib/fileValidation';
 
 // Define the type for a user with their subscription plan
 type UserWithSubscriptionPlan = Prisma.UserGetPayload<{
@@ -17,6 +19,17 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limiting — prevent bot abuse
+    const rateLimitResult = adPostingRateLimiters.postAd(req);
+    if (!rateLimitResult.success) {
+      return apiErrorResponse(
+        'Too many ads posted. Please try again later.',
+        429,
+        'RATE_LIMIT_EXCEEDED',
+        `Try again after ${new Date(rateLimitResult.resetTime).toISOString()}`
+      );
+    }
+
     // Verify authentication
     const token = req.cookies.get('next-auth.session-token')?.value;
     if (!token) {
@@ -49,21 +62,32 @@ export async function POST(req: NextRequest) {
     const contact = formData.get('contact')?.toString();
     const images = formData.getAll('images');
 
-    // Validate required fields
+    // Sanitize text inputs to prevent XSS/injection
+    const sanitized = sanitizeAdFields({
+      title: title || '',
+      description: description || '',
+      location: location || '',
+      contact: contact || '',
+      category,
+      subcategory,
+      section,
+    });
+
+    // Validate required fields (using sanitized values)
     const validationErrors: { field: string; message: string }[] = [];
-    if (!title || title.length < 5 || title.length > 100) {
+    if (!sanitized.title || sanitized.title.length < 5 || sanitized.title.length > 100) {
       validationErrors.push({ field: 'title', message: 'Title must be between 5 and 100 characters.' });
     }
-    if (!category) {
+    if (!sanitized.category) {
       validationErrors.push({ field: 'category', message: 'Category is required.' });
     }
-    if (!location || location.length < 3) {
+    if (!sanitized.location || sanitized.location.length < 3) {
       validationErrors.push({ field: 'location', message: 'Location must be at least 3 characters.' });
     }
-    if (!description || description.length < 20 || description.length > 5000) {
+    if (!sanitized.description || sanitized.description.length < 20 || sanitized.description.length > 5000) {
       validationErrors.push({ field: 'description', message: 'Description must be between 20 and 5000 characters.' });
     }
-    if (!contact || !/^\+?[0-9\s-()]{7,20}$/.test(contact)) {
+    if (!sanitized.contact || !/^\+?[0-9\s-()]{7,20}$/.test(sanitized.contact)) {
       validationErrors.push({ field: 'contact', message: 'Valid contact information is required.' });
     }
     if (images.length === 0) {
@@ -94,7 +118,7 @@ export async function POST(req: NextRequest) {
     for (const image of images) {
       if (!(image instanceof File)) continue;
 
-      // Validate image type and size
+      // Validate image MIME type
       if (!ALLOWED_IMAGE_TYPES.includes(image.type)) {
         return apiErrorResponse(
           `Invalid image type: ${image.name}. Allowed types: ${ALLOWED_IMAGE_TYPES.join(', ')}`,
@@ -111,46 +135,51 @@ export async function POST(req: NextRequest) {
       }
 
       try {
-        // Generate unique filename
-        const ext = image.name.split('.').pop();
-        const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
-        const uploadPath = join(process.cwd(), 'public', 'uploads', filename);
-
-        // Save file
         const bytes = await image.arrayBuffer();
         const buffer = Buffer.from(bytes);
-        await writeFile(uploadPath, buffer);
 
-        // Store URL
-        imageUrls.push(`/uploads/${filename}`);
+        // Validate file content via magic bytes — blocks executables disguised as images
+        const magicByteResult = validateFileMagicBytes(buffer, image.type);
+        if (!magicByteResult.isValid) {
+          return apiErrorResponse(
+            `Image rejected: ${image.name}. ${magicByteResult.error}`,
+            400,
+            'INVALID_FILE_CONTENT'
+          );
+        }
+
+        // Upload to Cloudinary
+        const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
+        const result = await uploadToCloudinary(buffer, 'ads', filename);
+        imageUrls.push(result.url);
       } catch (fileError) {
-        console.error('Error processing file:', image.name, fileError);
+        console.error('Error uploading image:', image.name, fileError);
         return apiErrorResponse(
-          `Failed to process image: ${image.name}`,
+          `Failed to upload image: ${image.name}`,
           500,
-          'FILE_PROCESSING_ERROR',
+          'UPLOAD_ERROR',
           fileError instanceof Error ? fileError.message : String(fileError)
         );
       }
     }
 
-    // Create ad in database
+    // Create ad in database with sanitized inputs
     const ad = await prisma.ad.create({
       data: {
-        title: title!, // Already validated
-        category: category!, // Already validated
-        subcategory: subcategory || null,
-        section: section || null,
-        location: location!, // Already validated
+        title: sanitized.title,
+        category: sanitized.category!,
+        subcategory: sanitized.subcategory || null,
+        section: sanitized.section || null,
+        location: sanitized.location,
         price: price.toNumber(),
-        description: description!, // Already validated
-        contact: contact!, // Already validated
+        description: sanitized.description,
+        contact: sanitized.contact,
         images: imageUrls,
         userId,
         subscriptionPlanId: user.subscriptionPlanId || null,
-        status: "Active", // Auto-activate ads on posting
-        featured: true, // Auto-feature all new ads
-        boostMultiplier: 1.0, // Default priority for non-boosted ads
+        status: "Active",
+        featured: true,
+        boostMultiplier: 1.0,
       },
     });
 
@@ -165,4 +194,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
