@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     // Base query conditions
     const whereConditions: any = {
-      status: 'active',
+      status: 'Active',
       featured: true, // Only show featured ads
       price: {
         gte: minPrice,
