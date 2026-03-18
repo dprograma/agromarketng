@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BarChart3, Users, MessageSquare, Clock, Settings, Loader2, LineChart } from "lucide-react";
+import { BarChart3, Users, MessageSquare, Clock, Settings, Loader2, LineChart, UserCog } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ManageAgent from "./ManageAgent";
 import Chat from "./Chat";
 import SettingsTab from "./Settings";
 import SupportAnalytics from "./SupportAnalytics";
+import UserManagement from "./UserManagement";
 import toast from "react-hot-toast";
 
 interface AdminStats {
@@ -57,11 +58,16 @@ export default function AdminDashboard({ defaultTab = "dashboard" }: AdminDashbo
       </div>
 
       <Tabs defaultValue={defaultTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 mb-6">
+        <TabsList className="grid w-full grid-cols-6 mb-6">
           <TabsTrigger value="dashboard" className="text-xs sm:text-sm">
             <BarChart3 className="w-4 h-4 mr-1 sm:mr-2" />
             <span className="hidden sm:inline">Dashboard</span>
             <span className="sm:hidden">Home</span>
+          </TabsTrigger>
+          <TabsTrigger value="users" className="text-xs sm:text-sm">
+            <UserCog className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Users</span>
+            <span className="sm:hidden">Users</span>
           </TabsTrigger>
           <TabsTrigger value="manage-agent" className="text-xs sm:text-sm">
             <Users className="w-4 h-4 mr-1 sm:mr-2" />
@@ -205,6 +211,10 @@ export default function AdminDashboard({ defaultTab = "dashboard" }: AdminDashbo
               </div>
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="users">
+          <UserManagement />
         </TabsContent>
 
         <TabsContent value="manage-agent">
