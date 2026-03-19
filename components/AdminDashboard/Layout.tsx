@@ -10,10 +10,12 @@ import {
   Settings,
   LayoutDashboard,
   Users,
+  UserCog,
   MessageSquare,
   Menu,
   X,
   LineChart,
+  Megaphone,
 } from "lucide-react";
 
 
@@ -30,6 +32,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       title: "Dashboard",
       href: "/admin/dashboard",
       icon: LayoutDashboard,
+    },
+    {
+      title: "Users",
+      href: "/admin/dashboard?tab=users",
+      icon: UserCog,
+    },
+    {
+      title: "Ads",
+      href: "/admin/dashboard?tab=ads",
+      icon: Megaphone,
     },
     {
       title: "Manage Agents",
