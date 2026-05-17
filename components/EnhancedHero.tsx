@@ -5,60 +5,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ChevronRightIcon } from "@heroicons/react/24/outline";
-import { Loader2 } from "lucide-react";
 import heroImg from "../public/assets/img/agromarket-hero1.png";
-import toast from "react-hot-toast";
-
-interface AnalyticsData {
-  stats: {
-    totalAds: number;
-    totalFarmers: number;
-    statesCovered: number;
-    totalViews: number;
-    totalClicks: number;
-    customerSatisfaction: number;
-  };
-  topCategories: Array<{
-    name: string;
-    count: number;
-  }>;
-  recentActivity: Array<{
-    id: string;
-    title: string;
-    farmerName: string;
-    createdAt: string;
-  }>;
-}
 
 export default function EnhancedHero() {
   const [isVisible, setIsVisible] = useState(false);
-  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch analytics data
-  useEffect(() => {
-    const fetchAnalytics = async () => {
-      try {
-        const response = await fetch('/api/landing-analytics');
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch analytics');
-        }
-
-        const data = await response.json();
-        setAnalytics(data);
-      } catch (error) {
-        console.error('Error fetching analytics:', error);
-        // Don't show error toast on landing page for better UX
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchAnalytics();
-  }, []);
-
-  // Animation visibility
   useEffect(() => {
     setIsVisible(true);
   }, []);
@@ -142,48 +93,7 @@ export default function EnhancedHero() {
             </motion.div>
           </motion.div>
 
-          {/* Stats Card */}
-          <motion.div
-            className="mt-16 lg:mt-0 bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 text-white"
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: isVisible ? 1 : 0, x: isVisible ? 0 : 50 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-          >
-            <h3 className="text-xl font-semibold mb-4 text-yellow-400">AgroMarket Impact</h3>
-
-            {isLoading ? (
-              <div className="flex justify-center items-center py-8">
-                <Loader2 className="w-8 h-8 animate-spin text-yellow-400" />
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-6">
-                <div className="text-center">
-                  <p className="text-3xl font-bold">
-                    {analytics?.stats.totalFarmers.toLocaleString() || "5000+"}
-                  </p>
-                  <p className="text-sm text-gray-300">Farmers Connected</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-3xl font-bold">
-                    {analytics?.stats.statesCovered || "25"}+
-                  </p>
-                  <p className="text-sm text-gray-300">States Covered</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-3xl font-bold">
-                    {analytics?.stats.totalAds.toLocaleString() || "10K+"}
-                  </p>
-                  <p className="text-sm text-gray-300">Products Listed</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-3xl font-bold">
-                    {analytics?.stats.customerSatisfaction || "98"}%
-                  </p>
-                  <p className="text-sm text-gray-300">Customer Satisfaction</p>
-                </div>
-              </div>
-            )}
-          </motion.div>
+          {/* Stats Card - hidden */}
         </div>
       </div>
 
