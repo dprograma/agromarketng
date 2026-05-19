@@ -43,6 +43,7 @@ model User {
   savedSearches      SavedSearch[]
   activityLogs       ActivityLog[]
   knowledgeArticles  KnowledgeArticle[]
+  reviews            Review[]
   subscriptionPlan   SubscriptionPlan? @relation("UserSubscription", fields: [subscriptionPlanId], references: [id])
 }
 
@@ -78,11 +79,28 @@ model Ad {
   subscriptionPlan   SubscriptionPlan? @relation("AdSubscription", fields: [subscriptionPlanId], references: [id])
   user               User              @relation(fields: [userId], references: [id])
   conversations      Conversation[]
+  reviews            Review[]
 
   @@index([category])
   @@index([location])
   @@index([createdAt])
   @@index([price])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  rating    Int      // 1-5 star rating
+  comment   String?
+  adId      String
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ad        Ad       @relation(fields: [adId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([adId, userId]) // One review per user per ad
+  @@index([adId])
+  @@index([userId])
 }
 
 model SubscriptionPlan {
