@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { Container } from "./Container";
-import { Twitter, Facebook, Instagram, Linkedin } from "./Icons";
+import { Facebook, Instagram, Linkedin } from "./Icons";
 
 const Footer = () => {
   const navigation = [
@@ -139,16 +139,13 @@ const Footer = () => {
             <div className="mt-6">
               <h4 className="mb-3 font-semibold text-gray-300">Follow Us</h4>
               <div className="flex space-x-4 text-gray-300">
-                <a href="https://twitter.com/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
-                  <Twitter size={20} />
-                </a>
-                <a href="https://facebook.com/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
+                <a href="https://facebook.com/AgromarketNigeria" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
                   <Facebook size={20} />
                 </a>
-                <a href="https://instagram.com/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
+                <a href="https://instagram.com/agromarketngr" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
                   <Instagram size={20} />
                 </a>
-                <a href="https://linkedin.com/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
+                <a href="https://linkedin.com/company/Agromarketngr" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
                   <Linkedin size={20} />
                 </a>
               </div>
