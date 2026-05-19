@@ -23,16 +23,17 @@ export default function EnhancedHero() {
           alt="Agro-market hero background"
           fill
           priority
-          className="object-cover opacity-70"
+          className="object-cover object-left-center opacity-70"
+          style={{ objectPosition: 'left center' }}
         />
         <div className="absolute inset-0 bg-gradient-to-r from-green-900/80 to-green-800/60"></div>
       </div>
 
       {/* Main Content */}
       <div className="relative isolate px-6 pt-14 lg:px-8">
-        <div className="mx-auto max-w-6xl py-32 sm:py-48 lg:py-56 flex flex-col lg:flex-row items-center justify-between">
+        <div className="mx-auto max-w-6xl py-32 sm:py-48 lg:py-56">
           <motion.div
-            className="lg:max-w-2xl"
+            className="max-w-2xl"
             initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: isVisible ? 1 : 0, x: isVisible ? 0 : -50 }}
             transition={{ duration: 0.8, delay: 0.2 }}
@@ -92,8 +93,6 @@ export default function EnhancedHero() {
               </Link>
             </motion.div>
           </motion.div>
-
-          {/* Stats Card - hidden */}
         </div>
       </div>
 
