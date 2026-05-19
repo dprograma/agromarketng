@@ -384,21 +384,26 @@ export async function GET(request: NextRequest) {
     console.log('Finished prisma.ad.groupBy (locations) query. Found locations count:', availableLocations.length);
 
     // Fetch real review stats for the fetched products
-    const productIds = products.map(p => p.id);
-    const reviewStats = await prisma.review.groupBy({
-      by: ['adId'],
-      where: { adId: { in: productIds } },
-      _avg: { rating: true },
-      _count: { rating: true },
-    });
+    let reviewMap = new Map<string, { rating: number; reviews: number }>();
+    try {
+      const productIds = products.map(p => p.id);
+      const reviewStats = await prisma.review.groupBy({
+        by: ['adId'],
+        where: { adId: { in: productIds } },
+        _avg: { rating: true },
+        _count: { rating: true },
+      });
 
-    // Build a lookup map for quick access
-    const reviewMap = new Map(
-      reviewStats.map(r => [r.adId, {
-        rating: r._avg.rating ? parseFloat(r._avg.rating.toFixed(1)) : 0,
-        reviews: r._count.rating,
-      }])
-    );
+      reviewMap = new Map(
+        reviewStats.map(r => [r.adId, {
+          rating: r._avg.rating ? parseFloat(r._avg.rating.toFixed(1)) : 0,
+          reviews: r._count.rating,
+        }])
+      );
+    } catch (reviewError) {
+      // Review table may not exist yet if migration hasn't been applied
+      console.warn('Could not fetch review stats:', reviewError);
+    }
 
     const productsWithRatings = products.map(product => ({
       ...product,
