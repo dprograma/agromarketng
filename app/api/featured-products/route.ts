@@ -383,19 +383,28 @@ export async function GET(request: NextRequest) {
     console.timeEnd('prisma.ad.groupBy (locations)');
     console.log('Finished prisma.ad.groupBy (locations) query. Found locations count:', availableLocations.length);
 
-    // Calculate average rating (mock data for now, could be replaced with real ratings later)
-    const productsWithRatings = products.map(product => {
-      // Generate a random rating between 4.0 and 5.0
-      const rating = (4 + Math.random()).toFixed(1);
-      // Generate a random number of reviews between 10 and 200
-      const reviews = Math.floor(Math.random() * 190) + 10;
-
-      return {
-        ...product,
-        rating: parseFloat(rating),
-        reviews
-      };
+    // Fetch real review stats for the fetched products
+    const productIds = products.map(p => p.id);
+    const reviewStats = await prisma.review.groupBy({
+      by: ['adId'],
+      where: { adId: { in: productIds } },
+      _avg: { rating: true },
+      _count: { rating: true },
     });
+
+    // Build a lookup map for quick access
+    const reviewMap = new Map(
+      reviewStats.map(r => [r.adId, {
+        rating: r._avg.rating ? parseFloat(r._avg.rating.toFixed(1)) : 0,
+        reviews: r._count.rating,
+      }])
+    );
+
+    const productsWithRatings = products.map(product => ({
+      ...product,
+      rating: reviewMap.get(product.id)?.rating ?? 0,
+      reviews: reviewMap.get(product.id)?.reviews ?? 0,
+    }));
 
     // Get subcategories based on the navigation constants
     const getSubcategories = () => {

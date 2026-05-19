@@ -159,12 +159,18 @@ export default function FeaturedProducts() {
                   </div>
 
                   <div className="flex items-center mb-3">
-                    <div className="flex items-center">
-                      <StarIcon className="h-4 w-4 text-yellow-500" />
-                      <span className="ml-1 text-sm text-gray-700">{product.rating || 4.5}</span>
-                    </div>
-                    <span className="mx-2 text-gray-300">|</span>
-                    <span className="text-xs text-gray-500">{product.reviews || 0} reviews</span>
+                    {product.reviews && product.reviews > 0 ? (
+                      <>
+                        <div className="flex items-center">
+                          <StarIcon className="h-4 w-4 text-yellow-500" />
+                          <span className="ml-1 text-sm text-gray-700">{product.rating}</span>
+                        </div>
+                        <span className="mx-2 text-gray-300">|</span>
+                        <span className="text-xs text-gray-500">{product.reviews} {product.reviews === 1 ? 'review' : 'reviews'}</span>
+                      </>
+                    ) : (
+                      <span className="text-xs text-gray-400">No reviews yet</span>
+                    )}
                   </div>
 
                   <div className="flex justify-between items-center">
