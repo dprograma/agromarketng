@@ -103,9 +103,9 @@ export const promotionRateLimiters = {
 
 // Rate limiters for ad posting (prevent bot abuse)
 export const adPostingRateLimiters = {
-  // 5 ad posts per hour — generous for legitimate users, blocks bots
-  postAd: rateLimit({ windowMs: 60 * 60 * 1000, maxRequests: 5 }),
+  // 50 ad posts per hour — unlimited posting for legitimate users, blocks bots
+  postAd: rateLimit({ windowMs: 60 * 60 * 1000, maxRequests: 50 }),
 
-  // 10 ad updates per hour — slightly more permissive than posting
-  updateAd: rateLimit({ windowMs: 60 * 60 * 1000, maxRequests: 10 }),
+  // 100 ad updates per hour — permissive for active sellers
+  updateAd: rateLimit({ windowMs: 60 * 60 * 1000, maxRequests: 100 }),
 };

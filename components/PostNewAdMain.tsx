@@ -237,9 +237,9 @@ export default function PostNewAd() {
       }
 
       // Check file sizes again before submission
-      const oversizedFiles = selectedFiles.filter(file => file.size > 2 * 1024 * 1024);
+      const oversizedFiles = selectedFiles.filter(file => file.size > 5 * 1024 * 1024);
       if (oversizedFiles.length > 0) {
-        throw new Error(`${oversizedFiles.length} image(s) exceed the 2MB size limit. Please resize and try again.`);
+        throw new Error(`${oversizedFiles.length} image(s) exceed the 5MB size limit. Please resize and try again.`);
       }
 
       // Append files

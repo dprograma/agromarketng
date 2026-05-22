@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from "@/components/SessionWrapper";
 import { Session } from '@/types';
@@ -11,9 +11,10 @@ import heroImg from '../../public/assets/img/agromarket-logo.png';
 import SocialLoginIcons from '@/components/SocialLoginIcons';
 import Spinner from '@/components/Spinner';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { showAlertToast, showToast } from '@/lib/toast-utils';
+import { Loader2, AlertTriangle, Mail } from 'lucide-react';
 
 
 export default function SigninPage() {
@@ -23,6 +24,10 @@ export default function SigninPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [showVerification, setShowVerification] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const [isResending, setIsResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const searchParams = useSearchParams();
   const alertCode = searchParams.get('alert');
 
@@ -33,8 +38,16 @@ export default function SigninPage() {
     }
   }, [alertCode]);
 
+  // Countdown timer
   useEffect(() => {
-    // If already authenticated, redirect to appropriate dashboard
+    if (resendCountdown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCountdown((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCountdown]);
+
+  useEffect(() => {
     if (session) {
       switch (session.role) {
         case "admin":
@@ -49,7 +62,6 @@ export default function SigninPage() {
     }
   }, [session, router]);
 
-  // Only show signin form if not authenticated
   if (session) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -58,14 +70,41 @@ export default function SigninPage() {
     );
   }
 
-  // Toggle password visibility
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
+  const togglePasswordVisibility = () => setShowPassword(!showPassword);
+
+  const handleResendVerification = async () => {
+    if (resendCountdown > 0 || isResending || !email) return;
+
+    setIsResending(true);
+    setResendMessage(null);
+
+    try {
+      const res = await fetch('/api/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setResendMessage({ type: 'success', text: data.message || 'Verification email sent!' });
+        setResendCountdown(60);
+      } else {
+        setResendMessage({ type: 'error', text: data.error || 'Failed to resend. Please try again.' });
+      }
+    } catch (error) {
+      setResendMessage({ type: 'error', text: 'An error occurred. Please try again.' });
+    } finally {
+      setIsResending(false);
+    }
   };
 
   const handleSignin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSigningIn(true);
+    setShowVerification(false);
+    setResendMessage(null);
 
     try {
       const res = await fetch('/api/signin', {
@@ -77,7 +116,6 @@ export default function SigninPage() {
       const data = await res.json();
 
       if (res.ok) {
-        // Create session object
         const session = {
           token: data.token,
           id: data.user.id,
@@ -88,13 +126,9 @@ export default function SigninPage() {
           agentId: data.user.agentId
         };
 
-        // Set session in context
         setSession(session);
-
-        // Show success toast
         toast.success(`Welcome back, ${data.user.name}!`);
 
-        // Redirect based on role
         switch (data.user.role) {
           case "admin":
             router.push('/admin/dashboard');
@@ -106,8 +140,11 @@ export default function SigninPage() {
             router.push('/dashboard');
         }
       } else {
-        // Show error toast
-        toast.error(data.error || 'Invalid email or password. Please try again.');
+        if (data.error === 'Account not verified') {
+          setShowVerification(true);
+        } else {
+          toast.error(data.error || 'Invalid email or password. Please try again.');
+        }
       }
     } catch (error) {
       console.error('Sign in error:', error);
@@ -140,7 +177,7 @@ export default function SigninPage() {
             <input
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); setShowVerification(false); }}
               placeholder="john@example.com"
               required
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-700 transition-all"
@@ -168,11 +205,7 @@ export default function SigninPage() {
                 onClick={togglePasswordVisibility}
                 className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
               >
-                {showPassword ? (
-                  <EyeSlashIcon className="h-5 w-5" />
-                ) : (
-                  <EyeIcon className="h-5 w-5" />
-                )}
+                {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
               </button>
             </div>
           </div>
@@ -186,6 +219,57 @@ export default function SigninPage() {
           </button>
         </form>
 
+        {/* Verification section for unverified accounts */}
+        <AnimatePresence>
+          {showVerification && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
+                <div className="flex items-start">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 mr-2 flex-shrink-0" />
+                  <div>
+                    <h4 className="text-sm font-semibold text-amber-800">Email Not Verified</h4>
+                    <p className="text-sm text-amber-700 mt-1">
+                      Your email is not verified yet. Please check your inbox or resend the verification email.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleResendVerification}
+                  disabled={resendCountdown > 0 || isResending}
+                  className="w-full px-4 py-2.5 text-white bg-amber-600 rounded-lg hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center"
+                >
+                  {isResending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : resendCountdown > 0 ? (
+                    <>
+                      <Mail className="h-4 w-4 mr-2" />
+                      Resend in {resendCountdown}s
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="h-4 w-4 mr-2" />
+                      Resend Verification Email
+                    </>
+                  )}
+                </button>
+
+                {resendMessage && (
+                  <p className={`text-xs ${resendMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                    {resendMessage.text}
+                  </p>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Social Media Signup */}
         <div className="relative flex items-center justify-center mt-6">
           <div className="absolute inset-0 flex items-center">
@@ -198,9 +282,8 @@ export default function SigninPage() {
 
         <SocialLoginIcons />
 
-        {/* Redirect to Sign Up */}
         <p className="text-center text-sm text-gray-600 mt-6">
-          Don't have an account?{" "}
+          Don&apos;t have an account?{" "}
           <Link href="/signup" className="text-green-600 font-medium hover:text-green-800 hover:underline">
             Sign Up
           </Link>
@@ -209,26 +292,20 @@ export default function SigninPage() {
 
       {/* Right Side Background */}
       <div className="hidden lg:block lg:w-1/2 relative">
-        {/* Background with gradient */}
         <div className="absolute inset-0 bg-gradient-to-r from-green-900 to-green-700">
-          {/* Decorative elements */}
           <div className="absolute top-0 left-0 w-full h-full overflow-hidden opacity-10">
             <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-yellow-400"></div>
             <div className="absolute top-1/2 right-0 w-64 h-64 rounded-full bg-green-400"></div>
             <div className="absolute bottom-0 left-1/3 w-80 h-80 rounded-full bg-green-300"></div>
           </div>
         </div>
-
-        {/* Content */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.2 }}
           className="relative flex flex-col items-center justify-center h-full text-center p-12"
         >
-          <h2 className="text-4xl font-bold text-white mb-6">
-            Join the Agro Revolution
-          </h2>
+          <h2 className="text-4xl font-bold text-white mb-6">Join the Agro Revolution</h2>
           <p className="text-xl text-gray-200 mb-8 max-w-lg">
             Sign up to access fresh produce, connect with farmers, and be part of a sustainable marketplace. Start your journey today!
           </p>
