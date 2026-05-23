@@ -4,16 +4,33 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowRightIcon } from "@heroicons/react/24/outline";
-import toast from "react-hot-toast";
-import { Loader2 } from "lucide-react";
+import { Gift, Users, Shield, MapPin } from "lucide-react";
+
+const features = [
+  {
+    icon: Gift,
+    title: "Free Forever",
+    description: "Post unlimited ads at zero cost. No hidden fees, no premium tiers for basic listing.",
+  },
+  {
+    icon: Users,
+    title: "Direct Connection",
+    description: "Connect directly with farmers and buyers. No middlemen, better prices for everyone.",
+  },
+  {
+    icon: Shield,
+    title: "Verified Sellers",
+    description: "Trade with confidence. Our verification system ensures trustworthy transactions.",
+  },
+  {
+    icon: MapPin,
+    title: "Nationwide Reach",
+    description: "Reach buyers and sellers across all 36 states of Nigeria and beyond.",
+  },
+];
 
 export default function EnhancedCallToAction() {
   const [isVisible, setIsVisible] = useState(false);
-  const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -27,62 +44,17 @@ export default function EnhancedCallToAction() {
     };
 
     window.addEventListener('scroll', handleScroll);
-    handleScroll(); // Check on initial load
+    handleScroll();
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Validate form
-    if (!email.trim()) {
-      setFormError("Email is required");
-      return;
-    }
-
-    if (!acceptedTerms) {
-      setFormError("You must accept the privacy policy");
-      return;
-    }
-
-    setFormError(null);
-    setIsSubmitting(true);
-
-    try {
-      const response = await fetch('/api/newsletter', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, name }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        toast.success(data.message || "Thank you for subscribing!");
-        setEmail("");
-        setName("");
-        setAcceptedTerms(false);
-      } else {
-        toast.error(data.error || "Failed to subscribe. Please try again.");
-      }
-    } catch (error) {
-      console.error('Newsletter subscription error:', error);
-      toast.error("An error occurred. Please try again later.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
     <section id="cta" className="relative py-20 overflow-hidden">
       {/* Background with gradient */}
       <div className="absolute inset-0 bg-gradient-to-r from-green-900 to-green-700">
-        {/* Decorative elements */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden opacity-10">
           <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-yellow-400"></div>
           <div className="absolute top-1/2 right-0 w-64 h-64 rounded-full bg-green-400"></div>
@@ -101,8 +73,11 @@ export default function EnhancedCallToAction() {
             <h2 className="text-4xl font-bold text-white mb-6">
               Join the Agro Revolution
             </h2>
-            <p className="text-xl text-gray-200 mb-8 max-w-lg">
-              Sign up to access fresh produce, connect with farmers, and be part of a sustainable marketplace. Start your journey today!
+            <p className="text-xl text-gray-200 mb-4 max-w-lg">
+              Start listing your products today — completely free. Connect with thousands of farmers and buyers across Nigeria.
+            </p>
+            <p className="text-base text-yellow-300 font-medium mb-8">
+              No credit card required. No limits on listings. Just sign up and start selling.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4">
@@ -123,86 +98,30 @@ export default function EnhancedCallToAction() {
             </div>
           </motion.div>
 
-          {/* Right Column - Newsletter Signup */}
+          {/* Right Column - Why Choose AgroMarket */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 30 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="bg-white rounded-xl shadow-xl p-8"
           >
-            <h3 className="text-2xl font-bold text-green-900 mb-4">Stay Updated</h3>
-            <p className="text-gray-600 mb-6">
-              Subscribe to our newsletter for the latest updates on products, farming tips, and exclusive offers.
-            </p>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {formError && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
-                  {formError}
-                </div>
-              )}
-
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                  Your Name
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  placeholder="Enter your name"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  placeholder="Enter your email"
-                  required
-                />
-              </div>
-
-              <div className="flex items-start">
-                <input
-                  id="privacy"
-                  type="checkbox"
-                  checked={acceptedTerms}
-                  onChange={(e) => setAcceptedTerms(e.target.checked)}
-                  className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded mt-1"
-                />
-                <label htmlFor="privacy" className="ml-2 block text-sm text-gray-600">
-                  I agree to receive updates and accept the <Link href="/privacy-policy" className="text-green-600 hover:underline">Privacy Policy</Link>
-                </label>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full bg-green-600 text-white font-medium py-2 px-4 rounded-md hover:bg-green-700 transition-colors duration-300 flex items-center justify-center"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                    Subscribing...
-                  </>
-                ) : (
-                  "Subscribe"
-                )}
-              </button>
-            </form>
-
-            <p className="text-xs text-gray-500 mt-4">
-              We respect your privacy and will never share your information with third parties.
-            </p>
+            <h3 className="text-2xl font-bold text-white mb-6">Why Choose AgroMarket?</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {features.map((feature, index) => (
+                <motion.div
+                  key={feature.title}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
+                  transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
+                  className="bg-white/10 backdrop-blur-sm rounded-xl p-5 border border-white/10 hover:bg-white/15 transition-colors duration-300"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center mb-3">
+                    <feature.icon className="h-5 w-5 text-yellow-400" />
+                  </div>
+                  <h4 className="text-white font-semibold mb-1">{feature.title}</h4>
+                  <p className="text-gray-300 text-sm leading-relaxed">{feature.description}</p>
+                </motion.div>
+              ))}
+            </div>
           </motion.div>
         </div>
       </div>

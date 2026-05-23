@@ -87,8 +87,10 @@ export async function POST(req: NextRequest) {
     if (!sanitized.description || sanitized.description.length < 20 || sanitized.description.length > 5000) {
       validationErrors.push({ field: 'description', message: 'Description must be between 20 and 5000 characters.' });
     }
-    if (!sanitized.contact || !/^\+?[0-9\s-()]{7,20}$/.test(sanitized.contact)) {
-      validationErrors.push({ field: 'contact', message: 'Valid contact information is required.' });
+    const isValidPhone = /^\+?[0-9\s\-()]{7,20}$/.test(sanitized.contact || '');
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sanitized.contact || '');
+    if (!sanitized.contact || (!isValidPhone && !isValidEmail)) {
+      validationErrors.push({ field: 'contact', message: 'Valid phone number or email address is required.' });
     }
     if (images.length === 0) {
       validationErrors.push({ field: 'images', message: 'At least one image is required.' });

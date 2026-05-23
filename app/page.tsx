@@ -8,6 +8,7 @@ import CommunitySection from "@/components/CommunitySection";
 import EnhancedCallToAction from "@/components/EnhancedCallToAction";
 import FarmerHighlights from "@/components/FarmerHighlights";
 import LatestNews from "@/components/LatestNews";
+import WhatsAppChat from "@/components/WhatsAppChat";
 
 export default function Home() {
   console.log('Rendering Home Page');
@@ -23,6 +24,7 @@ export default function Home() {
       <LatestNews />
       <EnhancedCallToAction />
       <Footer />
+      <WhatsAppChat />
     </>
   );
 }

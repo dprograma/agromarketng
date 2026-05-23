@@ -4,7 +4,7 @@ import Image from "next/image";
 import { FileUploadProps } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 
-const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_FILE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, maxFiles = 5, error }) => {
@@ -27,7 +27,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, maxFiles = 5, 
 
     // Check file size
     if (file.size > MAX_FILE_SIZE) {
-      return `${file.name} exceeds the 2MB size limit.`;
+      return `${file.name} exceeds the 5MB size limit.`;
     }
 
     // Check for duplicate files by name and size
@@ -151,7 +151,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, maxFiles = 5, 
           </div>
           <p className="text-sm font-medium text-gray-700">Drag & drop your images here</p>
           <p className="text-xs text-gray-500 mt-1">or click to browse</p>
-          <p className="text-xs text-gray-400 mt-3">JPG, PNG, WebP, GIF • Max 2MB per image</p>
+          <p className="text-xs text-gray-400 mt-3">JPG, PNG, WebP, GIF • Max 5MB per image</p>
         </label>
       </div>
 

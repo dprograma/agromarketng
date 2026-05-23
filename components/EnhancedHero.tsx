@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ChevronRightIcon } from "@heroicons/react/24/outline";
+import { Star, Check, Sparkles } from "lucide-react";
 import heroImg from "../public/assets/img/agromarket-hero1.png";
 
 export default function EnhancedHero() {
@@ -26,7 +27,7 @@ export default function EnhancedHero() {
           className="object-cover object-left-center opacity-70"
           style={{ objectPosition: 'left center' }}
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-green-900/80 to-green-800/60"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-green-900/85 to-green-800/50"></div>
       </div>
 
       {/* Main Content */}
@@ -38,14 +39,20 @@ export default function EnhancedHero() {
             animate={{ opacity: isVisible ? 1 : 0, x: isVisible ? 0 : -50 }}
             transition={{ duration: 0.8, delay: 0.2 }}
           >
+            {/* Free Ad Posting Badge */}
             <motion.div
-              className="hidden sm:mb-8 sm:flex sm:justify-start"
+              className="mb-6 flex flex-wrap gap-3"
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : -20 }}
-              transition={{ duration: 0.5, delay: 0.5 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
             >
-              <div className="relative rounded-full px-3 py-1 text-sm leading-6 text-white ring-1 ring-white/50 hover:ring-white/70">
-                Join our farmers' community. <Link href="/signup" className="font-semibold text-yellow-400 ml-1">Sign up now<span className="ml-1" aria-hidden="true"><ChevronRightIcon className="h-4 w-4 inline" /></span></Link>
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-yellow-500/20 backdrop-blur-sm px-4 py-1.5 text-sm font-semibold text-yellow-300 ring-1 ring-yellow-400/40">
+                <Sparkles className="h-4 w-4" />
+                100% Free Ad Posting
+              </div>
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-white/10 backdrop-blur-sm px-4 py-1.5 text-sm text-white ring-1 ring-white/20">
+                <Star className="h-3.5 w-3.5 text-yellow-400" />
+                Trusted by Nigerian Farmers
               </div>
             </motion.div>
 
@@ -61,26 +68,34 @@ export default function EnhancedHero() {
             </motion.h1>
 
             <motion.p
-              className="mt-6 text-lg leading-8 text-gray-300 max-w-xl"
+              className="mt-6 text-lg leading-8 text-gray-200 max-w-xl"
               initial={{ opacity: 0 }}
               animate={{ opacity: isVisible ? 1 : 0 }}
               transition={{ duration: 0.8, delay: 0.3 }}
             >
-              Discover fresh produce, trade directly with local farmers, and promote sustainable agriculture. Join the largest online agro-market today.
+              Post your farm products for free, trade directly with local farmers and buyers, and grow your agricultural business. No fees, no limits.
             </motion.p>
 
             {/* Hero Buttons */}
             <motion.div
-              className="mt-10 flex items-center gap-x-6"
+              className="mt-10 flex flex-wrap items-center gap-4"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
               transition={{ duration: 0.5, delay: 0.6 }}
             >
               <Link
                 href="/products"
-                className="rounded-md bg-yellow-500 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-yellow-400 transition-colors duration-300 flex items-center"
+                className="rounded-md bg-yellow-500 px-5 py-3 text-sm font-semibold text-white shadow-lg hover:bg-yellow-400 transition-colors duration-300 flex items-center"
               >
                 Explore Products
+                <ChevronRightIcon className="ml-2 h-4 w-4" />
+              </Link>
+
+              <Link
+                href="/dashboard/post-ad"
+                className="rounded-md bg-white/10 backdrop-blur-sm px-5 py-3 text-sm font-semibold text-white shadow-lg ring-1 ring-white/20 hover:bg-white/20 transition-colors duration-300 flex items-center"
+              >
+                Post Your Ad — Free
                 <ChevronRightIcon className="ml-2 h-4 w-4" />
               </Link>
 
@@ -89,8 +104,23 @@ export default function EnhancedHero() {
                 className="text-sm font-semibold leading-6 text-white flex items-center group"
               >
                 Learn more
-                <span className="ml-1 inline-block transition-transform duration-300 group-hover:translate-x-1">→</span>
+                <span className="ml-1 inline-block transition-transform duration-300 group-hover:translate-x-1">&rarr;</span>
               </Link>
+            </motion.div>
+
+            {/* Trust Indicators */}
+            <motion.div
+              className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: isVisible ? 1 : 0 }}
+              transition={{ duration: 0.6, delay: 0.8 }}
+            >
+              {['No hidden fees', 'Unlimited listings', 'Direct farmer contact'].map((item) => (
+                <div key={item} className="flex items-center text-sm text-gray-300">
+                  <Check className="h-4 w-4 text-yellow-400 mr-1.5 flex-shrink-0" />
+                  {item}
+                </div>
+              ))}
             </motion.div>
           </motion.div>
         </div>
