@@ -31,8 +31,8 @@ export default function EnhancedHero() {
       </div>
 
       {/* Main Content */}
-      <div className="relative isolate px-6 pt-14 lg:px-8">
-        <div className="mx-auto max-w-5xl py-32 sm:py-48 lg:py-56 text-center">
+      <div className="relative isolate px-6 pt-6 lg:px-8">
+        <div className="mx-auto max-w-5xl py-16 sm:py-24 lg:py-28 text-center">
           <motion.div
             className="mx-auto"
             initial={{ opacity: 0, y: 30 }}
