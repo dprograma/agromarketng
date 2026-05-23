@@ -27,8 +27,8 @@ export function WithAuth<P extends object>(WrappedComponent: React.ComponentType
           router.replace(role === 'admin' ? '/admin/dashboard' : '/dashboard');
         } else if (isAdminPath && role !== 'admin') {
           router.replace(role === 'agent' ? '/agent/dashboard' : '/dashboard');
-        } else if (!isAgentPath && !isAdminPath && role !== 'user') {
-          router.replace(role === 'admin' ? '/admin/dashboard' : '/agent/dashboard');
+        } else if (!isAgentPath && !isAdminPath && role === 'agent') {
+          router.replace('/dashboard/agent');
         } else {
           setIsChecking(false);
         }
