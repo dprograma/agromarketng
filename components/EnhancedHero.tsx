@@ -27,21 +27,21 @@ export default function EnhancedHero() {
           className="object-cover object-left-center opacity-70"
           style={{ objectPosition: 'left center' }}
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-green-900/85 to-green-800/50"></div>
+        <div className="absolute inset-0 bg-green-900/70"></div>
       </div>
 
       {/* Main Content */}
       <div className="relative isolate px-6 pt-14 lg:px-8">
-        <div className="mx-auto max-w-6xl py-32 sm:py-48 lg:py-56">
+        <div className="mx-auto max-w-5xl py-32 sm:py-48 lg:py-56 text-center">
           <motion.div
-            className="max-w-2xl"
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: isVisible ? 1 : 0, x: isVisible ? 0 : -50 }}
+            className="mx-auto"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 30 }}
             transition={{ duration: 0.8, delay: 0.2 }}
           >
             {/* Free Ad Posting Badge */}
             <motion.div
-              className="mb-6 flex flex-wrap gap-3"
+              className="mb-6 flex flex-wrap justify-center gap-3"
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : -20 }}
               transition={{ duration: 0.5, delay: 0.4 }}
@@ -58,7 +58,7 @@ export default function EnhancedHero() {
 
             {/* Hero Heading */}
             <motion.h1
-              className="text-balance text-4xl font-bold tracking-tight text-white sm:text-6xl mb-6"
+              className="text-balance text-5xl font-bold tracking-tight text-white sm:text-7xl mb-6"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
               transition={{ duration: 0.8 }}
@@ -68,7 +68,7 @@ export default function EnhancedHero() {
             </motion.h1>
 
             <motion.p
-              className="mt-6 text-lg leading-8 text-gray-200 max-w-xl"
+              className="mt-6 text-lg leading-8 text-gray-200 max-w-2xl mx-auto"
               initial={{ opacity: 0 }}
               animate={{ opacity: isVisible ? 1 : 0 }}
               transition={{ duration: 0.8, delay: 0.3 }}
@@ -78,22 +78,22 @@ export default function EnhancedHero() {
 
             {/* Hero Buttons */}
             <motion.div
-              className="mt-10 flex flex-wrap items-center gap-4"
+              className="mt-10 flex flex-wrap items-center justify-center gap-4"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
               transition={{ duration: 0.5, delay: 0.6 }}
             >
               <Link
                 href="/products"
-                className="rounded-md bg-yellow-500 px-5 py-3 text-sm font-semibold text-white shadow-lg hover:bg-yellow-400 transition-colors duration-300 flex items-center"
+                className="rounded-md bg-yellow-500 px-6 py-3.5 text-base font-semibold text-white shadow-lg hover:bg-yellow-400 transition-colors duration-300 flex items-center"
               >
                 Explore Products
                 <ChevronRightIcon className="ml-2 h-4 w-4" />
               </Link>
 
               <Link
-                href="/dashboard/post-ad"
-                className="rounded-md bg-white/10 backdrop-blur-sm px-5 py-3 text-sm font-semibold text-white shadow-lg ring-1 ring-white/20 hover:bg-white/20 transition-colors duration-300 flex items-center"
+                href="/dashboard/new-ad"
+                className="rounded-md bg-white/10 backdrop-blur-sm px-6 py-3.5 text-base font-semibold text-white shadow-lg ring-1 ring-white/20 hover:bg-white/20 transition-colors duration-300 flex items-center"
               >
                 Post Your Ad — Free
                 <ChevronRightIcon className="ml-2 h-4 w-4" />
@@ -101,7 +101,7 @@ export default function EnhancedHero() {
 
               <Link
                 href="/about"
-                className="text-sm font-semibold leading-6 text-white flex items-center group"
+                className="text-base font-semibold leading-6 text-white flex items-center group"
               >
                 Learn more
                 <span className="ml-1 inline-block transition-transform duration-300 group-hover:translate-x-1">&rarr;</span>
@@ -110,7 +110,7 @@ export default function EnhancedHero() {
 
             {/* Trust Indicators */}
             <motion.div
-              className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2"
+              className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2"
               initial={{ opacity: 0 }}
               animate={{ opacity: isVisible ? 1 : 0 }}
               transition={{ duration: 0.6, delay: 0.8 }}

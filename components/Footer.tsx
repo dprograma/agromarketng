@@ -71,7 +71,7 @@ const Footer = () => {
             <div className="space-y-3">
               {/* Email */}
               <a
-                href="mailto:info@agromarketng.com"
+                href="mailto:kenegwuda33@gmail.com"
                 className="flex items-center gap-3 text-sm text-gray-300 hover:text-white transition-colors group"
               >
                 <div className="w-9 h-9 rounded-lg bg-green-700 flex items-center justify-center group-hover:bg-green-600 transition-colors">
@@ -81,7 +81,7 @@ const Footer = () => {
                 </div>
                 <div>
                   <span className="block text-xs text-gray-400">Email us</span>
-                  info@agromarketng.com
+                  Send us a message
                 </div>
               </a>
 
