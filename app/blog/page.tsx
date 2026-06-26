@@ -1,83 +1,46 @@
-"use client";
-
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Calendar, User, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { blogPosts } from "@/lib/blog-posts";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "AgroMarket NG Blog | Nigerian Agriculture Tips, Market Trends & Farming Guides",
+  description:
+    "Expert guides on Nigerian farming, crop management, agricultural financing, and market pricing. Practical advice for farmers and agribusiness owners across Nigeria.",
+  alternates: { canonical: "https://www.agromarketng.com/blog" },
+  openGraph: {
+    title: "AgroMarket NG Blog",
+    description:
+      "Expert guides on Nigerian farming, crop management, agricultural financing, and market pricing.",
+    url: "https://www.agromarketng.com/blog",
+    type: "website",
+  },
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  Technology: "bg-blue-100 text-blue-800",
+  "Farming Tips": "bg-green-100 text-green-800",
+  Business: "bg-purple-100 text-purple-800",
+  "Sustainable Farming": "bg-teal-100 text-teal-800",
+  "Crop Management": "bg-yellow-100 text-yellow-800",
+  Finance: "bg-orange-100 text-orange-800",
+};
+
+const categories = [
+  "All Posts",
+  "Farming Tips",
+  "Technology",
+  "Business",
+  "Sustainable Farming",
+  "Crop Management",
+  "Finance",
+  "Market Trends",
+];
 
 export default function Blog() {
-  // Sample blog posts - In production, these would come from a CMS or database
-  const featuredPost = {
-    title: "The Future of Smart Farming in Nigeria: Technology Meets Agriculture",
-    excerpt: "Discover how Nigerian farmers are leveraging IoT sensors, drones, and data analytics to increase yields and reduce costs. Learn about the latest innovations transforming agriculture across the country.",
-    author: "AgroMarket Team",
-    date: "January 3, 2026",
-    category: "Technology",
-    image: "/images/blog/smart-farming.jpg",
-    slug: "future-smart-farming-nigeria"
-  };
-
-  const blogPosts = [
-    {
-      title: "10 Essential Tips for Successful Crop Rotation",
-      excerpt: "Maximize your harvest and maintain soil health with these proven crop rotation strategies used by successful Nigerian farmers.",
-      author: "Dr. Chika Okafor",
-      date: "December 28, 2025",
-      category: "Farming Tips",
-      slug: "crop-rotation-tips"
-    },
-    {
-      title: "How to Price Your Agricultural Products Competitively",
-      excerpt: "Learn the art and science of pricing your produce for maximum profit while staying competitive in the marketplace.",
-      author: "Emmanuel Adeyemi",
-      date: "December 20, 2025",
-      category: "Business",
-      slug: "pricing-agricultural-products"
-    },
-    {
-      title: "Organic Farming: Is It Right for Your Business?",
-      excerpt: "Explore the benefits, challenges, and profitability of transitioning to organic farming methods in Nigeria's agricultural landscape.",
-      author: "Fatima Hassan",
-      date: "December 15, 2025",
-      category: "Sustainable Farming",
-      slug: "organic-farming-guide"
-    },
-    {
-      title: "Protecting Your Crops from Common Pests and Diseases",
-      excerpt: "Identify, prevent, and treat the most common crop threats with our comprehensive pest and disease management guide.",
-      author: "Dr. Chika Okafor",
-      date: "December 10, 2025",
-      category: "Crop Management",
-      slug: "crop-protection-guide"
-    },
-    {
-      title: "Accessing Agricultural Loans: A Step-by-Step Guide",
-      excerpt: "Navigate the process of securing funding for your farm with our complete guide to agricultural loans and grants in Nigeria.",
-      author: "Emmanuel Adeyemi",
-      date: "December 5, 2025",
-      category: "Finance",
-      slug: "agricultural-loans-guide"
-    },
-    {
-      title: "Water Conservation Techniques for Nigerian Farms",
-      excerpt: "Implement water-saving strategies that reduce costs and ensure sustainable farming even during dry seasons.",
-      author: "Fatima Hassan",
-      date: "November 28, 2025",
-      category: "Sustainable Farming",
-      slug: "water-conservation-techniques"
-    }
-  ];
-
-  const categories = [
-    "All Posts",
-    "Farming Tips",
-    "Technology",
-    "Business",
-    "Sustainable Farming",
-    "Crop Management",
-    "Finance",
-    "Market Trends"
-  ];
+  const [featuredPost, ...restPosts] = blogPosts;
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -96,7 +59,10 @@ export default function Blog() {
 
         {/* Featured Post */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
+          <Link
+            href={`/blog/${featuredPost.slug}`}
+            className="block bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
+          >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="bg-gradient-to-br from-green-100 to-green-50 flex items-center justify-center p-12">
                 <div className="text-center">
@@ -106,17 +72,17 @@ export default function Blog() {
               </div>
 
               <div className="p-8 md:p-12 flex flex-col justify-center">
-                <div className="inline-block bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold mb-4 w-fit">
+                <div
+                  className={`inline-block px-3 py-1 rounded-full text-sm font-semibold mb-4 w-fit ${
+                    CATEGORY_COLORS[featuredPost.category] ?? "bg-gray-100 text-gray-800"
+                  }`}
+                >
                   {featuredPost.category}
                 </div>
 
-                <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                  {featuredPost.title}
-                </h2>
+                <h2 className="text-3xl font-bold text-gray-900 mb-4">{featuredPost.title}</h2>
 
-                <p className="text-gray-600 mb-6 leading-relaxed">
-                  {featuredPost.excerpt}
-                </p>
+                <p className="text-gray-600 mb-6 leading-relaxed">{featuredPost.excerpt}</p>
 
                 <div className="flex items-center text-sm text-gray-500 mb-6">
                   <User className="w-4 h-4 mr-2" />
@@ -125,32 +91,29 @@ export default function Blog() {
                   <span>{featuredPost.date}</span>
                 </div>
 
-                <Link
-                  href={`/blog/${featuredPost.slug}`}
-                  className="inline-flex items-center text-green-700 font-semibold hover:text-green-900 transition-colors w-fit"
-                >
+                <span className="inline-flex items-center text-green-700 font-semibold hover:text-green-900 transition-colors w-fit">
                   Read Full Article
                   <ArrowRight className="w-4 h-4 ml-2" />
-                </Link>
+                </span>
               </div>
             </div>
-          </div>
+          </Link>
         </div>
 
         {/* Categories */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
           <div className="flex flex-wrap gap-3">
             {categories.map((category, index) => (
-              <button
+              <span
                 key={index}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                className={`px-4 py-2 rounded-full text-sm font-medium ${
                   index === 0
-                    ? 'bg-green-900 text-white'
-                    : 'bg-white text-gray-700 hover:bg-green-50 border border-gray-200'
+                    ? "bg-green-900 text-white"
+                    : "bg-white text-gray-700 border border-gray-200"
                 }`}
               >
                 {category}
-              </button>
+              </span>
             ))}
           </div>
         </div>
@@ -158,9 +121,9 @@ export default function Blog() {
         {/* Blog Posts Grid */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {blogPosts.map((post, index) => (
+            {restPosts.map((post) => (
               <Link
-                key={index}
+                key={post.slug}
                 href={`/blog/${post.slug}`}
                 className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-shadow group"
               >
@@ -169,7 +132,11 @@ export default function Blog() {
                 </div>
 
                 <div className="p-6">
-                  <div className="inline-block bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-semibold mb-3">
+                  <div
+                    className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mb-3 ${
+                      CATEGORY_COLORS[post.category] ?? "bg-gray-100 text-gray-800"
+                    }`}
+                  >
                     {post.category}
                   </div>
 
@@ -177,9 +144,7 @@ export default function Blog() {
                     {post.title}
                   </h3>
 
-                  <p className="text-gray-600 mb-4 text-sm line-clamp-3">
-                    {post.excerpt}
-                  </p>
+                  <p className="text-gray-600 mb-4 text-sm line-clamp-3">{post.excerpt}</p>
 
                   <div className="flex items-center text-xs text-gray-500 pt-4 border-t border-gray-100">
                     <User className="w-3 h-3 mr-1" />
@@ -190,13 +155,6 @@ export default function Blog() {
                 </div>
               </Link>
             ))}
-          </div>
-
-          {/* Load More Button */}
-          <div className="text-center mt-12">
-            <button className="bg-green-900 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-800 transition-colors">
-              Load More Articles
-            </button>
           </div>
         </div>
 
@@ -225,7 +183,11 @@ export default function Blog() {
             </form>
 
             <p className="text-sm text-green-200 mt-4">
-              No spam, unsubscribe anytime. Read our <Link href="/privacy" className="underline">Privacy Policy</Link>.
+              No spam, unsubscribe anytime. Read our{" "}
+              <Link href="/privacy" className="underline">
+                Privacy Policy
+              </Link>
+              .
             </p>
           </div>
         </div>
