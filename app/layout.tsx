@@ -9,6 +9,7 @@ import { Toaster } from 'react-hot-toast';
 import CookieConsent from "@/components/CookieConsent";
 import Providers from './providers'
 import { Inter } from 'next/font/google';
+import Script from 'next/script';
 
 if (process.env.NODE_ENV === 'development') {
   initCronJobs();
@@ -94,6 +95,18 @@ export default async function RootLayout({
         <script src="https://js.paystack.co/v2/inline.js"></script>
       </head>
       <body className={inter.className}>
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-05GBS0SVDZ"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-05GBS0SVDZ');
+          `}
+        </Script>
         <Providers>
           <SessionWrapper session={initialSession}>
             {children}
