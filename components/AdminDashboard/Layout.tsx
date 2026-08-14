@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/components/SessionWrapper";
@@ -16,6 +16,7 @@ import {
   X,
   LineChart,
   Megaphone,
+  Mail,
 } from "lucide-react";
 
 
@@ -23,47 +24,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const { setSession } = useSession();
 
-  // Custom navigation items with direct links to dashboard tabs
+  const currentTab = searchParams.get("tab") || "dashboard";
+
   const customNavItems = [
-    {
-      title: "Dashboard",
-      href: "/admin/dashboard",
-      icon: LayoutDashboard,
-    },
-    {
-      title: "Users",
-      href: "/admin/dashboard?tab=users",
-      icon: UserCog,
-    },
-    {
-      title: "Ads",
-      href: "/admin/dashboard?tab=ads",
-      icon: Megaphone,
-    },
-    {
-      title: "Manage Agents",
-      href: "/admin/agents",
-      icon: Users,
-    },
-    {
-      title: "Chats",
-      href: "/admin/dashboard?tab=chat",
-      icon: MessageSquare,
-    },
-    {
-      title: "Analytics",
-      href: "/admin/dashboard?tab=analytics",
-      icon: LineChart,
-    },
-    {
-      title: "Settings",
-      href: "/admin/dashboard?tab=settings",
-      icon: Settings,
-    },
+    { title: "Dashboard", tab: "dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
+    { title: "Users", tab: "users", href: "/admin/dashboard?tab=users", icon: UserCog },
+    { title: "Ads", tab: "ads", href: "/admin/dashboard?tab=ads", icon: Megaphone },
+    { title: "Manage Agents", tab: null, href: "/admin/agents", icon: Users },
+    { title: "Chats", tab: "chat", href: "/admin/dashboard?tab=chat", icon: MessageSquare },
+    { title: "Analytics", tab: "analytics", href: "/admin/dashboard?tab=analytics", icon: LineChart },
+    { title: "Broadcast", tab: "broadcast", href: "/admin/dashboard?tab=broadcast", icon: Mail },
+    { title: "Settings", tab: "settings", href: "/admin/dashboard?tab=settings", icon: Settings },
   ];
+
+  const isActive = (item: typeof customNavItems[0]) => {
+    if (item.href === "/admin/agents") return pathname === "/admin/agents";
+    if (item.tab === "dashboard") return pathname === "/admin/dashboard" && currentTab === "dashboard";
+    return pathname === "/admin/dashboard" && currentTab === item.tab;
+  };
 
   const handleLogout = async () => {
     try {
@@ -125,11 +107,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => setIsOpen(false)}
                 className={cn(
                   "flex items-center px-4 py-3 text-sm rounded-lg transition-colors",
-                  pathname === item.href ||
-                    (pathname === "/admin/dashboard" && item.href.includes(`?tab=${new URLSearchParams(pathname.includes("?") ? pathname.split("?")[1] : "").get("tab") || "dashboard"}`))
-                    ? "bg-green-50 text-green-600"
+                  isActive(item)
+                    ? "bg-green-50 text-green-600 font-medium"
                     : "text-gray-600 hover:bg-gray-50"
                 )}
               >
