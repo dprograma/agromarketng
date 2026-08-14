@@ -143,66 +143,147 @@ export const emailTemplates: Record<string, EmailTemplateData> = {
     description: 'Security notification for failed login attempts'
   },
   welcome: {
-    subject: 'Welcome to AgroMarket, {{name}}!',
+    subject: 'Welcome to AgroMarket NG, {{name}}! Here\'s how to get started',
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #ffffff;">
-        <div style="text-align: center; margin-bottom: 30px;">
-          <h1 style="color: #166534; margin: 0; font-size: 28px;">AgroMarket</h1>
-          <p style="color: #16a34a; font-size: 16px; margin: 5px 0 0 0;">Connecting Agricultural Communities</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+
+        <!-- Header -->
+        <div style="background-color: #166534; padding: 32px 24px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 28px; letter-spacing: 1px;">AgroMarket NG</h1>
+          <p style="color: #86efac; font-size: 14px; margin: 6px 0 0 0;">Nigeria's Agricultural Marketplace</p>
         </div>
 
-        <h2 style="color: #166534; text-align: center; margin-bottom: 20px;">Welcome to Our Community!</h2>
+        <!-- Body -->
+        <div style="padding: 32px 24px; border: 1px solid #e0e0e0; border-top: none;">
 
-        <p style="font-size: 16px; line-height: 1.6; color: #333;">Hello {{name}},</p>
+          <p style="font-size: 17px; line-height: 1.6; color: #111827; margin-top: 0;">Hi {{name}},</p>
 
-        <p style="font-size: 16px; line-height: 1.6; color: #333;">
-          Thank you for joining AgroMarket! We're excited to have you as part of our growing agricultural community.
-        </p>
+          <p style="font-size: 15px; line-height: 1.7; color: #374151;">
+            Welcome to <strong>AgroMarket NG</strong> — Nigeria's trusted platform for buying and selling agricultural products. Whether you're a farmer, dealer, or buyer, you're now part of a community connecting thousands of people across the country.
+          </p>
 
-        <div style="background-color: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <h3 style="color: #166534; margin-top: 0;">What's Next?</h3>
-          <ul style="color: #333; line-height: 1.6;">
-            <li>Complete your profile to connect with other farmers</li>
-            <li>Browse our marketplace for agricultural products</li>
-            <li>Join discussions in our community forums</li>
-            <li>Access expert agricultural advice and resources</li>
-          </ul>
-        </div>
+          <!-- What you can do -->
+          <div style="background-color: #f0fdf4; border-radius: 8px; padding: 20px 24px; margin: 24px 0;">
+            <h2 style="color: #166534; font-size: 16px; margin: 0 0 14px 0;">🌾 What you can do on AgroMarket NG</h2>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 6px 0; color: #166534; font-size: 18px; width: 28px; vertical-align: top;">✅</td>
+                <td style="padding: 6px 0; color: #374151; font-size: 14px; line-height: 1.5;"><strong>Post unlimited ads for free</strong> — list your farm produce, livestock, equipment, or agro inputs at no cost.</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #166534; font-size: 18px; width: 28px; vertical-align: top;">✅</td>
+                <td style="padding: 6px 0; color: #374151; font-size: 14px; line-height: 1.5;"><strong>Reach buyers across Nigeria</strong> — your listings are visible to buyers in Lagos, Abuja, Kano, Port Harcourt, and everywhere in between.</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #166534; font-size: 18px; width: 28px; vertical-align: top;">✅</td>
+                <td style="padding: 6px 0; color: #374151; font-size: 14px; line-height: 1.5;"><strong>Message sellers directly</strong> — no middleman. Contact any seller through our built-in messaging to negotiate and close deals.</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #166534; font-size: 18px; width: 28px; vertical-align: top;">✅</td>
+                <td style="padding: 6px 0; color: #374151; font-size: 14px; line-height: 1.5;"><strong>Boost your ads</strong> — get featured placement to appear at the top of search results and reach more buyers faster.</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #166534; font-size: 18px; width: 28px; vertical-align: top;">✅</td>
+                <td style="padding: 6px 0; color: #374151; font-size: 14px; line-height: 1.5;"><strong>Read expert farming guides</strong> — our blog covers crop management, pricing strategies, loans, and more.</td>
+              </tr>
+            </table>
+          </div>
 
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="{{baseUrl}}/dashboard" style="background-color: #166534; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; font-size: 16px;">
-            Get Started
-          </a>
-        </div>
+          <!-- Guidelines -->
+          <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 24px 0;">
+            <h2 style="color: #92400e; font-size: 15px; margin: 0 0 10px 0;">📋 Platform Guidelines</h2>
+            <ul style="color: #78350f; font-size: 14px; line-height: 1.7; margin: 0; padding-left: 18px;">
+              <li>Only post genuine agricultural products — no fake or misleading listings.</li>
+              <li>Use accurate descriptions, photos, and prices. Buyers rely on this to make decisions.</li>
+              <li>Respond promptly to messages from buyers. Fast responses build your reputation.</li>
+              <li>Do not share personal financial details (bank PIN, passwords) through the platform.</li>
+              <li>Treat all buyers and sellers with respect. We have zero tolerance for scams or harassment.</li>
+            </ul>
+          </div>
 
-        <p style="font-size: 14px; color: #666; text-align: center; margin-top: 30px;">
-          Need help? Contact our support team at <a href="mailto:support@agromarket.com" style="color: #166534;">support@agromarket.com</a>
-        </p>
+          <!-- CTA -->
+          <div style="text-align: center; margin: 32px 0 24px 0;">
+            <a href="{{baseUrl}}/dashboard/new-ad" style="background-color: #166534; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px; display: inline-block;">
+              Post Your First Ad →
+            </a>
+          </div>
 
-        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #666; font-size: 12px;">
-          <p>© {{year}} AgroMarket. All rights reserved.</p>
-          <p>You're receiving this email because you created an account with AgroMarket.</p>
+          <p style="font-size: 14px; line-height: 1.7; color: #6b7280; text-align: center;">
+            Or <a href="{{baseUrl}}/products" style="color: #166534; text-decoration: none; font-weight: 600;">browse current listings</a> to find what you're looking for.
+          </p>
+
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 28px 0;" />
+
+          <p style="font-size: 13px; color: #9ca3af; line-height: 1.6; text-align: center; margin: 0;">
+            Need help? Reply to this email or visit our <a href="{{baseUrl}}/dashboard/support" style="color: #166534;">support centre</a>.<br/>
+            © {{year}} AgroMarket NG. All rights reserved.
+          </p>
         </div>
       </div>
     `,
     text: `
-      Welcome to AgroMarket, {{name}}!
+Hi {{name}},
 
-      Thank you for joining our agricultural community. We're excited to have you aboard!
+Welcome to AgroMarket NG — Nigeria's trusted platform for buying and selling agricultural products.
 
-      What's Next:
-      - Complete your profile to connect with other farmers
-      - Browse our marketplace for agricultural products
-      - Join discussions in our community forums
-      - Access expert agricultural advice and resources
+WHAT YOU CAN DO:
+- Post unlimited ads for free
+- Reach buyers across Nigeria
+- Message sellers directly — no middleman
+- Boost your ads for more visibility
+- Read expert farming guides on our blog
 
-      Get started: {{baseUrl}}/dashboard
+PLATFORM GUIDELINES:
+- Only post genuine agricultural products
+- Use accurate descriptions, photos, and prices
+- Respond promptly to messages
+- Never share financial details through the platform
+- Treat everyone with respect
 
-      Need help? Contact us at support@agromarket.com
+Post your first ad: {{baseUrl}}/dashboard/new-ad
+Browse listings: {{baseUrl}}/products
 
-      © {{year}} AgroMarket. All rights reserved.
+Need help? Contact support at {{baseUrl}}/dashboard/support
+
+© {{year}} AgroMarket NG. All rights reserved.
     `,
-    description: 'Welcome email for new users'
+    description: 'Comprehensive welcome email for new users'
+  },
+
+  broadcast: {
+    subject: '{{subject}}',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+        <div style="background-color: #166534; padding: 28px 24px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px;">AgroMarket NG</h1>
+          <p style="color: #86efac; font-size: 13px; margin: 4px 0 0 0;">Nigeria's Agricultural Marketplace</p>
+        </div>
+        <div style="padding: 32px 24px; border: 1px solid #e0e0e0; border-top: none;">
+          <p style="font-size: 16px; color: #111827; margin-top: 0;">Hi {{name}},</p>
+          <div style="font-size: 15px; line-height: 1.8; color: #374151;">{{content}}</div>
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="{{baseUrl}}/products" style="background-color: #166534; color: #ffffff; padding: 13px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px; display: inline-block;">
+              Visit AgroMarket NG
+            </a>
+          </div>
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+          <p style="font-size: 12px; color: #9ca3af; text-align: center; margin: 0;">
+            © {{year}} AgroMarket NG. All rights reserved.<br/>
+            You're receiving this because you have an account on <a href="{{baseUrl}}" style="color: #166534;">agromarketng.com</a>.
+          </p>
+        </div>
+      </div>
+    `,
+    text: `
+Hi {{name}},
+
+{{content}}
+
+Visit AgroMarket NG: {{baseUrl}}/products
+
+© {{year}} AgroMarket NG. All rights reserved.
+    `,
+    description: 'Admin broadcast/newsletter to all users'
   },
 
   verification: {

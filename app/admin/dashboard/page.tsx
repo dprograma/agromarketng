@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useSession } from "@/components/SessionWrapper";
 import AdminLayout from "@/components/AdminDashboard/Layout";
 import AdminDashboard from "@/components/AdminDashboard/Dashboard";
@@ -10,8 +10,6 @@ import { Loader2 } from "lucide-react";
 export default function AdminDashboardPage() {
   const { session } = useSession();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const tab = searchParams.get('tab') || 'dashboard';
 
   useEffect(() => {
     if (session === null) {
@@ -35,7 +33,7 @@ export default function AdminDashboardPage() {
 
   return (
     <AdminLayout>
-      <AdminDashboard defaultTab={tab} />
+      <AdminDashboard />
     </AdminLayout>
   );
 }

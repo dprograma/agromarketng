@@ -5,6 +5,7 @@ export type EmailTemplate =
   | 'newsletter-confirmation'
   | 'support-reply'
   | 'agent-welcome'
+  | 'broadcast'
   | 'chat-notification'
   | 'agent-assigned'
   | 'ticket-created'

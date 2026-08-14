@@ -105,21 +105,26 @@ export async function POST(req: NextRequest) {
     // Generate a verification token
     const verificationToken = jwt.sign({ userId: user.id }, process.env.NEXTAUTH_SECRET!, { expiresIn: '1d' });
 
+    const firstName = sanitizedName.split(' ')[0];
+
     // Send verification email
     const verificationUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/verify-email?token=${verificationToken}`;
     try {
-      const result = await quickSend.verification(sanitizedEmail, sanitizedName, verificationUrl);
+      const result = await quickSend.verification(sanitizedEmail, firstName, verificationUrl);
 
       if (!result.success) {
         console.error('Verification email failed:', result.error);
-        // Continue with user creation even if email fails
       } else {
         console.log('Verification email sent successfully:', result.messageId);
       }
     } catch (error: any) {
       console.error('Email sending failed:', error);
-      // Continue with user creation even if email fails
     }
+
+    // Send welcome email (non-blocking)
+    quickSend.welcome(sanitizedEmail, firstName).catch((err) =>
+      console.error('Welcome email failed:', err)
+    );
 
     return jsonResponse(201, { message: 'User created successfully', user: { id: user.id, name: user.name, email: user.email } });
   } catch (error: any) {

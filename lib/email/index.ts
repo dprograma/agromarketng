@@ -135,6 +135,17 @@ export const quickSend = {
       resetPasswordUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/reset-password`,
       year: new Date().getFullYear()
     }, { priority: 'high' });
+  },
+
+  // Admin broadcast to a single user
+  broadcast: async (to: string, name: string, subject: string, content: string) => {
+    return emailService.sendTemplatedEmail('broadcast', to, {
+      name,
+      subject,
+      content,
+      baseUrl: process.env.NEXT_PUBLIC_BASE_URL,
+      year: new Date().getFullYear()
+    });
   }
 };
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BarChart3, Users, MessageSquare, Clock, Settings, Loader2, LineChart, UserCog, Megaphone } from "lucide-react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { BarChart3, Users, MessageSquare, Clock, Settings, Loader2, LineChart, UserCog, Megaphone, Mail } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ManageAgent from "./ManageAgent";
 import Chat from "./Chat";
@@ -9,6 +10,7 @@ import SettingsTab from "./Settings";
 import SupportAnalytics from "./SupportAnalytics";
 import UserManagement from "./UserManagement";
 import AdsManagement from "./AdsManagement";
+import BroadcastEmail from "./BroadcastEmail";
 import toast from "react-hot-toast";
 
 interface AdminStats {
@@ -19,13 +21,16 @@ interface AdminStats {
   resolutionRate: number;
 }
 
-interface AdminDashboardProps {
-  defaultTab?: string;
-}
-
-export default function AdminDashboard({ defaultTab = "dashboard" }: AdminDashboardProps) {
+export default function AdminDashboard() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const activeTab = searchParams.get("tab") || "dashboard";
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const handleTabChange = (value: string) => {
+    router.push(`/admin/dashboard?tab=${value}`);
+  };
 
   useEffect(() => {
     fetchStats();
@@ -58,8 +63,8 @@ export default function AdminDashboard({ defaultTab = "dashboard" }: AdminDashbo
         <p className="text-gray-500 mt-1">Overview of your support operations</p>
       </div>
 
-      <Tabs defaultValue={defaultTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-7 mb-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList className="grid w-full grid-cols-8 mb-6">
           <TabsTrigger value="dashboard" className="text-xs sm:text-sm">
             <BarChart3 className="w-4 h-4 mr-1 sm:mr-2" />
             <span className="hidden sm:inline">Dashboard</span>
@@ -89,6 +94,11 @@ export default function AdminDashboard({ defaultTab = "dashboard" }: AdminDashbo
             <LineChart className="w-4 h-4 mr-1 sm:mr-2" />
             <span className="hidden sm:inline">Analytics</span>
             <span className="sm:hidden">Stats</span>
+          </TabsTrigger>
+          <TabsTrigger value="broadcast" className="text-xs sm:text-sm">
+            <Mail className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Broadcast</span>
+            <span className="sm:hidden">Mail</span>
           </TabsTrigger>
           <TabsTrigger value="settings" className="text-xs sm:text-sm">
             <Settings className="w-4 h-4 mr-1 sm:mr-2" />
@@ -237,6 +247,10 @@ export default function AdminDashboard({ defaultTab = "dashboard" }: AdminDashbo
 
         <TabsContent value="analytics">
           <SupportAnalytics />
+        </TabsContent>
+
+        <TabsContent value="broadcast">
+          <BroadcastEmail />
         </TabsContent>
 
         <TabsContent value="settings">
