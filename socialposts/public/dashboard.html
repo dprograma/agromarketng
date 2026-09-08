@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Dashboard — AgroMarket Social</title>
+  <link rel="stylesheet" href="/css/app.css"/>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="navbar-brand">🌾 AgroMarket Social</div>
+  <div class="navbar-links">
+    <a href="/dashboard" class="active">Dashboard</a>
+    <a href="/settings">Settings</a>
+  </div>
+  <div class="navbar-right">
+    <span class="live-badge" id="liveBadge" title="Real-time updates active">● LIVE</span>
+  </div>
+</nav>
+
+<main class="container">
+
+  <!-- Page header -->
+  <div class="page-header">
+    <div>
+      <h1>Post Dashboard</h1>
+      <p class="subtitle">Next run: <strong id="nextSchedule">…</strong></p>
+    </div>
+    <div class="action-row">
+      <button class="btn" onclick="openPreviewModal()">👁 Preview Posts</button>
+      <button class="btn btn-primary" id="generateBtn" onclick="openGenerateModal()">⚡ Generate Now</button>
+    </div>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card"><div class="stat-value" id="sBatches">—</div><div class="stat-label">Total Batches</div></div>
+    <div class="stat-card"><div class="stat-value" id="sPending">—</div><div class="stat-label">Awaiting Review</div></div>
+    <div class="stat-card"><div class="stat-value" id="sPosted">—</div><div class="stat-label">Posts Published</div></div>
+    <div class="stat-card"><div class="stat-value" id="sFailed">—</div><div class="stat-label">Failed Posts</div></div>
+  </div>
+
+  <!-- Platform breakdown -->
+  <div class="card" style="margin-top:20px;">
+    <div class="card-header"><h2>Platform Performance</h2></div>
+    <div class="platform-stats" id="platformStats">Loading…</div>
+  </div>
+
+  <!-- Batch list -->
+  <div class="card" style="margin-top:20px;">
+    <div class="card-header">
+      <h2>Post Batches</h2>
+      <button class="btn btn-sm" onclick="loadAll()">↻ Refresh</button>
+    </div>
+    <div id="batchList"><div class="loading">Loading…</div></div>
+  </div>
+
+  <!-- Recent Activity -->
+  <div class="card" style="margin-top:20px;">
+    <div class="card-header"><h2>Recent Activity</h2></div>
+    <div id="activityLog"><div class="loading">Loading…</div></div>
+  </div>
+
+</main>
+
+<!-- Generate modal -->
+<div class="modal-overlay" id="generateModal" style="display:none">
+  <div class="modal" style="max-width:480px">
+    <h2 style="margin-bottom:16px">⚡ Generate Posts Now</h2>
+    <div class="form-group">
+      <label class="label">Theme (optional — leave blank for random)</label>
+      <select class="input" id="genTheme" style="width:100%">
+        <option value="">🎲 Random theme</option>
+      </select>
+    </div>
+    <p class="text-muted" style="margin-bottom:16px;">
+      Claude will create 5 platform-specific posts with matching images, then email you for approval.
+    </p>
+    <div class="form-actions">
+      <button class="btn btn-primary" id="genConfirmBtn" onclick="confirmGenerate()">⚡ Generate &amp; Email Me</button>
+      <button class="btn" onclick="closeModal('generateModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Preview modal -->
+<div class="modal-overlay" id="previewModal" style="display:none">
+  <div class="modal" style="max-width:600px;max-height:80vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h2>👁 Preview Posts (No Save)</h2>
+      <button class="btn btn-sm" onclick="closeModal('previewModal')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="label">Theme</label>
+      <select class="input" id="previewTheme" style="width:100%">
+        <option value="">🎲 Random</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" id="previewGenBtn" onclick="runPreview()" style="margin-bottom:16px">
+      🤖 Generate Preview
+    </button>
+    <div id="previewResults"></div>
+  </div>
+</div>
+
+<!-- Generation progress overlay -->
+<div class="modal-overlay" id="progressOverlay" style="display:none">
+  <div class="modal" style="text-align:center;max-width:360px">
+    <div class="spinner" style="margin:0 auto 16px"></div>
+    <h3 id="progressTitle">Generating posts…</h3>
+    <p class="text-muted" id="progressMsg" style="margin-top:8px"></p>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/js/app.js"></script>
+<script>
+// ── SSE (real-time) ───────────────────────────────────────────────────────────
+const evtSource = new EventSource('/api/events');
+
+evtSource.addEventListener('connected', () => {
+  document.getElementById('liveBadge').style.color = '#16a34a';
+});
+
+evtSource.addEventListener('generation_started', () => {
+  document.getElementById('progressOverlay').style.display = 'flex';
+  document.getElementById('progressTitle').textContent = 'Generating posts…';
+  document.getElementById('progressMsg').textContent = 'Calling Claude API…';
+});
+
+evtSource.addEventListener('generation_progress', e => {
+  const d = JSON.parse(e.data);
+  const msgs = {
+    generating:     'Claude is writing all 5 posts…',
+    fetching_images:'Fetching beautiful images…',
+    sending_email:  'Sending approval email…',
+  };
+  document.getElementById('progressMsg').textContent = msgs[d.step] || d.step;
+});
+
+evtSource.addEventListener('batch_generated', e => {
+  const d = JSON.parse(e.data);
+  document.getElementById('progressOverlay').style.display = 'none';
+  showToast(`✅ ${d.postCount} posts generated! Check your email.`);
+  loadAll();
+});
+
+evtSource.addEventListener('generation_failed', e => {
+  const d = JSON.parse(e.data);
+  document.getElementById('progressOverlay').style.display = 'none';
+  showToast('❌ Generation failed: ' + d.error, 'error');
+});
+
+evtSource.addEventListener('batch_published', () => loadAll());
+
+evtSource.onerror = () => {
+  document.getElementById('liveBadge').style.color = '#9ca3af';
+};
+
+// ── Load all data ─────────────────────────────────────────────────────────────
+async function loadAll() {
+  await Promise.all([loadStats(), loadBatches(), loadActivity()]);
+}
+
+async function loadStats() {
+  try {
+    const d = await apiFetch('/api/stats');
+    document.getElementById('nextSchedule').textContent = d.nextSchedule || '…';
+    document.getElementById('sBatches').textContent = d.batches.total_batches;
+    document.getElementById('sPending').textContent = d.batches.pending;
+    document.getElementById('sPosted').textContent  = d.posts.posted;
+    document.getElementById('sFailed').textContent  = d.posts.failed;
+
+    // Platform breakdown
+    const icons = { facebook:'📘', twitter:'🐦', instagram:'📸', linkedin:'💼', tiktok:'🎵' };
+    const ps = document.getElementById('platformStats');
+    if (!d.byPlatform?.length) { ps.innerHTML = '<p class="text-muted" style="padding:16px">No data yet</p>'; return; }
+
+    ps.innerHTML = `<div class="plat-grid">${d.byPlatform.map(p => `
+      <div class="plat-stat">
+        <div class="plat-icon">${icons[p.platform] || '📱'}</div>
+        <div class="plat-name">${capitalize(p.platform)}</div>
+        <div class="plat-nums">
+          <span class="plat-posted">${p.posted} posted</span>
+          <span class="plat-total">/ ${p.total} total</span>
+        </div>
+        <div class="plat-bar">
+          <div class="plat-bar-fill" style="width:${p.total ? Math.round(p.posted/p.total*100) : 0}%"></div>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  } catch (e) { console.warn('Stats load failed:', e.message); }
+}
+
+async function loadBatches() {
+  const el = document.getElementById('batchList');
+  try {
+    const d = await apiFetch('/api/batches?limit=20');
+    if (!d.batches.length) {
+      el.innerHTML = `<div class="empty-state">No batches yet — click <strong>Generate Now</strong> to create your first posts! 🚀</div>`;
+      return;
+    }
+    el.innerHTML = d.batches.map(b => `
+      <div class="batch-row">
+        <div class="batch-info">
+          <span class="badge badge-${statusColor(b.status)}">${b.status.replace('_', ' ')}</span>
+          <div>
+            <div class="batch-date">${formatDate(b.generated_at)}</div>
+            ${b.notes ? `<div class="batch-theme">🎯 ${escHtml(b.notes)}</div>` : ''}
+          </div>
+          <span class="batch-meta">${b.post_count} posts · ${b.posted_count||0} published · ${b.failed_count||0} failed</span>
+        </div>
+        <div class="batch-actions">
+          ${b.failed_count > 0
+            ? `<button class="btn btn-sm" onclick="retryFailed('${b.id}')">🔁 Retry Failed</button>` : ''}
+          <button class="btn btn-sm ${['pending','approved'].includes(b.status) ? 'btn-primary' : ''}"
+                  onclick="window.location.href='/review/batch-${b.id}'">
+            ${['pending','approved'].includes(b.status) ? 'Review ✏️' : 'View 👁'}
+          </button>
+          ${!['sent'].includes(b.status)
+            ? `<button class="btn btn-sm btn-danger" onclick="deleteBatch('${b.id}')">🗑</button>` : ''}
+        </div>
+      </div>`).join('');
+  } catch (e) {
+    el.innerHTML = `<div class="error">Failed: ${escHtml(e.message)}</div>`;
+  }
+}
+
+async function loadActivity() {
+  const el = document.getElementById('activityLog');
+  try {
+    const d = await apiFetch('/api/activity?limit=10');
+    if (!d.logs.length) { el.innerHTML = '<div class="empty-state">No activity yet</div>'; return; }
+    const icons = { batch_generated:'🤖', batch_published:'🚀', batch_failed:'❌', batch_retried:'🔁', post_retried:'🔄' };
+    el.innerHTML = d.logs.map(log => {
+      let detail = '';
+      try { const parsed = JSON.parse(log.details || '{}'); detail = parsed.theme || parsed.error || ''; } catch(_){}
+      return `<div class="activity-row">
+        <span class="activity-icon">${icons[log.event] || '📋'}</span>
+        <div class="activity-body">
+          <span class="activity-event">${log.event.replace(/_/g,' ')}</span>
+          ${detail ? `<span class="activity-detail">${escHtml(String(detail))}</span>` : ''}
+        </div>
+        <span class="activity-time">${formatDate(log.created_at)}</span>
+      </div>`;
+    }).join('');
+  } catch (e) { console.warn('Activity load failed'); }
+}
+
+// ── Generate modal ────────────────────────────────────────────────────────────
+async function openGenerateModal() {
+  await loadThemes('genTheme');
+  document.getElementById('generateModal').style.display = 'flex';
+}
+
+async function openPreviewModal() {
+  await loadThemes('previewTheme');
+  document.getElementById('previewModal').style.display = 'flex';
+}
+
+async function loadThemes(selectId) {
+  try {
+    const d = await apiFetch('/api/themes');
+    const sel = document.getElementById(selectId);
+    if (sel.options.length <= 1) {
+      d.themes.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.theme; opt.textContent = t.theme;
+        sel.appendChild(opt);
+      });
+    }
+  } catch (e) { console.warn('Theme load failed'); }
+}
+
+async function confirmGenerate() {
+  const theme = document.getElementById('genTheme').value;
+  closeModal('generateModal');
+  document.getElementById('progressOverlay').style.display = 'flex';
+  document.getElementById('progressTitle').textContent = 'Starting generation…';
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true;
+
+  try {
+    await apiFetch('/api/generate', {
+      method: 'POST',
+      body: JSON.stringify({ theme: theme || null }),
+    });
+    // SSE will fire batch_generated event and close the overlay
+  } catch (err) {
+    document.getElementById('progressOverlay').style.display = 'none';
+    showToast('❌ ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function runPreview() {
+  const theme = document.getElementById('previewTheme').value;
+  const btn   = document.getElementById('previewGenBtn');
+  const el    = document.getElementById('previewResults');
+  btn.disabled = true; btn.textContent = '⏳ Generating…';
+  el.innerHTML = '<div class="loading">Asking Claude…</div>';
+
+  try {
+    const d = await apiFetch('/api/preview', {
+      method: 'POST',
+      body: JSON.stringify({ theme: theme || null }),
+    });
+    const icons = { facebook:'📘', twitter:'🐦', instagram:'📸', linkedin:'💼', tiktok:'🎵' };
+    el.innerHTML = Object.entries(d.preview.posts || {}).map(([plat, p]) => `
+      <div style="border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:10px;">
+        <div style="font-weight:700;margin-bottom:6px;">${icons[plat]||'📱'} ${capitalize(plat)}</div>
+        <p style="font-size:13px;white-space:pre-wrap;color:#374151">${escHtml(p.content)}</p>
+      </div>`).join('');
+  } catch (err) {
+    el.innerHTML = `<div class="error">${escHtml(err.message)}</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = '🤖 Generate Preview';
+  }
+}
+
+async function retryFailed(batchId) {
+  try {
+    const d = await apiFetch(`/api/batches/${batchId}/retry-failed`, { method: 'POST' });
+    const ok = d.results.filter(r => r.status === 'posted').length;
+    showToast(`🔁 Retry done: ${ok} / ${d.results.length} posted`);
+    loadBatches();
+  } catch (err) {
+    showToast('❌ Retry failed: ' + err.message, 'error');
+  }
+}
+
+async function deleteBatch(batchId) {
+  if (!confirm('Delete this batch? This cannot be undone.')) return;
+  try {
+    await apiFetch(`/api/batches/${batchId}`, { method: 'DELETE' });
+    showToast('🗑 Batch deleted');
+    loadBatches();
+  } catch (err) {
+    showToast('❌ ' + err.message, 'error');
+  }
+}
+
+function closeModal(id) {
+  document.getElementById(id).style.display = 'none';
+}
+
+// Close modal on outside click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay && overlay.id !== 'progressOverlay') {
+      overlay.style.display = 'none';
+    }
+  });
+});
+
+document.addEventListener('DOMContentLoaded', loadAll);
+</script>
+</body>
+</html>
