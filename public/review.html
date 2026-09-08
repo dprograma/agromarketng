@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Review Posts — AgroMarket Social</title>
+  <link rel="stylesheet" href="/css/app.css"/>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="navbar-brand">🌾 AgroMarket Social</div>
+  <div class="navbar-links">
+    <a href="/dashboard">Dashboard</a>
+    <a href="/settings">Settings</a>
+  </div>
+</nav>
+
+<!-- Loading -->
+<main class="container" id="loadingState">
+  <div class="card" style="text-align:center;padding:60px">
+    <div class="spinner"></div>
+    <p style="margin-top:12px;color:#6b7280">Loading posts…</p>
+  </div>
+</main>
+
+<!-- Error -->
+<main class="container" id="errorState" style="display:none">
+  <div class="card" style="text-align:center;padding:60px">
+    <div style="font-size:52px">⚠️</div>
+    <h2 id="errorTitle" style="margin:12px 0 8px">Error</h2>
+    <p id="errorMsg" class="text-muted"></p>
+    <a href="/dashboard" class="btn btn-primary" style="margin-top:20px">← Back to Dashboard</a>
+  </div>
+</main>
+
+<!-- Review content -->
+<main class="container" id="reviewContent" style="display:none">
+
+  <div class="page-header">
+    <div>
+      <h1>Review &amp; Edit Posts</h1>
+      <p class="subtitle" id="batchMeta">Loading…</p>
+    </div>
+    <div class="action-row">
+      <button class="btn" onclick="skipAll()">⏭ Skip All</button>
+      <button class="btn btn-success" id="publishBtn" onclick="approveAndPublish()">
+        🚀 Approve &amp; Publish All
+      </button>
+    </div>
+  </div>
+
+  <!-- Platform tabs -->
+  <div class="platform-tabs" id="platformTabs"></div>
+
+  <!-- Post cards -->
+  <div id="postCards"></div>
+
+  <!-- Sticky publish bar -->
+  <div class="publish-bar">
+    <div id="publishSummary" class="publish-summary"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn" onclick="approveAllPending()">✅ Approve All Pending</button>
+      <button class="btn btn-success btn-lg" id="stickyPublishBtn" onclick="publishApproved()">
+        🚀 Publish Approved
+      </button>
+    </div>
+  </div>
+
+</main>
+
+<!-- Image Picker Modal -->
+<div class="modal-overlay" id="imagePickerModal" style="display:none">
+  <div class="modal" style="max-width:720px;max-height:85vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h2>🖼 Choose an Image</h2>
+      <button class="btn btn-sm" onclick="closeModal('imagePickerModal')">✕</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <input class="input" id="imgPickerSearch" placeholder="Search: cattle market, maize harvest…" style="flex:1"/>
+      <button class="btn btn-primary" onclick="searchImages()">Search</button>
+    </div>
+    <div id="imageGrid" class="image-grid">
+      <p class="text-muted">Enter a search term above</p>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:8px;align-items:center">
+      <span class="text-muted" style="font-size:13px">Or paste URL directly:</span>
+      <input class="input" id="imgPasteUrl" placeholder="https://…" style="flex:1"/>
+      <button class="btn" onclick="useImageUrl()">Use URL</button>
+    </div>
+  </div>
+</div>
+
+<!-- Custom prompt modal -->
+<div class="modal-overlay" id="customPromptModal" style="display:none">
+  <div class="modal" style="max-width:480px">
+    <h2 style="margin-bottom:12px">✍️ Custom AI Prompt</h2>
+    <p class="text-muted" style="margin-bottom:12px">Tell Claude exactly what you want for this post:</p>
+    <textarea class="textarea" id="customPromptText" rows="4"
+      placeholder="e.g. Write a post about the abundance of fresh tomatoes this season in Kano, encouraging buyers to place orders now…"></textarea>
+    <div class="form-actions" style="margin-top:12px">
+      <button class="btn btn-primary" onclick="submitCustomPrompt()">🤖 Generate</button>
+      <button class="btn" onclick="closeModal('customPromptModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Platform preview modal -->
+<div class="modal-overlay" id="previewModal" style="display:none">
+  <div class="modal" style="max-width:480px">
+    <div style="display:flex;justify-content:space-between;margin-bottom:16px">
+      <h2>📱 Post Preview</h2>
+      <button class="btn btn-sm" onclick="closeModal('previewModal')">✕</button>
+    </div>
+    <div id="previewCard"></div>
+  </div>
+</div>
+
+<!-- Result modal -->
+<div class="modal-overlay" id="resultModal" style="display:none">
+  <div class="modal" style="max-width:440px">
+    <div id="resultContent"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/js/app.js"></script>
+<script>
+const PLATFORM_META = {
+  facebook:  { icon:'📘', color:'#1877f2', name:'Facebook',  limit:500  },
+  twitter:   { icon:'🐦', color:'#1da1f2', name:'Twitter/X', limit:280  },
+  instagram: { icon:'📸', color:'#e1306c', name:'Instagram', limit:2200 },
+  linkedin:  { icon:'💼', color:'#0a66c2', name:'LinkedIn',  limit:700  },
+  tiktok:    { icon:'🎵', color:'#010101', name:'TikTok',    limit:300  },
+};
+
+let batchId    = null;
+let posts      = {};       // { platform: postObj }
+let activePost = null;     // post being acted on in a modal
+let currentPlatform = null;
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  const raw = window.location.pathname.split('/review/')[1] || '';
+
+  try {
+    let data;
+    if (raw.startsWith('batch-') || raw.startsWith('dash-')) {
+      const id = raw.replace(/^(batch-|dash-)/, '');
+      data = await apiFetch(`/api/batches/${id}`);
+    } else {
+      data = await apiFetch(`/api/review/${raw}`);
+    }
+
+    batchId = data.batch.id;
+    data.posts.forEach(p => { posts[p.platform] = p; });
+
+    renderPage(data.batch, data.posts);
+    document.getElementById('loadingState').style.display  = 'none';
+    document.getElementById('reviewContent').style.display = 'block';
+  } catch (err) {
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('errorMsg').textContent        = err.message;
+    document.getElementById('errorState').style.display   = 'block';
+  }
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderPage(batch, postsArr) {
+  document.title = `Review — ${capitalize(batch.status)} batch`;
+  document.getElementById('batchMeta').textContent =
+    `Batch generated ${formatDate(batch.generated_at)} · Status: ${batch.status}`;
+
+  // Tabs
+  const tabsEl = document.getElementById('platformTabs');
+  tabsEl.innerHTML = postsArr.map(p => {
+    const m = PLATFORM_META[p.platform] || {};
+    return `<button class="platform-tab" data-platform="${p.platform}"
+                    onclick="switchPlatform('${p.platform}')">
+      ${m.icon} ${capitalize(p.platform)}
+      <span class="tab-dot tab-dot-${p.status}" id="dot-${p.platform}">●</span>
+    </button>`;
+  }).join('');
+
+  // Cards
+  renderCards(postsArr);
+
+  // Activate first tab
+  if (postsArr.length) switchPlatform(postsArr[0].platform);
+  updateSummary();
+}
+
+function renderCards(postsArr) {
+  document.getElementById('postCards').innerHTML = postsArr.map(post => {
+    const m  = PLATFORM_META[post.platform] || {};
+    const c  = post.edited_content || post.content;
+    const cc = c.length;
+    const over = m.limit && cc > m.limit;
+
+    return `
+    <div class="post-card hidden" id="card-${post.platform}" data-platform="${post.platform}">
+
+      <!-- Header -->
+      <div class="post-card-header" style="border-left:4px solid ${m.color||'#ccc'}">
+        <div class="post-platform-label">
+          <span class="platform-icon">${m.icon||'📱'}</span>
+          <span style="font-weight:700">${m.name||capitalize(post.platform)}</span>
+          ${m.limit ? `<span class="char-counter ${over?'over-limit':''}" id="chars-${post.platform}">${cc}/${m.limit}</span>` : ''}
+        </div>
+        <div class="post-card-actions">
+          <button class="btn btn-sm" onclick="showPreview('${post.platform}')" title="Preview">👁 Preview</button>
+          <button class="btn btn-sm" onclick="openCustomPrompt('${post.id}','${post.platform}')" title="Custom AI prompt">✍️ Custom</button>
+          <button class="btn btn-sm" onclick="regenerate('${post.id}','${post.platform}')" title="Regenerate">🔄 Regen</button>
+          <select class="status-select" id="status-${post.platform}"
+                  onchange="setStatus('${post.id}','${post.platform}',this.value)">
+            <option value="pending"  ${post.status==='pending'  ?'selected':''}>⏳ Pending</option>
+            <option value="approved" ${post.status==='approved' ?'selected':''}>✅ Approved</option>
+            <option value="skipped"  ${post.status==='skipped'  ?'selected':''}>⏭ Skip</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Image section -->
+      <div class="image-section">
+        <div class="image-preview-wrap" id="imgWrap-${post.platform}">
+          ${post.image_url
+            ? `<img src="${escHtml(post.image_url)}" class="preview-image" id="img-${post.platform}" alt="${escHtml(post.image_alt||'')}"/>
+               <div class="image-credit">${escHtml(post.image_credit||'')}</div>`
+            : `<div class="no-image">No image selected</div>`}
+        </div>
+        <div class="image-controls">
+          <input class="input" id="imgKw-${post.platform}" style="flex:1;min-width:140px"
+                 placeholder="Image keyword…" value="${escHtml(post.image_alt||'')}"/>
+          <button class="btn btn-sm" onclick="openImagePicker('${post.id}','${post.platform}')">🖼 Pick Image</button>
+          <button class="btn btn-sm" onclick="quickRefreshImage('${post.id}','${post.platform}')">↻ New</button>
+        </div>
+      </div>
+
+      <!-- Content editor -->
+      <div class="content-section">
+        <label class="label">Content <span class="text-muted">(editable)</span></label>
+        <textarea class="textarea" id="content-${post.platform}" rows="7"
+                  oninput="onEdit('${post.platform}',this.value)"
+                  >${escHtml(c)}</textarea>
+      </div>
+
+      <!-- Approve this post -->
+      <div style="display:flex;justify-content:flex-end;padding:0 16px 16px;gap:8px">
+        ${post.status==='failed'
+          ? `<button class="btn btn-sm" onclick="retryPost('${post.id}','${post.platform}')">🔁 Retry</button>` : ''}
+        <button class="btn btn-success" onclick="approveThis('${post.id}','${post.platform}')">✅ Approve This</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchPlatform(platform) {
+  currentPlatform = platform;
+  document.querySelectorAll('.platform-tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.platform === platform));
+  document.querySelectorAll('.post-card').forEach(c =>
+    c.classList.toggle('hidden', c.dataset.platform !== platform));
+}
+
+// ── Edit content ──────────────────────────────────────────────────────────────
+function onEdit(platform, value) {
+  if (posts[platform]) posts[platform].edited_content = value;
+  const m = PLATFORM_META[platform];
+  const el = document.getElementById(`chars-${platform}`);
+  if (el && m?.limit) {
+    el.textContent = `${value.length}/${m.limit}`;
+    el.className = `char-counter ${value.length > m.limit ? 'over-limit' : ''}`;
+  }
+}
+
+async function saveContent(postId, platform) {
+  const ta = document.getElementById(`content-${platform}`);
+  if (!ta) return;
+  await apiFetch(`/api/posts/${postId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ content: ta.value }),
+  }).catch(() => {});
+}
+
+// ── Status ────────────────────────────────────────────────────────────────────
+async function setStatus(postId, platform, status) {
+  await apiFetch(`/api/posts/${postId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+  if (posts[platform]) posts[platform].status = status;
+  updateDot(platform, status);
+  updateSummary();
+  showToast(`${capitalize(platform)} → ${status}`);
+}
+
+function updateDot(platform, status) {
+  const dot = document.getElementById(`dot-${platform}`);
+  if (dot) dot.className = `tab-dot tab-dot-${status}`;
+}
+
+function updateSummary() {
+  const all      = Object.values(posts);
+  const approved = all.filter(p => (document.getElementById(`status-${p.platform}`)?.value || p.status) === 'approved').length;
+  document.getElementById('publishSummary').textContent =
+    `${approved} / ${all.length} posts approved`;
+}
+
+// ── Approve actions ───────────────────────────────────────────────────────────
+async function approveThis(postId, platform) {
+  await saveContent(postId, platform);
+  const sel = document.getElementById(`status-${platform}`);
+  if (sel) sel.value = 'approved';
+  await setStatus(postId, platform, 'approved');
+}
+
+async function approveAllPending() {
+  for (const [platform, p] of Object.entries(posts)) {
+    const sel = document.getElementById(`status-${platform}`);
+    if ((sel?.value || p.status) === 'pending') {
+      sel && (sel.value = 'approved');
+      await setStatus(p.id, platform, 'approved');
+    }
+  }
+}
+
+async function skipAll() {
+  for (const [platform, p] of Object.entries(posts)) {
+    const sel = document.getElementById(`status-${platform}`);
+    sel && (sel.value = 'skipped');
+    await setStatus(p.id, platform, 'skipped');
+  }
+}
+
+// ── Publish ───────────────────────────────────────────────────────────────────
+async function publishApproved() {
+  // Save all unsaved edits first
+  for (const [platform, p] of Object.entries(posts)) {
+    await saveContent(p.id, platform);
+  }
+
+  // Set approved status from selects
+  const platformStatuses = {};
+  for (const [platform, p] of Object.entries(posts)) {
+    const sel = document.getElementById(`status-${platform}`);
+    platformStatuses[platform] = sel ? sel.value : p.status;
+  }
+
+  // Approve batch with statuses
+  await apiFetch(`/api/batches/${batchId}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ platformStatuses }),
+  });
+
+  // Publish
+  const btns = [document.getElementById('publishBtn'), document.getElementById('stickyPublishBtn')];
+  btns.forEach(b => { if(b) { b.disabled = true; b.textContent = '⏳ Publishing…'; }});
+
+  try {
+    const d = await apiFetch(`/api/batches/${batchId}/publish`, { method: 'POST' });
+    const ok  = d.results.filter(r => r.status === 'posted').length;
+    const fail= d.results.filter(r => r.status === 'failed').length;
+
+    document.getElementById('resultContent').innerHTML = `
+      <h2 style="margin-bottom:16px">🚀 Publishing Complete</h2>
+      <p>${ok} published${fail ? `, ${fail} failed` : ''}</p>
+      <div style="margin-top:16px">
+        ${d.results.map(r => `
+          <div class="result-row ${r.status}">
+            ${PLATFORM_META[r.platform]?.icon||'📱'}
+            <strong>${capitalize(r.platform)}</strong>:
+            ${r.status==='posted' ? '✅ Published' : `❌ ${escHtml(r.error||'Failed')}`}
+          </div>`).join('')}
+      </div>
+      <div style="margin-top:20px;display:flex;gap:10px">
+        <a href="/dashboard" class="btn btn-primary">← Dashboard</a>
+        <button class="btn" onclick="closeModal('resultModal')">Close</button>
+      </div>`;
+    document.getElementById('resultModal').style.display = 'flex';
+
+    // Update local post statuses
+    d.results.forEach(r => {
+      if (posts[r.platform]) {
+        posts[r.platform].status = r.status;
+        updateDot(r.platform, r.status);
+      }
+    });
+  } catch (err) {
+    showToast('❌ ' + err.message, 'error');
+  } finally {
+    btns.forEach(b => { if(b) { b.disabled = false; b.textContent = b.id === 'publishBtn' ? '🚀 Approve & Publish All' : '🚀 Publish Approved'; }});
+  }
+}
+
+async function approveAndPublish() {
+  await approveAllPending();
+  await publishApproved();
+}
+
+// ── Regenerate ────────────────────────────────────────────────────────────────
+async function regenerate(postId, platform) {
+  const note = prompt('Specific instruction? (leave blank for AI to decide)', '');
+  if (note === null) return;
+  showToast('⏳ Regenerating…');
+  try {
+    const d = await apiFetch(`/api/posts/${postId}/regenerate`, {
+      method: 'POST', body: JSON.stringify({ note }),
+    });
+    const c = d.post.edited_content || d.post.content;
+    posts[platform] = d.post;
+    const ta = document.getElementById(`content-${platform}`);
+    if (ta) { ta.value = c; onEdit(platform, c); }
+    showToast('✅ Regenerated!');
+  } catch (err) { showToast('❌ ' + err.message, 'error'); }
+}
+
+// ── Custom prompt ─────────────────────────────────────────────────────────────
+let customPostId = null, customPlatform = null;
+function openCustomPrompt(postId, platform) {
+  customPostId = postId; customPlatform = platform;
+  document.getElementById('customPromptText').value = '';
+  document.getElementById('customPromptModal').style.display = 'flex';
+}
+async function submitCustomPrompt() {
+  const prompt = document.getElementById('customPromptText').value.trim();
+  if (!prompt) return;
+  closeModal('customPromptModal');
+  showToast('⏳ Writing custom post…');
+  try {
+    const d = await apiFetch(`/api/posts/${customPostId}/custom`, {
+      method: 'POST', body: JSON.stringify({ prompt }),
+    });
+    const c = d.post.edited_content || d.post.content;
+    posts[customPlatform] = d.post;
+    const ta = document.getElementById(`content-${customPlatform}`);
+    if (ta) { ta.value = c; onEdit(customPlatform, c); }
+    showToast('✅ Custom post generated!');
+  } catch (err) { showToast('❌ ' + err.message, 'error'); }
+}
+
+// ── Image picker ──────────────────────────────────────────────────────────────
+let pickerPostId = null, pickerPlatform = null;
+function openImagePicker(postId, platform) {
+  pickerPostId = postId; pickerPlatform = platform;
+  const kw = document.getElementById(`imgKw-${platform}`)?.value || '';
+  document.getElementById('imgPickerSearch').value = kw;
+  document.getElementById('imageGrid').innerHTML = '<p class="text-muted">Enter a search term and click Search</p>';
+  document.getElementById('imagePickerModal').style.display = 'flex';
+  if (kw) searchImages();
+}
+
+async function searchImages() {
+  const q   = document.getElementById('imgPickerSearch').value.trim();
+  if (!q) return;
+  const grid = document.getElementById('imageGrid');
+  grid.innerHTML = '<div class="loading">Searching…</div>';
+  try {
+    const d = await apiFetch(`/api/images/search?q=${encodeURIComponent(q)}&count=6`);
+    grid.innerHTML = d.images.map((img, i) => `
+      <div class="image-option" onclick="selectImage('${escHtml(img.url)}','${escHtml(img.alt)}','${escHtml(img.credit||'')}')">
+        <img src="${escHtml(img.thumb||img.url)}" alt="${escHtml(img.alt)}" loading="lazy"/>
+        <div class="image-option-credit">${escHtml(img.credit||'')}</div>
+      </div>`).join('');
+  } catch (err) {
+    grid.innerHTML = `<p class="text-muted">${escHtml(err.message)}</p>`;
+  }
+}
+
+async function selectImage(url, alt, credit) {
+  closeModal('imagePickerModal');
+  await apiFetch(`/api/posts/${pickerPostId}`, {
+    method: 'PATCH', body: JSON.stringify({ imageUrl: url }),
+  });
+  if (posts[pickerPlatform]) posts[pickerPlatform].image_url = url;
+  const img = document.getElementById(`img-${pickerPlatform}`);
+  if (img) { img.src = url; }
+  else {
+    document.getElementById(`imgWrap-${pickerPlatform}`).innerHTML =
+      `<img src="${escHtml(url)}" class="preview-image" id="img-${pickerPlatform}" alt="${escHtml(alt)}"/>
+       <div class="image-credit">${escHtml(credit)}</div>`;
+  }
+  showToast('🖼 Image updated!');
+}
+
+function useImageUrl() {
+  const url = document.getElementById('imgPasteUrl').value.trim();
+  if (url) selectImage(url, 'Custom image', '');
+}
+
+async function quickRefreshImage(postId, platform) {
+  const kw = document.getElementById(`imgKw-${platform}`)?.value || 'agriculture farm';
+  showToast('⏳ Finding new image…');
+  try {
+    const d = await apiFetch(`/api/posts/${postId}/refresh-image`, {
+      method: 'POST', body: JSON.stringify({ keywords: kw }),
+    });
+    const img = document.getElementById(`img-${platform}`);
+    if (img) img.src = d.image.url;
+    else {
+      document.getElementById(`imgWrap-${platform}`).innerHTML =
+        `<img src="${escHtml(d.image.url)}" class="preview-image" id="img-${platform}"/>
+         <div class="image-credit">${escHtml(d.image.credit||'')}</div>`;
+    }
+    if (posts[platform]) posts[platform].image_url = d.image.url;
+    showToast('🖼 New image!');
+  } catch (err) { showToast('❌ ' + err.message, 'error'); }
+}
+
+// ── Preview card ──────────────────────────────────────────────────────────────
+function showPreview(platform) {
+  const post = posts[platform];
+  if (!post) return;
+  const m = PLATFORM_META[platform] || {};
+  const content = post.edited_content || post.content;
+  document.getElementById('previewCard').innerHTML = `
+    <div style="border-radius:12px;overflow:hidden;border:1px solid ${m.color}22">
+      <div style="background:${m.color};color:#fff;padding:10px 14px;font-weight:700;font-size:14px">
+        ${m.icon} ${m.name} Preview
+      </div>
+      ${post.image_url ? `<img src="${escHtml(post.image_url)}" style="width:100%;max-height:220px;object-fit:cover"/>` : ''}
+      <div style="padding:14px;background:#fff">
+        <p style="white-space:pre-wrap;font-size:14px;color:#374151;line-height:1.6">${escHtml(content)}</p>
+        ${post.image_credit ? `<p style="font-size:11px;color:#9ca3af;margin-top:8px">${escHtml(post.image_credit)}</p>` : ''}
+      </div>
+    </div>`;
+  document.getElementById('previewModal').style.display = 'flex';
+}
+
+// ── Retry failed ──────────────────────────────────────────────────────────────
+async function retryPost(postId, platform) {
+  showToast('⏳ Retrying…');
+  try {
+    const d = await apiFetch(`/api/posts/${postId}/retry`, { method: 'POST' });
+    if (posts[platform]) posts[platform].status = d.result.status;
+    updateDot(platform, d.result.status);
+    showToast(d.result.status === 'posted' ? '✅ Published!' : '❌ Still failed: ' + d.result.error, d.result.status !== 'posted' ? 'error' : '');
+  } catch (err) { showToast('❌ ' + err.message, 'error'); }
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+function closeModal(id) {
+  document.getElementById(id).style.display = 'none';
+}
+
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.style.display = 'none'; });
+});
+
+document.getElementById('imgPickerSearch').addEventListener('keydown', e => {
+  if (e.key === 'Enter') searchImages();
+});
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Settings — AgroMarket Social</title>
+  <link rel="stylesheet" href="/css/app.css"/>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="navbar-brand">🌾 AgroMarket Social</div>
+  <div class="navbar-links">
+    <a href="/dashboard">Dashboard</a>
+    <a href="/settings" class="active">Settings</a>
+  </div>
+</nav>
+
+<main class="container">
+
+  <div class="page-header">
+    <div>
+      <h1>Settings</h1>
+      <p class="subtitle">Configure your site concept, social accounts and credentials</p>
+    </div>
+  </div>
+
+  <!-- Status check -->
+  <div class="card">
+    <div class="card-header">
+      <h2>System Status</h2>
+      <button class="btn btn-sm" onclick="loadStatus()">↻ Check</button>
+    </div>
+    <div id="statusChecks" class="status-checks">Loading…</div>
+  </div>
+
+  <!-- Site concept (AI prompt context) -->
+  <div class="card" style="margin-top:20px">
+    <div class="card-header"><h2>🌾 Site Concept &amp; AI Context</h2></div>
+    <div style="padding:20px 24px">
+      <p class="text-muted" style="margin-bottom:16px">
+        This tells Claude what your website is about. The more detail you provide, the more relevant and authentic the posts will be.
+      </p>
+      <form onsubmit="saveSiteConfig(event)">
+        <div class="form-group">
+          <label class="label">Site Name</label>
+          <input class="input" name="site_name" id="cfg_site_name" placeholder="AgroMarket" style="max-width:300px"/>
+        </div>
+        <div class="form-group">
+          <label class="label">Site URL</label>
+          <input class="input" name="site_url" id="cfg_site_url" placeholder="https://youragromarket.com" style="max-width:400px"/>
+        </div>
+        <div class="form-group">
+          <label class="label">Site Concept <span class="text-muted">(what it does, who it's for)</span></label>
+          <textarea class="textarea" name="site_concept" id="cfg_site_concept" rows="5"
+            placeholder="A classified marketplace platform connecting farmers, agro dealers, buyers and sellers of agricultural products across Nigeria and West Africa…"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="label">Target Audience</label>
+          <input class="input" name="target_audience" id="cfg_target_audience"
+            placeholder="farmers, agro dealers, buyers, sellers in Nigeria and West Africa"/>
+        </div>
+        <div class="form-group">
+          <label class="label">Key Topics / Products</label>
+          <input class="input" name="topics" id="cfg_topics"
+            placeholder="fresh produce, grains, livestock, equipment, seeds, fertilizers, fish farming…"/>
+        </div>
+        <div class="form-group">
+          <label class="label">Post Tone</label>
+          <input class="input" name="post_tone" id="cfg_post_tone"
+            placeholder="warm, human, community-driven, celebratory"/>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">💾 Save Site Config</button>
+          <button type="button" class="btn" onclick="loadSiteConfig()">↺ Reload</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Social accounts -->
+  <div class="card" style="margin-top:20px">
+    <div class="card-header"><h2>📱 Social Media Credentials</h2></div>
+    <p class="text-muted" style="padding:12px 24px 0">
+      Tip: Set credentials in your <code>.env</code> file (most secure). The fields below store to the database as a reference/backup.
+    </p>
+
+    <div class="accounts-tabs">
+      <button class="platform-tab active" onclick="showAccount('facebook',this)">📘 Facebook</button>
+      <button class="platform-tab" onclick="showAccount('twitter',this)">🐦 Twitter</button>
+      <button class="platform-tab" onclick="showAccount('instagram',this)">📸 Instagram</button>
+      <button class="platform-tab" onclick="showAccount('linkedin',this)">💼 LinkedIn</button>
+      <button class="platform-tab" onclick="showAccount('tiktok',this)">🎵 TikTok</button>
+    </div>
+
+    <div id="accountForm"></div>
+  </div>
+
+  <!-- Env reference -->
+  <div class="card" style="margin-top:20px">
+    <div class="card-header"><h2>📄 .env Reference</h2></div>
+    <p class="text-muted" style="padding:12px 24px 4px">Copy <code>.env.example</code> → <code>.env</code> and fill in values. Restart server after changes.</p>
+    <pre class="code-block">APP_PORT=3000
+APP_URL=http://localhost:3000
+APP_SECRET=your_jwt_secret_here
+
+# Groq AI — FREE tier (https://console.groq.com)
+GROQ_API_KEY=gsk_...
+
+# Images (pick one or both)
+UNSPLASH_ACCESS_KEY=...   # https://unsplash.com/developers (free)
+PEXELS_API_KEY=...        # https://www.pexels.com/api/   (free)
+
+# Email (Gmail: use App Password, not your real password)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=you@gmail.com
+SMTP_PASS=xxxx-xxxx-xxxx-xxxx
+APPROVAL_EMAIL=where_to_send@example.com
+
+# Facebook / Instagram (https://developers.facebook.com)
+FACEBOOK_PAGE_ID=123456789
+FACEBOOK_PAGE_ACCESS_TOKEN=EAAxxxxxx
+INSTAGRAM_ACCOUNT_ID=17841xxxxx
+
+# Twitter/X (https://developer.twitter.com)
+TWITTER_API_KEY=...
+TWITTER_API_SECRET=...
+TWITTER_ACCESS_TOKEN=...
+TWITTER_ACCESS_SECRET=...
+
+# LinkedIn (https://www.linkedin.com/developers)
+LINKEDIN_ACCESS_TOKEN=AQV...
+LINKEDIN_PERSON_URN=urn:li:person:xxx
+# For company page: LINKEDIN_ORG_URN=urn:li:organization:xxx
+
+# TikTok (https://developers.tiktok.com)
+TIKTOK_ACCESS_TOKEN=act...
+TIKTOK_OPEN_ID=...
+
+# Site info (can also be set from the UI above)
+SITE_NAME=AgroMarket
+SITE_CONCEPT=A classified marketplace...
+SITE_URL=https://youragromarket.com</pre>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="/js/app.js"></script>
+<script>
+const ACCOUNT_FIELDS = {
+  facebook:  [
+    { key:'account_id',   label:'Facebook Page ID',          placeholder:'123456789' },
+    { key:'access_token', label:'Page Access Token',          placeholder:'EAAxxxxx', type:'password' },
+    { key:'display_name', label:'Page Name (display only)',   placeholder:'My AgroMarket Page' },
+  ],
+  twitter:   [
+    { key:'display_name', label:'Twitter Handle',             placeholder:'@AgroMarket' },
+    { key:'access_token', label:'Access Token',               placeholder:'xxxxx-xxxxx', type:'password' },
+    { key:'token_secret', label:'Access Token Secret',        placeholder:'xxxxx', type:'password' },
+    { key:'extra',        label:'API Key & Secret (JSON)',     placeholder:'{"apiKey":"...","apiSecret":"..."}' },
+  ],
+  instagram: [
+    { key:'account_id',   label:'Instagram Business Account ID', placeholder:'17841xxxxxx' },
+    { key:'display_name', label:'Instagram Username',             placeholder:'@agromarket' },
+    { key:'access_token', label:'FB Page Access Token (shared)', placeholder:'EAAxxxxx', type:'password' },
+  ],
+  linkedin:  [
+    { key:'display_name', label:'Profile / Page Name',        placeholder:'AgroMarket Ltd' },
+    { key:'access_token', label:'Access Token',               placeholder:'AQV...', type:'password' },
+    { key:'account_id',   label:'Person / Org URN',           placeholder:'urn:li:person:xxx' },
+  ],
+  tiktok:    [
+    { key:'display_name', label:'TikTok Username',            placeholder:'@agromarket' },
+    { key:'access_token', label:'Access Token',               placeholder:'act...', type:'password' },
+    { key:'account_id',   label:'Open ID',                    placeholder:'your-open-id' },
+  ],
+};
+
+const STATUS_LABELS = {
+  groq:        '🤖 Groq AI',
+  unsplash:    '🖼 Unsplash Images',
+  pexels:      '🖼 Pexels (fallback)',
+  email:       '📧 Email (SMTP)',
+  facebook:    '📘 Facebook',
+  instagram:   '📸 Instagram',
+  twitter:     '🐦 Twitter/X',
+  linkedin:    '💼 LinkedIn',
+  tiktok:      '🎵 TikTok',
+  siteConfig:  '🌾 Site Config',
+};
+
+// ── Status ────────────────────────────────────────────────────────────────────
+async function loadStatus() {
+  const el = document.getElementById('statusChecks');
+  try {
+    const d = await apiFetch('/api/settings/status');
+    el.innerHTML = Object.entries(d.status).map(([k, v]) => `
+      <div class="status-check-item">
+        <span class="status-indicator ${v?'ok':'missing'}"></span>
+        <span>${STATUS_LABELS[k]||k}</span>
+        <span class="status-text ${v?'ok':'missing'}">${v?'✓ Configured':'✗ Missing'}</span>
+      </div>`).join('');
+  } catch (e) {
+    el.innerHTML = `<div class="error">${escHtml(e.message)}</div>`;
+  }
+}
+
+// ── Site config ───────────────────────────────────────────────────────────────
+async function loadSiteConfig() {
+  try {
+    const d = await apiFetch('/api/site-config');
+    const cfg = d.config;
+    ['site_name','site_url','site_concept','target_audience','topics','post_tone'].forEach(k => {
+      const el = document.getElementById(`cfg_${k}`);
+      if (el && cfg[k]) el.value = cfg[k];
+    });
+  } catch (e) { console.warn('Could not load site config', e.message); }
+}
+
+async function saveSiteConfig(e) {
+  e.preventDefault();
+  const form = e.target;
+  const body = {};
+  new FormData(form).forEach((v, k) => { if (v.trim()) body[k] = v.trim(); });
+  try {
+    await apiFetch('/api/site-config', { method: 'PUT', body: JSON.stringify(body) });
+    showToast('✅ Site config saved! New posts will use these settings.');
+  } catch (err) {
+    showToast('❌ ' + err.message, 'error');
+  }
+}
+
+// ── Social accounts ───────────────────────────────────────────────────────────
+// Platforms that support one-click OAuth connect
+const OAUTH_PLATFORMS = {
+  facebook: {
+    label: 'Facebook & Instagram',
+    icon:  '📘',
+    url:   '/auth/facebook',
+    hint:  'Connects both Facebook and Instagram in one click. Requires <code>FACEBOOK_APP_ID</code> and <code>FACEBOOK_APP_SECRET</code> in <code>.env</code>.',
+  },
+  linkedin: {
+    label: 'LinkedIn',
+    icon:  '💼',
+    url:   '/auth/linkedin',
+    hint:  'Requires <code>LINKEDIN_CLIENT_ID</code> and <code>LINKEDIN_CLIENT_SECRET</code> in <code>.env</code>.',
+  },
+  tiktok: {
+    label: 'TikTok',
+    icon:  '🎵',
+    url:   '/auth/tiktok',
+    hint:  'Requires App Review approval + <code>TIKTOK_CLIENT_KEY</code> and <code>TIKTOK_CLIENT_SECRET</code> in <code>.env</code>.',
+  },
+};
+
+async function showAccount(platform, btn) {
+  document.querySelectorAll('.accounts-tabs .platform-tab').forEach(t => t.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  const fields = ACCOUNT_FIELDS[platform] || [];
+  const oauth  = OAUTH_PLATFORMS[platform];
+
+  // Check current DB connection status
+  let connectedBadge = '';
+  try {
+    const s = await apiFetch('/auth/status');
+    const info = s.status?.[platform];
+    if (info?.connected) {
+      const since = info.updatedAt ? new Date(info.updatedAt).toLocaleDateString() : '';
+      const detail = info.displayName ? `<strong>${escHtml(info.displayName)}</strong>` : '';
+      const extra  = platform === 'facebook' && info.instagramLinked
+        ? ' · Instagram also linked ✓' : '';
+      const expiry = platform === 'linkedin' && info.expiresAt
+        ? ` · expires ${new Date(info.expiresAt).toLocaleDateString()}` : '';
+      connectedBadge = `
+        <div style="display:flex;align-items:center;gap:10px;background:#f0fdf4;border:1px solid #bbf7d0;
+                    border-radius:10px;padding:12px 16px;margin-bottom:20px;">
+          <span style="font-size:20px">✅</span>
+          <div style="flex:1;font-size:14px;color:#166534">
+            Connected ${detail}${extra}${expiry}${since ? ` · saved ${since}` : ''}
+          </div>
+          <button class="btn" style="font-size:12px;padding:6px 12px;background:#fef2f2;color:#991b1b;"
+            onclick="disconnectAccount('${platform}')">Disconnect</button>
+        </div>`;
+    }
+  } catch(_) {}
+
+  const oauthSection = oauth ? `
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:20px;margin-bottom:24px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <span style="font-size:28px">${oauth.icon}</span>
+        <div>
+          <div style="font-weight:600;font-size:15px">Connect with ${oauth.label}</div>
+          <div style="font-size:13px;color:#6b7280;margin-top:2px">${oauth.hint}</div>
+        </div>
+      </div>
+      <a href="${oauth.url}" class="btn btn-primary" style="display:inline-block;text-decoration:none;">
+        🔗 Connect ${oauth.label}
+      </a>
+    </div>
+    <div style="font-size:13px;color:#9ca3af;margin-bottom:16px;text-align:center;">— or enter credentials manually —</div>` : '';
+
+  document.getElementById('accountForm').innerHTML = `
+    <div style="padding:20px 24px">
+      ${connectedBadge}
+      ${oauthSection}
+      <form onsubmit="saveAccount(event,'${platform}')">
+        ${fields.map(f => `
+          <div class="form-group">
+            <label class="label">${escHtml(f.label)}</label>
+            <input class="input" type="${f.type||'text'}" name="${f.key}"
+                   placeholder="${escHtml(f.placeholder||'')}" autocomplete="off"
+                   style="max-width:480px"/>
+          </div>`).join('')}
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">💾 Save ${capitalize(platform)}</button>
+          <button type="button" class="btn" onclick="removeAccount('${platform}')">🗑 Remove</button>
+        </div>
+      </form>
+    </div>`;
+}
+
+async function disconnectAccount(platform) {
+  if (!confirm(`Disconnect ${platform}? You can reconnect any time.`)) return;
+  await fetch(`/auth/${platform}`, { method: 'DELETE' });
+  showToast(`${capitalize(platform)} disconnected`);
+  loadStatus();
+  showAccount(platform, document.querySelector('.platform-tab.active'));
+}
+
+async function saveAccount(e, platform) {
+  e.preventDefault();
+  const body = {};
+  new FormData(e.target).forEach((v, k) => { if (v.trim()) body[k] = v.trim(); });
+  try {
+    await apiFetch(`/api/settings/accounts/${platform}`, {
+      method: 'PUT', body: JSON.stringify(body),
+    });
+    showToast(`✅ ${capitalize(platform)} settings saved`);
+    loadStatus();
+  } catch (err) { showToast('❌ ' + err.message, 'error'); }
+}
+
+async function removeAccount(platform) {
+  if (!confirm(`Remove ${platform} account from database?`)) return;
+  await apiFetch(`/api/settings/accounts/${platform}`, { method: 'DELETE' });
+  showToast(`${capitalize(platform)} account removed`);
+  loadStatus();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  loadStatus();
+  loadSiteConfig();
+  showAccount('facebook', document.querySelector('.accounts-tabs .platform-tab'));
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+app = 'agromarket-social'
+primary_region = 'lhr'   # London — closest region to Nigeria/West Africa
+
+[build]
+
+[env]
+  PORT     = '8080'
+  NODE_ENV = 'production'
+  DATA_DIR = '/data'
+
+[http_service]
+  internal_port       = 8080
+  force_https         = true
+  auto_stop_machines  = 'off'   # keep always-on so scheduler runs at 7am & 12pm
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type       = 'connections'
+    hard_limit = 25
+    soft_limit = 20
+
+[[vm]]
+  size = 'shared-cpu-1x'   # free tier VM
+
+# Persistent volume — SQLite data survives redeploys
+[[mounts]]
+  source      = 'socialposts_data'
+  destination = '/data'
