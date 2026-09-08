@@ -2,11 +2,13 @@ const cron   = require('node-cron');
 const { v4: uuidv4 } = require('uuid');
 const jwt    = require('jsonwebtoken');
 const { db } = require('../config/database');
-const { generateAllPosts }          = require('./claudeService');
-const { fetchImagesForAllPlatforms }= require('./imageService');
-const { sendApprovalEmail }         = require('./emailService');
-const { publishBatch }              = require('./socialMediaService');
-const { broadcast }                 = require('./sseService');
+const { generateAllPosts }           = require('./claudeService');
+const { fetchImagesForAllPlatforms } = require('./imageService');
+const { sendApprovalEmail }          = require('./emailService');
+const { publishBatch }               = require('./socialMediaService');
+const { broadcast }                  = require('./sseService');
+const { generateAnimatedVideo }      = require('./replicateVideoService');
+const { createLandscapeVideo, cleanupVideo } = require('./videoService');
 
 const SITE_URL = process.env.SITE_URL || 'https://www.agromarketng.com';
 
@@ -89,6 +91,30 @@ async function runPostGeneration(scheduleLabel = 'manual', themeOverride = null)
 
     const images = await fetchImagesForAllPlatforms(imageKeywords);
 
+    // ── 2b. Generate shared video (Replicate AI or ffmpeg fallback) ──────────
+    // Used by Facebook, Instagram Reels, LinkedIn, Twitter. TikTok generates
+    // its own portrait video internally in socialMediaService.
+    let sharedVideo = null;
+    const firstImageUrl = Object.values(images).find(img => img?.url)?.url;
+    if (firstImageUrl) {
+      broadcast('generation_progress', { step: 'generating_video', batchId });
+      try {
+        // Try Replicate AI animation first (needs REPLICATE_API_TOKEN)
+        sharedVideo = await generateAnimatedVideo(firstImageUrl);
+
+        if (!sharedVideo) {
+          // Fallback: local ffmpeg landscape video
+          console.log('[Scheduler] ⚙ Using ffmpeg landscape video as fallback…');
+          const sampleCaption = Object.values(generatedPosts)?.[0]?.content || '';
+          const videoPath = await createLandscapeVideo([firstImageUrl], sampleCaption);
+          sharedVideo = { localPath: videoPath, publicUrl: null };
+        }
+        console.log(`[Scheduler] 🎬 Video ready — ${sharedVideo.publicUrl ? 'Replicate (AI animated)' : 'ffmpeg landscape'}`);
+      } catch (videoErr) {
+        console.warn('[Scheduler] ⚠ Video generation failed, posts will use images:', videoErr.message);
+      }
+    }
+
     // ── 3. Persist batch ─────────────────────────────────────────────────────
     db.prepare(`
       INSERT INTO post_batches (id, scheduled_at, status, token, token_expires_at, notes)
@@ -159,9 +185,14 @@ async function runPostGeneration(scheduleLabel = 'manual', themeOverride = null)
     const approvedPosts = insertedPosts.map(p => ({ ...p, status: 'approved' }));
     console.log(`[Scheduler] 🚀 Auto-publishing ${approvedPosts.length} posts…`);
 
-    const publishResults = await publishBatch(approvedPosts);
+    const publishResults = await publishBatch(approvedPosts, sharedVideo);
     const succeeded = publishResults.filter(r => r.status === 'posted').length;
     const failed    = publishResults.filter(r => r.status === 'failed').length;
+
+    // Cleanup shared video temp file
+    if (sharedVideo?.localPath) {
+      try { cleanupVideo(sharedVideo.localPath); } catch (_) {}
+    }
 
     db.prepare(`UPDATE post_batches SET status = 'sent', sent_at = datetime('now') WHERE id = ?`).run(batchId);
     db.prepare(
