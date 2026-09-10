@@ -11,14 +11,31 @@
  *  - 9:16 portrait format (1080x1920) at 25fps
  */
 
-const fs     = require('fs');
-const os     = require('os');
-const path   = require('path');
-const axios  = require('axios');
-const ffmpeg = require('fluent-ffmpeg');
+const fs      = require('fs');
+const os      = require('os');
+const path    = require('path');
+const axios   = require('axios');
+const ffmpeg  = require('fluent-ffmpeg');
+const { execSync } = require('child_process');
 
 const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
-ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+
+/**
+ * @ffmpeg-installer/ffmpeg bundles a static binary from 2018 that predates
+ * filters like `xfade` (added in ffmpeg 4.3, mid-2020) — used below for
+ * slide transitions. Prefer a system-installed ffmpeg (see Dockerfile,
+ * `apk add ffmpeg`) when available; fall back to the bundled binary
+ * otherwise (e.g. local dev machines without ffmpeg installed).
+ */
+function resolveFfmpegPath() {
+  try {
+    const systemPath = execSync('which ffmpeg', { encoding: 'utf8' }).trim();
+    if (systemPath) return systemPath;
+  } catch (_) { /* system ffmpeg not found — fall back below */ }
+  return ffmpegInstaller.path;
+}
+
+ffmpeg.setFfmpegPath(resolveFfmpegPath());
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -368,7 +385,7 @@ async function createLandscapeVideo(imageUrls, caption = '') {
   filters.push(
     `[ov]drawtext=text='${brandText}'${fontArg}:` +
     `fontsize=36:fontcolor=white:` +
-    `x=40:y=ih-70:` +
+    `x=40:y=${LS_HEIGHT - 70}:` +
     `alpha='if(lt(t\\,0.5)\\,t/0.5\\,1)'[wm]`
   );
 
@@ -377,7 +394,7 @@ async function createLandscapeVideo(imageUrls, caption = '') {
   filters.push(
     `[wm]drawtext=text='${siteUrl}'${fontArg}:` +
     `fontsize=28:fontcolor=0xCCCCCC:` +
-    `x=iw-text_w-40:y=ih-42:` +
+    `x=w-text_w-40:y=${LS_HEIGHT - 42}:` +
     `alpha='if(lt(t\\,0.8)\\,0\\,if(lt(t\\,1.1)\\,(t-0.8)/0.3\\,0.85))'[out]`
   );
 
