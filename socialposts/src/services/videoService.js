@@ -39,11 +39,13 @@ ffmpeg.setFfmpegPath(resolveFfmpegPath());
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+// Kept deliberately light for free-tier hosts (Render/Railway) — see the
+// identical note on createLandscapeVideo's constants below for why.
 const SLIDE_DURATION = 5;      // seconds per image
 const FADE_DURATION  = 0.8;    // xfade crossfade duration (seconds)
-const VIDEO_WIDTH    = 1080;
-const VIDEO_HEIGHT   = 1920;   // 9:16 portrait
-const FPS            = 25;
+const VIDEO_WIDTH    = 720;
+const VIDEO_HEIGHT   = 1280;   // 9:16 portrait
+const FPS            = 15;
 const FRAMES         = SLIDE_DURATION * FPS; // frames per slide
 
 // Try common Linux/macOS font paths
@@ -167,7 +169,7 @@ async function createSlideshowVideo(imageUrls, caption = '') {
 
     filters.push(
       `[${i}:v]` +
-      `scale=${VIDEO_WIDTH * 2}:${VIDEO_HEIGHT * 2}:force_original_aspect_ratio=increase,` +
+      `scale=${Math.round(VIDEO_WIDTH * 1.3)}:${Math.round(VIDEO_HEIGHT * 1.3)}:force_original_aspect_ratio=increase,` +
       `crop=${VIDEO_WIDTH}:${VIDEO_HEIGHT},` +
       `setsar=1,` +
       `zoompan=z='${zExpr}':d=${FRAMES}:x='${xExpr}':y='${yExpr}':s=${VIDEO_WIDTH}x${VIDEO_HEIGHT}:fps=${FPS},` +
@@ -276,8 +278,8 @@ async function createSlideshowVideo(imageUrls, caption = '') {
       .outputOptions([
         '-map [out]',
         '-c:v libx264',
-        '-preset fast',
-        '-crf 22',
+        '-preset ultrafast',
+        '-crf 26',
         `-t ${totalDur}`,
         '-pix_fmt yuv420p',
         '-movflags +faststart',
@@ -314,9 +316,15 @@ async function createSlideshowVideo(imageUrls, caption = '') {
  * @returns {Promise<string>}   – Absolute path to generated .mp4
  */
 async function createLandscapeVideo(imageUrls, caption = '') {
-  const LS_WIDTH  = 1920;
-  const LS_HEIGHT = 1080;
-  const LS_FPS    = 25;
+  // Kept deliberately light — free-tier hosts (Render/Railway) give a
+  // fraction of a shared vCPU and ~512MB RAM. 1920x1080@25fps with zoompan
+  // + xfade + multiple drawtext filters took 2.5+ minutes for a single
+  // 5s slide on Render free tier and got OOM-killed/restarted mid-encode
+  // before finishing. 720p@15fps + ultrafast preset cuts pixel count ~65%
+  // and frame count ~40%, bringing this back into free-tier territory.
+  const LS_WIDTH  = 1280;
+  const LS_HEIGHT = 720;
+  const LS_FPS    = 15;
   const LS_SLIDE  = 5;   // seconds per image
   const LS_FADE   = 0.6;
   const LS_FRAMES = LS_SLIDE * LS_FPS;
@@ -355,7 +363,7 @@ async function createLandscapeVideo(imageUrls, caption = '') {
       : `if(lte(on\\,1)\\,1.08\\,max(zoom-0.0008\\,1.0))`;
     filters.push(
       `[${i}:v]` +
-      `scale=${LS_WIDTH * 2}:${LS_HEIGHT * 2}:force_original_aspect_ratio=increase,` +
+      `scale=${Math.round(LS_WIDTH * 1.3)}:${Math.round(LS_HEIGHT * 1.3)}:force_original_aspect_ratio=increase,` +
       `crop=${LS_WIDTH}:${LS_HEIGHT},setsar=1,` +
       `zoompan=z='${zExpr}':d=${LS_FRAMES}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${LS_WIDTH}x${LS_HEIGHT}:fps=${LS_FPS},` +
       `setpts=PTS-STARTPTS[z${i}]`
@@ -409,8 +417,8 @@ async function createLandscapeVideo(imageUrls, caption = '') {
       .outputOptions([
         '-map [out]',
         '-c:v libx264',
-        '-preset fast',
-        '-crf 22',
+        '-preset ultrafast',
+        '-crf 26',
         `-t ${totalDur}`,
         '-pix_fmt yuv420p',
         '-movflags +faststart',
