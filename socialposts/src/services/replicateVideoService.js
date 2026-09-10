@@ -34,35 +34,44 @@ async function generateAnimatedVideo(imageUrl) {
     return null;
   }
 
-  const replicate = new Replicate({ auth: apiToken });
+  try {
+    const replicate = new Replicate({ auth: apiToken });
 
-  console.log('[Replicate] 🎬 Generating animated video from image…');
+    console.log('[Replicate] 🎬 Generating animated video from image…');
 
-  const output = await replicate.run(SVD_MODEL, {
-    input: {
-      input_image:        imageUrl,
-      video_length:       '25_frames_with_svd_xt', // ~4 seconds
-      sizing_strategy:    'crop_to_16_9',           // landscape, safe for all platforms
-      frames_per_second:  6,
-      motion_bucket_id:   40,  // moderate, natural-looking motion
-      cond_aug:           0.02,
-    },
-  });
+    const output = await replicate.run(SVD_MODEL, {
+      input: {
+        input_image:        imageUrl,
+        video_length:       '25_frames_with_svd_xt', // ~4 seconds
+        sizing_strategy:    'crop_to_16_9',           // landscape, safe for all platforms
+        frames_per_second:  6,
+        motion_bucket_id:   40,  // moderate, natural-looking motion
+        cond_aug:           0.02,
+      },
+    });
 
-  const videoUrl = Array.isArray(output) ? output[0] : String(output);
-  if (!videoUrl) throw new Error('Replicate returned empty output');
+    const videoUrl = Array.isArray(output) ? output[0] : String(output);
+    if (!videoUrl) throw new Error('Replicate returned empty output');
 
-  console.log(`[Replicate] ✅ Video URL: ${videoUrl}`);
+    console.log(`[Replicate] ✅ Video URL: ${videoUrl}`);
 
-  // Download to a temp file so platform publishers can do binary uploads
-  const tmpDir    = fs.mkdtempSync(path.join(os.tmpdir(), 'agro-svd-'));
-  const localPath = path.join(tmpDir, 'post.mp4');
+    // Download to a temp file so platform publishers can do binary uploads
+    const tmpDir    = fs.mkdtempSync(path.join(os.tmpdir(), 'agro-svd-'));
+    const localPath = path.join(tmpDir, 'post.mp4');
 
-  const dlRes = await axios.get(videoUrl, { responseType: 'arraybuffer', timeout: 90000 });
-  fs.writeFileSync(localPath, Buffer.from(dlRes.data));
-  console.log(`[Replicate] ⬇ Downloaded to ${localPath} (${Math.round(dlRes.data.byteLength / 1024)} KB)`);
+    const dlRes = await axios.get(videoUrl, { responseType: 'arraybuffer', timeout: 90000 });
+    fs.writeFileSync(localPath, Buffer.from(dlRes.data));
+    console.log(`[Replicate] ⬇ Downloaded to ${localPath} (${Math.round(dlRes.data.byteLength / 1024)} KB)`);
 
-  return { localPath, publicUrl: videoUrl };
+    return { localPath, publicUrl: videoUrl };
+  } catch (err) {
+    // Any Replicate failure (insufficient credit, model error, network issue,
+    // download failure) falls back to the local ffmpeg slideshow instead of
+    // crashing the whole batch — matches this function's documented contract.
+    const detail = err.response?.data?.detail || err.message;
+    console.warn(`[Replicate] ⚠ Video generation failed, falling back to ffmpeg: ${detail}`);
+    return null;
+  }
 }
 
 module.exports = { generateAnimatedVideo };
