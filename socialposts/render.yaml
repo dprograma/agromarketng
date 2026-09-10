@@ -1,13 +1,11 @@
 services:
   - type: web
     name: agromarket-socialposts
-    env: node
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     plan: free
-    buildCommand: npm install --build-from-source
-    startCommand: node server.js
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: APP_PORT
-        value: 10000
