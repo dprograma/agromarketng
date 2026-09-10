@@ -11,14 +11,31 @@
  *  - 9:16 portrait format (1080x1920) at 25fps
  */
 
-const fs     = require('fs');
-const os     = require('os');
-const path   = require('path');
-const axios  = require('axios');
-const ffmpeg = require('fluent-ffmpeg');
+const fs      = require('fs');
+const os      = require('os');
+const path    = require('path');
+const axios   = require('axios');
+const ffmpeg  = require('fluent-ffmpeg');
+const { execSync } = require('child_process');
 
 const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
-ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+
+/**
+ * @ffmpeg-installer/ffmpeg bundles a static binary from 2018 that predates
+ * filters like `xfade` (added in ffmpeg 4.3, mid-2020) — used below for
+ * slide transitions. Prefer a system-installed ffmpeg (see Dockerfile,
+ * `apk add ffmpeg`) when available; fall back to the bundled binary
+ * otherwise (e.g. local dev machines without ffmpeg installed).
+ */
+function resolveFfmpegPath() {
+  try {
+    const systemPath = execSync('which ffmpeg', { encoding: 'utf8' }).trim();
+    if (systemPath) return systemPath;
+  } catch (_) { /* system ffmpeg not found — fall back below */ }
+  return ffmpegInstaller.path;
+}
+
+ffmpeg.setFfmpegPath(resolveFfmpegPath());
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -287,7 +304,134 @@ async function createSlideshowVideo(imageUrls, caption = '') {
   return outputPath;
 }
 
-/** Remove temp directory after TikTok upload */
+/**
+ * Create a landscape (16:9) video for Facebook / LinkedIn / Twitter.
+ * Same Ken Burns zoom+pan and text overlay as the TikTok portrait, but
+ * adapted to 1920×1080 with a shorter caption overlay.
+ *
+ * @param {string[]} imageUrls  – 1–3 image URLs
+ * @param {string}   caption    – Post caption (used for bottom overlay text)
+ * @returns {Promise<string>}   – Absolute path to generated .mp4
+ */
+async function createLandscapeVideo(imageUrls, caption = '') {
+  const LS_WIDTH  = 1920;
+  const LS_HEIGHT = 1080;
+  const LS_FPS    = 25;
+  const LS_SLIDE  = 5;   // seconds per image
+  const LS_FADE   = 0.6;
+  const LS_FRAMES = LS_SLIDE * LS_FPS;
+
+  const tmpDir   = fs.mkdtempSync(path.join(os.tmpdir(), 'agro-ls-'));
+  const imgPaths = [];
+  const font     = findFont();
+  const fontArg  = font ? `:fontfile=${font}` : '';
+
+  console.log(`[Video] 🎬 Creating landscape video (${imageUrls.length} slides)`);
+
+  for (let i = 0; i < imageUrls.length; i++) {
+    const dest = path.join(tmpDir, `img${i}.jpg`);
+    try {
+      const res = await axios.get(imageUrls[i], { responseType: 'arraybuffer', timeout: 15000 });
+      fs.writeFileSync(dest, Buffer.from(res.data));
+      imgPaths.push(dest);
+    } catch (e) {
+      console.warn(`[Video] ⚠ Image ${i} download failed:`, e.message);
+    }
+  }
+
+  if (imgPaths.length === 0) throw new Error('No images could be downloaded for landscape video');
+
+  const n          = imgPaths.length;
+  const totalDur   = n * LS_SLIDE;
+  const outputPath = path.join(tmpDir, 'landscape.mp4');
+
+  const filters = [];
+
+  // Ken Burns per slide
+  imgPaths.forEach((_, i) => {
+    const zoomIn = i % 2 === 0;
+    const zExpr  = zoomIn
+      ? `min(zoom+0.0008,1.08)`
+      : `if(lte(on\\,1)\\,1.08\\,max(zoom-0.0008\\,1.0))`;
+    filters.push(
+      `[${i}:v]` +
+      `scale=${LS_WIDTH * 2}:${LS_HEIGHT * 2}:force_original_aspect_ratio=increase,` +
+      `crop=${LS_WIDTH}:${LS_HEIGHT},setsar=1,` +
+      `zoompan=z='${zExpr}':d=${LS_FRAMES}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${LS_WIDTH}x${LS_HEIGHT}:fps=${LS_FPS},` +
+      `setpts=PTS-STARTPTS[z${i}]`
+    );
+  });
+
+  // xfade chain
+  if (n === 1) {
+    filters.push(`[z0]copy[base]`);
+  } else {
+    let prev = '[z0]';
+    for (let i = 1; i < n; i++) {
+      const offset   = i * LS_SLIDE - LS_FADE;
+      const outLabel = i === n - 1 ? '[base]' : `[xf${i}]`;
+      filters.push(`${prev}[z${i}]xfade=transition=fade:duration=${LS_FADE}:offset=${offset}${outLabel}`);
+      prev = `[xf${i}]`;
+    }
+  }
+
+  // Dark gradient overlay at bottom 25%
+  filters.push(
+    `[base]drawbox=x=0:y=ih*0.75:w=iw:h=ih*0.25:color=0x000000@0.6:t=fill[ov]`
+  );
+
+  // Brand watermark — bottom-left
+  const brandText = esc(process.env.SITE_NAME || 'AgroMarket Nigeria');
+  filters.push(
+    `[ov]drawtext=text='${brandText}'${fontArg}:` +
+    `fontsize=36:fontcolor=white:` +
+    `x=40:y=${LS_HEIGHT - 70}:` +
+    `alpha='if(lt(t\\,0.5)\\,t/0.5\\,1)'[wm]`
+  );
+
+  // Site URL — bottom-right
+  const siteUrl = esc(process.env.SITE_URL || 'www.agromarketng.com');
+  filters.push(
+    `[wm]drawtext=text='${siteUrl}'${fontArg}:` +
+    `fontsize=28:fontcolor=0xCCCCCC:` +
+    `x=w-text_w-40:y=${LS_HEIGHT - 42}:` +
+    `alpha='if(lt(t\\,0.8)\\,0\\,if(lt(t\\,1.1)\\,(t-0.8)/0.3\\,0.85))'[out]`
+  );
+
+  const filterComplex = filters.join('; ');
+
+  await new Promise((resolve, reject) => {
+    let cmd = ffmpeg();
+    imgPaths.forEach(p => cmd = cmd.input(p).inputOptions(['-loop 1', `-t ${LS_SLIDE + LS_FADE}`]));
+
+    cmd
+      .complexFilter(filterComplex)
+      .outputOptions([
+        '-map [out]',
+        '-c:v libx264',
+        '-preset fast',
+        '-crf 22',
+        `-t ${totalDur}`,
+        '-pix_fmt yuv420p',
+        '-movflags +faststart',
+        `-r ${LS_FPS}`,
+      ])
+      .output(outputPath)
+      .on('start', () => console.log('[Video] ⚙ Landscape FFmpeg encoding started…'))
+      .on('progress', p => { if (p.percent) process.stdout.write(`\r[Video] ⏳ ${Math.round(p.percent)}%`); })
+      .on('end', () => { process.stdout.write('\n'); console.log(`[Video] ✅ Landscape video ready: ${outputPath}`); resolve(outputPath); })
+      .on('error', (err, _stdout, stderr) => {
+        console.error('[Video] ❌ FFmpeg error:', err.message);
+        if (stderr) console.error('[Video] stderr:', stderr.slice(-400));
+        reject(err);
+      })
+      .run();
+  });
+
+  return outputPath;
+}
+
+/** Remove temp directory after upload */
 function cleanupVideo(videoPath) {
   try {
     fs.rmSync(path.dirname(videoPath), { recursive: true, force: true });
@@ -297,4 +441,4 @@ function cleanupVideo(videoPath) {
   }
 }
 
-module.exports = { createSlideshowVideo, cleanupVideo };
+module.exports = { createSlideshowVideo, createLandscapeVideo, cleanupVideo };

@@ -80,7 +80,7 @@ function dbAccount(platform) {
 
 router.get('/status', (req, res) => {
   const status = {
-    groq: !!process.env.GROQ_API_KEY,
+    gemini: !!process.env.GEMINI_API_KEY,
     unsplash: !!process.env.UNSPLASH_ACCESS_KEY,
     pexels: !!process.env.PEXELS_API_KEY,
     email: !!(process.env.SMTP_USER && process.env.SMTP_PASS && process.env.APPROVAL_EMAIL),
