@@ -1,15 +1,19 @@
 /**
- * claudeService.js — powered by Groq (free tier, no billing required)
- * Model: llama-3.3-70b-versatile — top quality, 14,400 req/day free
+ * claudeService.js — powered by Groq
+ * Model: openai/gpt-oss-120b — Meta Llama models on Groq now require an
+ * Enterprise plan; GPT-OSS models are usable on standard accounts.
  * Fallback env var GROQ_MODEL lets you swap model without redeploying.
+ * Current model list: https://console.groq.com/docs/models
  */
 
 const axios = require('axios');
 const siteConfig = require('./siteConfigService');
 
-// Free tier: 14,400 req/day, 30 RPM, 6000 tokens/min
-// Models: llama-3.3-70b-versatile | llama-3.1-8b-instant | mixtral-8x7b-32768
-const GROQ_MODEL   = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+// Pricing (per 1M tokens) as of the models page above — cost per generation
+// call is negligible at our volume (~1500-2500 output tokens per call):
+//   openai/gpt-oss-120b — $0.15 in / $0.60 out, 500 t/s, best quality
+//   openai/gpt-oss-20b  — $0.075 in / $0.30 out, 1000 t/s, faster/cheaper
+const GROQ_MODEL   = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 // Minimum gap between calls — keeps us safely under 30 RPM free limit
