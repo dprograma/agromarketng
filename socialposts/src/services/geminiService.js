@@ -1,23 +1,23 @@
 /**
- * claudeService.js — powered by Groq
- * Model: openai/gpt-oss-120b — Meta Llama models on Groq now require an
- * Enterprise plan; GPT-OSS models are usable on standard accounts.
- * Fallback env var GROQ_MODEL lets you swap model without redeploying.
- * Current model list: https://console.groq.com/docs/models
+ * geminiService.js — powered by Google Gemini (genuinely free tier)
+ * Get a free API key at https://aistudio.google.com/apikey — no billing
+ * required. Verify current free-tier limits and model names there, since
+ * they can change; GEMINI_MODEL env var lets you swap without a code change.
  */
 
-const axios = require('axios');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const siteConfig = require('./siteConfigService');
 
-// Pricing (per 1M tokens) as of the models page above — cost per generation
-// call is negligible at our volume (~1500-2500 output tokens per call):
-//   openai/gpt-oss-120b — $0.15 in / $0.60 out, 500 t/s, best quality
-//   openai/gpt-oss-20b  — $0.075 in / $0.30 out, 1000 t/s, faster/cheaper
-const GROQ_MODEL   = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
-// Minimum gap between calls — keeps us safely under 30 RPM free limit
-const CALL_INTERVAL_MS = 6000;
+let genAI;
+function getClient() {
+  if (!genAI) genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+  return genAI;
+}
+
+// Minimum gap between calls — stays well under free-tier per-minute limits
+const CALL_INTERVAL_MS = 4000;
 let lastCallAt = 0;
 
 function sleep(ms) {
@@ -25,50 +25,41 @@ function sleep(ms) {
 }
 
 /**
- * Call Groq API with automatic throttling and retry on 429.
+ * Call Gemini with automatic throttling and retry on rate limits.
  */
 async function generateWithRetry(prompt, attempt = 1) {
-  // Throttle: enforce minimum gap between calls
   const elapsed = Date.now() - lastCallAt;
   if (elapsed < CALL_INTERVAL_MS) {
     const wait = CALL_INTERVAL_MS - elapsed;
-    console.log(`[Groq] Throttling: waiting ${(wait / 1000).toFixed(1)}s…`);
+    console.log(`[Gemini] Throttling: waiting ${(wait / 1000).toFixed(1)}s…`);
     await sleep(wait);
   }
-
-  const apiKey = process.env.GROQ_API_KEY || '';
   lastCallAt = Date.now();
 
   try {
-    const response = await axios.post(GROQ_API_URL, {
-      model: GROQ_MODEL,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.9,
-      max_tokens: 2048,
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
+    const model = getClient().getGenerativeModel({
+      model: GEMINI_MODEL,
+      generationConfig: {
+        temperature:      0.9,
+        maxOutputTokens:  4096,
+        responseMimeType: 'application/json',
       },
-      timeout: 60000,
     });
 
-    const text = response.data?.choices?.[0]?.message?.content;
-    if (!text) throw new Error('Groq returned empty response');
+    const result = await model.generateContent(prompt);
+    const text   = result.response.text();
+    if (!text) throw new Error('Gemini returned empty response');
     return text;
   } catch (err) {
-    const status = err.response?.status;
-    const is429 = status === 429;
+    const status = err.status || err.response?.status;
+    const is429  = status === 429 || /rate.?limit|quota/i.test(err.message || '');
     if (is429 && attempt < 4) {
-      // Respect Retry-After header if present, else back off exponentially
-      const retryAfter = parseInt(err.response?.headers?.['retry-after'] || '0', 10);
-      const waitSec = retryAfter > 0 ? retryAfter + 1 : attempt * 15;
-      console.warn(`[Groq] Rate limited. Retrying in ${waitSec}s (attempt ${attempt}/3)…`);
+      const waitSec = attempt * 15;
+      console.warn(`[Gemini] Rate limited. Retrying in ${waitSec}s (attempt ${attempt}/3)…`);
       await sleep(waitSec * 1000);
       return generateWithRetry(prompt, attempt + 1);
     }
-    const errMsg = err.response?.data?.error?.message || err.message;
-    throw new Error(`[Groq] ${status || ''} ${errMsg}`);
+    throw new Error(`[Gemini] ${status || ''} ${err.message}`);
   }
 }
 
@@ -163,7 +154,7 @@ function pickRandomTheme(excludeTheme = null) {
 // ─── Core generation ──────────────────────────────────────────────────────────
 
 /**
- * Generate posts for all 5 platforms in a single Groq call.
+ * Generate posts for all 5 platforms in a single Gemini call.
  */
 async function generateAllPosts(overrideTheme = null) {
   const timeOfDay = new Date().getHours() < 12 ? 'morning' : 'afternoon';
@@ -199,7 +190,7 @@ ${Object.entries(PLATFORM_SPECS).map(([, v]) => `\n[${v.name}]\n${v.instructions
 `;
 
   const text = await generateWithRetry(`${systemPrompt}\n\n${userPrompt}`);
-  return parseGroqJSON(text);
+  return parseModelJSON(text);
 }
 
 /**
@@ -235,7 +226,7 @@ Return ONLY a JSON object (no markdown fences):
 }`;
 
   const text = await generateWithRetry(`${systemPrompt}\n\n${userPrompt}`);
-  return parseGroqJSON(text);
+  return parseModelJSON(text);
 }
 
 /**
@@ -260,7 +251,7 @@ Return ONLY a JSON object:
 }`;
 
   const text = await generateWithRetry(`${systemPrompt}\n\n${prompt}`);
-  return parseGroqJSON(text);
+  return parseModelJSON(text);
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -289,7 +280,7 @@ function sanitizeJSONControlChars(str) {
   return out;
 }
 
-function parseGroqJSON(raw) {
+function parseModelJSON(raw) {
   const text = raw.trim()
     .replace(/^```json\s*/i, '')
     .replace(/^```\s*/i, '')
@@ -303,8 +294,8 @@ function parseGroqJSON(raw) {
   try {
     return JSON.parse(sanitizeJSONControlChars(text));
   } catch (err) {
-    console.error('[Groq] Raw response:', raw);
-    throw new Error('Groq returned malformed JSON: ' + err.message);
+    console.error('[Gemini] Raw response:', raw);
+    throw new Error('Gemini returned malformed JSON: ' + err.message);
   }
 }
 
