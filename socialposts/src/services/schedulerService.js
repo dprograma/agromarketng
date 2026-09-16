@@ -95,18 +95,23 @@ async function runPostGeneration(scheduleLabel = 'manual', themeOverride = null)
     // Used by Facebook, Instagram Reels, LinkedIn, Twitter. TikTok generates
     // its own portrait video internally in socialMediaService.
     let sharedVideo = null;
-    const firstImageUrl = Object.values(images).find(img => img?.url)?.url;
+    const allImageUrls  = [...new Set(Object.values(images).map(img => img?.url).filter(Boolean))];
+    const firstImageUrl = allImageUrls[0];
     if (firstImageUrl) {
       broadcast('generation_progress', { step: 'generating_video', batchId });
       try {
-        // Try Replicate AI animation first (needs REPLICATE_API_TOKEN)
+        // Try Replicate AI animation first (needs REPLICATE_API_TOKEN) —
+        // animates a single image, so only the first is used here
         sharedVideo = await generateAnimatedVideo(firstImageUrl);
 
         if (!sharedVideo) {
-          // Fallback: local ffmpeg landscape video
+          // Fallback: local ffmpeg slideshow — uses every distinct image
+          // already fetched per platform (up to 4) for real crossfade
+          // transitions, instead of a single static image with no slideshow
           console.log('[Scheduler] ⚙ Using ffmpeg landscape video as fallback…');
           const sampleCaption = Object.values(generatedPosts)?.[0]?.content || '';
-          const videoPath = await createLandscapeVideo([firstImageUrl], sampleCaption);
+          const slideImages = allImageUrls.slice(0, 4);
+          const videoPath = await createLandscapeVideo(slideImages, sampleCaption);
           sharedVideo = { localPath: videoPath, publicUrl: null };
         }
         console.log(`[Scheduler] 🎬 Video ready — ${sharedVideo.publicUrl ? 'Replicate (AI animated)' : 'ffmpeg landscape'}`);
