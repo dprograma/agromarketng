@@ -52,10 +52,16 @@ async function generateWithRetry(prompt, attempt = 1) {
     return text;
   } catch (err) {
     const status = err.status || err.response?.status;
-    const is429  = status === 429 || /rate.?limit|quota/i.test(err.message || '');
-    if (is429 && attempt < 4) {
+    // Retry on rate limits (429) and transient server overload (503) —
+    // both are explicitly temporary per Gemini's own error messages.
+    // A prior bug only retried on 429, so 503s (seen in production —
+    // "currently experiencing high demand") failed the whole batch
+    // immediately instead of getting a second chance.
+    const isRetryable = status === 429 || status === 503 ||
+      /rate.?limit|quota|high demand|service unavailable|overloaded/i.test(err.message || '');
+    if (isRetryable && attempt < 4) {
       const waitSec = attempt * 15;
-      console.warn(`[Gemini] Rate limited. Retrying in ${waitSec}s (attempt ${attempt}/3)…`);
+      console.warn(`[Gemini] ${status || 'Transient error'}. Retrying in ${waitSec}s (attempt ${attempt}/3)…`);
       await sleep(waitSec * 1000);
       return generateWithRetry(prompt, attempt + 1);
     }
