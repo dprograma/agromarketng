@@ -12,6 +12,10 @@ function getTransporter() {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
+      // Force IPv4 — Render (and some other hosts) resolve smtp.gmail.com's
+      // AAAA record and attempt IPv6 first, which fails with ENETUNREACH
+      // since there's no outbound IPv6 route. IPv4 always works.
+      family: 4,
     });
   }
   return transporter;
