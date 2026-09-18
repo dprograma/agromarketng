@@ -9,6 +9,7 @@ const { publishBatch }               = require('./socialMediaService');
 const { broadcast }                  = require('./sseService');
 const { generateAnimatedVideo }      = require('./replicateVideoService');
 const { createLandscapeVideo, cleanupVideo } = require('./videoService');
+const { hostVideo, unhostVideo }     = require('./mediaHostService');
 
 const SITE_URL = process.env.SITE_URL || 'https://www.agromarketng.com';
 
@@ -104,7 +105,9 @@ async function runPostGeneration(scheduleLabel = 'manual', themeOverride = null)
         // animates a single image, so only the first is used here
         sharedVideo = await generateAnimatedVideo(firstImageUrl);
 
-        if (!sharedVideo) {
+        if (sharedVideo) {
+          sharedVideo.source = 'replicate';
+        } else {
           // Fallback: local ffmpeg slideshow — uses every distinct image
           // already fetched per platform (up to 4) for real crossfade
           // transitions, instead of a single static image with no slideshow
@@ -112,9 +115,12 @@ async function runPostGeneration(scheduleLabel = 'manual', themeOverride = null)
           const sampleCaption = Object.values(generatedPosts)?.[0]?.content || '';
           const slideImages = allImageUrls.slice(0, 4);
           const videoPath = await createLandscapeVideo(slideImages, sampleCaption);
-          sharedVideo = { localPath: videoPath, publicUrl: null };
+          // Host it over a public URL so Instagram's video_url-based Reels
+          // flow works even without Replicate — same code path Replicate uses
+          const { publicUrl, filename } = hostVideo(videoPath);
+          sharedVideo = { localPath: videoPath, publicUrl, hostedFilename: filename, source: 'ffmpeg' };
         }
-        console.log(`[Scheduler] 🎬 Video ready — ${sharedVideo.publicUrl ? 'Replicate (AI animated)' : 'ffmpeg landscape'}`);
+        console.log(`[Scheduler] 🎬 Video ready — ${sharedVideo.source === 'replicate' ? 'Replicate (AI animated)' : 'ffmpeg landscape (self-hosted)'}`);
       } catch (videoErr) {
         console.warn('[Scheduler] ⚠ Video generation failed, posts will use images:', videoErr.message);
       }
@@ -194,9 +200,12 @@ async function runPostGeneration(scheduleLabel = 'manual', themeOverride = null)
     const succeeded = publishResults.filter(r => r.status === 'posted').length;
     const failed    = publishResults.filter(r => r.status === 'failed').length;
 
-    // Cleanup shared video temp file
+    // Cleanup shared video temp file (and its public hosting, if any)
     if (sharedVideo?.localPath) {
       try { cleanupVideo(sharedVideo.localPath); } catch (_) {}
+    }
+    if (sharedVideo?.hostedFilename) {
+      unhostVideo(sharedVideo.hostedFilename);
     }
 
     db.prepare(`UPDATE post_batches SET status = 'sent', sent_at = datetime('now') WHERE id = ?`).run(batchId);
