@@ -129,7 +129,7 @@ const Navbar = () => {
                     <MenuItems className="absolute right-0 mt-2 w-48 bg-white shadow-lg ring-1 ring-black ring-opacity-5">
                       <MenuItem>
                         {({ active }) => (
-                          <Link href="/dashboard" className={`flex px-4 py-2 text-sm text-gray-500 ${active ? "bg-gray-100" : ""}`}>
+                          <Link href={session?.role === "admin" ? "/admin/dashboard" : session?.role === "agent" ? "/agent/dashboard" : "/dashboard"} className={`flex px-4 py-2 text-sm text-gray-500 ${active ? "bg-gray-100" : ""}`}>
                             <Squares2X2Icon className="h-5 w-5 mr-2" />
                             Dashboard
                           </Link>
