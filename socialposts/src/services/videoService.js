@@ -2,10 +2,12 @@
  * videoService.js — Creates professional slideshow videos for TikTok
  *
  * Features:
- *  - Ken Burns zoom/pan effect (alternating per slide)
- *  - Smooth xfade crossfade transitions between slides
+ *  - Stronger Ken Burns zoom/pan with directional variety per slide
+ *  - Rotating xfade transition styles (not just plain fade) for energy
+ *  - Color grading (contrast/saturation boost + vignette) for a produced look
+ *  - Smooth crossfade transitions between slides
  *  - Semi-transparent gradient overlay for text readability
- *  - Animated caption text (fade-in per line)
+ *  - Animated caption text (slide-up + fade-in per line)
  *  - Hashtag row at bottom
  *  - AgroMarket brand watermark at top
  *  - 9:16 portrait format (1080x1920) at 25fps
@@ -41,12 +43,23 @@ ffmpeg.setFfmpegPath(resolveFfmpegPath());
 
 // Kept deliberately light for free-tier hosts (Render/Railway) — see the
 // identical note on createLandscapeVideo's constants below for why.
-const SLIDE_DURATION = 5;      // seconds per image
-const FADE_DURATION  = 0.8;    // xfade crossfade duration (seconds)
+// Slightly shorter slides than before (4s not 5s) for snappier, more
+// energetic pacing — this is also a small performance win (fewer total
+// frames), not a cost, since fewer seconds at the same fps means less work.
+const SLIDE_DURATION = 4;      // seconds per image
+const FADE_DURATION  = 0.7;    // xfade crossfade duration (seconds)
 const VIDEO_WIDTH    = 720;
 const VIDEO_HEIGHT   = 1280;   // 9:16 portrait
 const FPS            = 15;
 const FRAMES         = SLIDE_DURATION * FPS; // frames per slide
+
+// Rotating set of xfade transitions — cycling through these instead of always
+// "fade" makes the slideshow feel like an edited video rather than a static
+// PowerPoint. All lightweight, well-established ffmpeg xfade transitions.
+const TRANSITIONS = ['fade', 'wiperight', 'slideleft', 'circleopen', 'smoothleft', 'radial'];
+function pickTransition(i) {
+  return TRANSITIONS[i % TRANSITIONS.length];
+}
 
 // Try common Linux/macOS font paths
 const FONT_CANDIDATES = [
@@ -156,16 +169,19 @@ async function createSlideshowVideo(imageUrls, caption = '') {
   // ── 3. Build FFmpeg filter complex ────────────────────────────────────────
   const filters = [];
 
-  // Per-slide: scale → crop → Ken Burns zoompan → setpts
+  // Per-slide: scale → crop → Ken Burns zoompan → color grade → setpts
   imgPaths.forEach((_, i) => {
     const zoomIn = i % 2 === 0;
-    // Alternate: even slides zoom in from center, odd slides zoom out
+    // Stronger zoom range (20% vs previous 12%) for more noticeable motion.
+    // Even slides zoom in from center, odd slides zoom out.
     const zExpr = zoomIn
-      ? `min(zoom+0.0012,1.12)`
-      : `if(lte(on\\,1)\\,1.12\\,max(zoom-0.0012\\,1.0))`;
-    // Pan direction alternates for visual variety
-    const xExpr = i % 4 < 2 ? `iw/2-(iw/zoom/2)` : `iw/4-(iw/zoom/4)`;
-    const yExpr = i % 3 === 0 ? `ih/2-(ih/zoom/2)` : `ih/3-(ih/zoom/3)`;
+      ? `min(zoom+0.0033,1.20)`
+      : `if(lte(on\\,1)\\,1.20\\,max(zoom-0.0033\\,1.0))`;
+    // Pan direction rotates through 4 corners for more visual variety than
+    // a simple alternation
+    const panSet = i % 4;
+    const xExpr = panSet < 2 ? `iw/2-(iw/zoom/2)` : (panSet === 2 ? `iw/6-(iw/zoom/6)` : `iw*5/6-(iw/zoom/2)`);
+    const yExpr = i % 3 === 0 ? `ih/2-(ih/zoom/2)` : (i % 3 === 1 ? `ih/6-(ih/zoom/6)` : `ih*5/6-(ih/zoom/2)`);
 
     filters.push(
       `[${i}:v]` +
@@ -173,12 +189,18 @@ async function createSlideshowVideo(imageUrls, caption = '') {
       `crop=${VIDEO_WIDTH}:${VIDEO_HEIGHT},` +
       `setsar=1,` +
       `zoompan=z='${zExpr}':d=${FRAMES}:x='${xExpr}':y='${yExpr}':s=${VIDEO_WIDTH}x${VIDEO_HEIGHT}:fps=${FPS},` +
+      // Color grade: punchier contrast/saturation than a flat source photo,
+      // plus a subtle vignette to draw the eye toward center — both are
+      // cheap per-pixel filters, negligible CPU cost added
+      `eq=contrast=1.08:saturation=1.3:brightness=0.02,` +
+      `vignette=PI/5,` +
       `setpts=PTS-STARTPTS` +
       `[z${i}]`
     );
   });
 
-  // xfade chain between slides
+  // xfade chain between slides — rotating transition styles instead of
+  // always plain fade, so it reads as an edited video, not a slideshow
   if (n === 1) {
     filters.push(`[z0]copy[base]`);
   } else {
@@ -186,7 +208,7 @@ async function createSlideshowVideo(imageUrls, caption = '') {
     for (let i = 1; i < n; i++) {
       const offset   = (i * SLIDE_DURATION) - FADE_DURATION;
       const outLabel = i === n - 1 ? '[base]' : `[xf${i}]`;
-      filters.push(`${prev}[z${i}]xfade=transition=fade:duration=${FADE_DURATION}:offset=${offset}${outLabel}`);
+      filters.push(`${prev}[z${i}]xfade=transition=${pickTransition(i - 1)}:duration=${FADE_DURATION}:offset=${offset}${outLabel}`);
       prev = `[xf${i}]`;
     }
   }
@@ -204,7 +226,8 @@ async function createSlideshowVideo(imageUrls, caption = '') {
     filters.push(`${inputLabel}drawtext=${opts}${outLabel}`);
   };
 
-  // Brand watermark — top center
+  // Brand watermark — top center. Appears instantly (no fade delay) since
+  // this is the critical first-impression moment before someone scrolls past
   addText(
     current,
     '[wm]',
@@ -212,11 +235,12 @@ async function createSlideshowVideo(imageUrls, caption = '') {
     `fontsize=40:fontcolor=white:` +
     `box=1:boxcolor=0x22772288:boxborderw=18:` +
     `x=(w-text_w)/2:y=60:` +
-    `alpha='if(lt(t\\,0.5)\\,t/0.5\\,1)'`
+    `alpha=1`
   );
   current = '[wm]';
 
-  // Caption lines — stacked above hashtags
+  // Caption lines — stacked above hashtags, slide up + fade in together
+  // for a motion-graphics feel instead of a flat fade
   const lineH     = 62;
   const hashH     = 80; // space reserved for hashtags at bottom
   const blockH    = lines.length * lineH;
@@ -226,6 +250,7 @@ async function createSlideshowVideo(imageUrls, caption = '') {
     const y         = blockTop + i * lineH;
     const fadeStart = 0.4 + i * 0.18;
     const fadeEnd   = fadeStart + 0.35;
+    const dur       = (fadeEnd - fadeStart).toFixed(2);
     const outLabel  = `[cl${i}]`;
     addText(
       current,
@@ -233,8 +258,8 @@ async function createSlideshowVideo(imageUrls, caption = '') {
       `text='${esc(lineText)}'${fontArg}:` +
       `fontsize=52:fontcolor=white:` +
       `box=1:boxcolor=0x00000088:boxborderw=12:` +
-      `x=(w-text_w)/2:y=${y}:` +
-      `alpha='if(lt(t\\,${fadeStart})\\,0\\,if(lt(t\\,${fadeEnd})\\,(t-${fadeStart})/${(fadeEnd-fadeStart).toFixed(2)}\\,1))'`
+      `x=(w-text_w)/2:y=${y}+20*(1-clip((t-${fadeStart})/${dur}\\,0\\,1)):` +
+      `alpha='if(lt(t\\,${fadeStart})\\,0\\,if(lt(t\\,${fadeEnd})\\,(t-${fadeStart})/${dur}\\,1))'`
     );
     current = outLabel;
   });
@@ -325,7 +350,7 @@ async function createLandscapeVideo(imageUrls, caption = '') {
   const LS_WIDTH  = 1280;
   const LS_HEIGHT = 720;
   const LS_FPS    = 15;
-  const LS_SLIDE  = 5;   // seconds per image
+  const LS_SLIDE  = 4;   // seconds per image — matches TikTok's snappier pacing
   const LS_FADE   = 0.6;
   const LS_FRAMES = LS_SLIDE * LS_FPS;
 
@@ -355,22 +380,29 @@ async function createLandscapeVideo(imageUrls, caption = '') {
 
   const filters = [];
 
-  // Ken Burns per slide
+  // Ken Burns per slide — stronger zoom range (15%, up from 8%) plus
+  // directional pan variety (previously always centered, no drift at all)
   imgPaths.forEach((_, i) => {
     const zoomIn = i % 2 === 0;
     const zExpr  = zoomIn
-      ? `min(zoom+0.0008,1.08)`
-      : `if(lte(on\\,1)\\,1.08\\,max(zoom-0.0008\\,1.0))`;
+      ? `min(zoom+0.0025,1.15)`
+      : `if(lte(on\\,1)\\,1.15\\,max(zoom-0.0025\\,1.0))`;
+    const panSet = i % 4;
+    const xExpr  = panSet < 2 ? `iw/2-(iw/zoom/2)` : (panSet === 2 ? `iw/6-(iw/zoom/6)` : `iw*5/6-(iw/zoom/2)`);
+    const yExpr  = i % 2 === 0 ? `ih/2-(ih/zoom/2)` : `ih/3-(ih/zoom/3)`;
     filters.push(
       `[${i}:v]` +
       `scale=${Math.round(LS_WIDTH * 1.3)}:${Math.round(LS_HEIGHT * 1.3)}:force_original_aspect_ratio=increase,` +
       `crop=${LS_WIDTH}:${LS_HEIGHT},setsar=1,` +
-      `zoompan=z='${zExpr}':d=${LS_FRAMES}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${LS_WIDTH}x${LS_HEIGHT}:fps=${LS_FPS},` +
+      `zoompan=z='${zExpr}':d=${LS_FRAMES}:x='${xExpr}':y='${yExpr}':s=${LS_WIDTH}x${LS_HEIGHT}:fps=${LS_FPS},` +
+      // Color grade + vignette — same cheap per-pixel treatment as TikTok
+      `eq=contrast=1.08:saturation=1.3:brightness=0.02,` +
+      `vignette=PI/5,` +
       `setpts=PTS-STARTPTS[z${i}]`
     );
   });
 
-  // xfade chain
+  // xfade chain — rotating transition styles instead of always plain fade
   if (n === 1) {
     filters.push(`[z0]copy[base]`);
   } else {
@@ -378,7 +410,7 @@ async function createLandscapeVideo(imageUrls, caption = '') {
     for (let i = 1; i < n; i++) {
       const offset   = i * LS_SLIDE - LS_FADE;
       const outLabel = i === n - 1 ? '[base]' : `[xf${i}]`;
-      filters.push(`${prev}[z${i}]xfade=transition=fade:duration=${LS_FADE}:offset=${offset}${outLabel}`);
+      filters.push(`${prev}[z${i}]xfade=transition=${pickTransition(i - 1)}:duration=${LS_FADE}:offset=${offset}${outLabel}`);
       prev = `[xf${i}]`;
     }
   }
@@ -388,13 +420,13 @@ async function createLandscapeVideo(imageUrls, caption = '') {
     `[base]drawbox=x=0:y=ih*0.75:w=iw:h=ih*0.25:color=0x000000@0.6:t=fill[ov]`
   );
 
-  // Brand watermark — bottom-left
+  // Brand watermark — bottom-left, instant appear (first-impression moment)
   const brandText = esc(process.env.SITE_NAME || 'AgroMarket Nigeria');
   filters.push(
     `[ov]drawtext=text='${brandText}'${fontArg}:` +
     `fontsize=36:fontcolor=white:` +
     `x=40:y=${LS_HEIGHT - 70}:` +
-    `alpha='if(lt(t\\,0.5)\\,t/0.5\\,1)'[wm]`
+    `alpha=1[wm]`
   );
 
   // Site URL — bottom-right
