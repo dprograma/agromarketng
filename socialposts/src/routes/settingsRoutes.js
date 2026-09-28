@@ -75,20 +75,38 @@ router.delete('/accounts/:platform', (req, res) => {
 // ─── GET /api/settings/status — Health check of all credentials ───────────────
 
 function dbAccount(platform) {
-  return db.prepare(`SELECT access_token FROM social_accounts WHERE platform = ? AND is_active = 1`).get(platform);
+  return db.prepare(`SELECT access_token, account_id FROM social_accounts WHERE platform = ? AND is_active = 1`).get(platform);
 }
 
 router.get('/status', (req, res) => {
+  const fbAccount = dbAccount('facebook');
+  const igAccount = dbAccount('instagram');
+
+  // Mirror socialMediaService.js's actual requirements exactly — both an
+  // account/page ID AND a usable token, not just one or the other. A DB
+  // row with a NULL access_token (e.g. after a redeploy wiped stored OAuth
+  // tokens but left a stale row) previously counted as "configured" since
+  // the row object itself is truthy even when its token column isn't.
+  const fbToken  = fbAccount?.access_token || process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+  const fbPageId = fbAccount?.account_id   || process.env.FACEBOOK_PAGE_ID;
+  const fbReady  = !!(fbToken && fbPageId);
+
+  // Instagram can piggyback on Facebook's token (see postToInstagram),
+  // so either its own DB token or a working Facebook token counts.
+  const igToken     = igAccount?.access_token || fbAccount?.access_token || process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+  const igAccountId = igAccount?.account_id   || process.env.INSTAGRAM_ACCOUNT_ID;
+  const igReady      = !!(igToken && igAccountId);
+
   const status = {
     gemini: !!process.env.GEMINI_API_KEY,
     unsplash: !!process.env.UNSPLASH_ACCESS_KEY,
     pexels: !!process.env.PEXELS_API_KEY,
     email: !!(process.env.SMTP_USER && process.env.SMTP_PASS && process.env.APPROVAL_EMAIL),
-    facebook: !!(dbAccount('facebook') || (process.env.FACEBOOK_PAGE_ID && process.env.FACEBOOK_PAGE_ACCESS_TOKEN)),
-    instagram: !!(dbAccount('instagram') || process.env.INSTAGRAM_ACCOUNT_ID),
-    twitter: !!(dbAccount('twitter') || (process.env.TWITTER_API_KEY && process.env.TWITTER_ACCESS_TOKEN)),
-    linkedin: !!(dbAccount('linkedin') || process.env.LINKEDIN_ACCESS_TOKEN),
-    tiktok: !!(dbAccount('tiktok') || process.env.TIKTOK_ACCESS_TOKEN),
+    facebook: fbReady,
+    instagram: igReady,
+    twitter: !!(process.env.TWITTER_API_KEY && process.env.TWITTER_ACCESS_TOKEN),
+    linkedin: !!(dbAccount('linkedin')?.access_token || process.env.LINKEDIN_ACCESS_TOKEN),
+    tiktok: !!(dbAccount('tiktok')?.access_token || process.env.TIKTOK_ACCESS_TOKEN),
     siteConfig: !!(process.env.SITE_NAME && process.env.SITE_CONCEPT),
   };
   res.json({ ok: true, status });
